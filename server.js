@@ -35,14 +35,46 @@ connectToDB();
 
 app.get("/api/production-orders", async (req, res) => {
   try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const pageSize = 20;
+    const skip = (page - 1) * pageSize;
+
+    // Get total count
+    const countResult = await pool
+      .request()
+      .query("SELECT COUNT(*) as total FROM ProductionOrders");
+    const totalRecords = countResult.recordset[0].total;
+
+    // Get status counts
+    const statusCountResult = await pool.request().query(`
+        SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN Status = 1 THEN 1 ELSE 0 END) as inProgress,
+          SUM(CASE WHEN Status = 2 THEN 1 ELSE 0 END) as completed,
+          SUM(CASE WHEN Status = 0 THEN 1 ELSE 0 END) as failed
+        FROM ProductionOrders
+      `);
+    const statusCounts = statusCountResult.recordset[0];
+
+    // Get paginated data
     const result = await pool
       .request()
-      .query("SELECT TOP 1000 * FROM ProductionOrders ");
+      .query(
+        `SELECT * FROM ProductionOrders ORDER BY ProductionOrderId DESC OFFSET ${skip} ROWS FETCH NEXT ${pageSize} ROWS ONLY`
+      );
 
     res.json({
       success: true,
       message: "Success",
-      total: result.recordset.length,
+      total: totalRecords,
+      page: page,
+      pageSize: pageSize,
+      stats: {
+        total: statusCounts.total,
+        inProgress: statusCounts.inProgress || 0,
+        completed: statusCounts.completed || 0,
+        failed: statusCounts.failed || 0,
+      },
       data: result.recordset,
     });
   } catch (error) {

@@ -153,7 +153,7 @@
           <input type="text" placeholder="Tìm kiếm Lệnh SX, Mã sản phẩm..." />
         </div>
         <div class="view-controls">
-          <button class="view-btn active" title="Danh sách">
+          <button class="view-btn active" data-view="table" title="Danh sách">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
@@ -170,7 +170,7 @@
               <path d="M4 18l16 0" />
             </svg>
           </button>
-          <button class="view-btn" title="Lưới">
+          <button class="view-btn" data-view="grid" title="Lưới">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="20"
@@ -202,6 +202,37 @@
 
       <!-- Table Section -->
       <div class="table-section">
+        <!-- Pagination Controls -->
+        <div class="pagination-controls">
+          <button id="prevPageBtn" class="pagination-btn" onclick="prevPage()">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <span id="pageInfo" class="page-info">Trang 1 / 1</span>
+          <button id="nextPageBtn" class="pagination-btn" onclick="nextPage()">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+
         <table class="data-table">
           <thead>
             <tr>

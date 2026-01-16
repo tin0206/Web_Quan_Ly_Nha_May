@@ -3,6 +3,9 @@ import { ProductionOrder } from "./models/ProductionOrder.js";
 const API_ROUTE = "http://localhost:3000/api";
 
 let productionOrders = [];
+let currentPage = 1;
+let totalRecords = 0;
+let statsData = {};
 let currentEditingOrder = null;
 let currentDeleteRow = null;
 
@@ -56,7 +59,9 @@ function initializeEventListeners() {
       // Toggle between list and grid view
       if (index === 0) {
         // List view
-        tableSection.innerHTML = `
+        tableSection.innerHTML =
+          getPaginationHTML() +
+          `
           <table class="data-table">
             <thead>
               <tr>
@@ -77,6 +82,7 @@ function initializeEventListeners() {
             </tbody>
           </table>
         `;
+        updatePaginationControls();
         renderProductionTable();
       } else {
         // Grid view
@@ -269,7 +275,10 @@ function renderProgressBar(progress, progressStatus) {
 function renderGridView() {
   const tableSection = document.querySelector(".table-section");
 
-  tableSection.innerHTML = `
+  tableSection.innerHTML =
+    getPaginationHTML() +
+    `
+
     <div class="grid-container">
       ${productionOrders
         .map(
@@ -365,6 +374,9 @@ function renderGridView() {
         .join("")}
     </div>
   `;
+
+  // Re-attach event listeners
+  updatePaginationControls();
 
   // Attach event listeners for grid action buttons
   const gridActionBtns = document.querySelectorAll(".action-btn-grid-primary");
@@ -545,11 +557,35 @@ function initializeSearch() {
 }
 
 // Update stats cards based on productionOrders
+// Fetch all production orders for stats calculation
+async function fetchAllProductionOrdersForStats() {
+  try {
+    const response = await fetch(
+      `${API_ROUTE}/production-orders?page=1&limit=10000`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.data || [];
+    }
+  } catch (error) {
+    console.error("Error fetching all orders for stats:", error);
+  }
+  return [];
+}
+
 function updateStats() {
-  const totalPO = productionOrders.length;
-  const inProgress = productionOrders.filter((o) => o.Status === 1).length;
-  const completed = productionOrders.filter((o) => o.Status === 2).length;
-  const failed = productionOrders.filter((o) => o.Status === 0).length;
+  // Use stats from API response (all production orders)
+  const totalPO = statsData.total || totalRecords;
+  const inProgress = statsData.inProgress || 0;
+  const completed = statsData.completed || 0;
+  const failed = statsData.failed || 0;
 
   document.getElementById("kvsx-stat").textContent = totalPO;
   document.getElementById("total-po-stat").textContent = inProgress;
@@ -577,32 +613,32 @@ function animateStats() {
   });
 }
 
-// Initialize animations on page load
-window.addEventListener("load", () => {
-  // Uncomment to enable stats animation:
-  // animateStats();
-});
-
-// Export functions for testing
 window.searchFactory = {
   initializeEventListeners,
   initializeSearch,
   animateStats,
 };
 
-async function fetchProductionOrders() {
+async function fetchProductionOrders(page = 1) {
   try {
-    const response = await fetch(`${API_ROUTE}/production-orders`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const response = await fetch(
+      `${API_ROUTE}/production-orders?page=${page}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     if (response.ok) {
       const data = await response.json();
       productionOrders = data.data.map((po) => new ProductionOrder(po));
+      totalRecords = data.total;
+      currentPage = data.page;
+      statsData = data.stats || {}; // Store stats from API
       console.log("Fetched production orders:", productionOrders);
+      updatePaginationControls();
     } else {
       console.error("Failed to fetch production orders:", response.status);
       productionOrders = [];
@@ -612,6 +648,84 @@ async function fetchProductionOrders() {
     productionOrders = [];
   }
 }
+
+// Update pagination controls
+// Get pagination HTML
+function getPaginationHTML() {
+  return `
+    <!-- Pagination Controls -->
+    <div class="pagination-controls">
+      <button id="prevPageBtn" class="pagination-btn" onclick="prevPage()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+      <span id="pageInfo" class="page-info">Trang 1 / 1</span>
+      <button id="nextPageBtn" class="pagination-btn" onclick="nextPage()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+  `;
+}
+
+function updatePaginationControls() {
+  const pageSize = 20;
+  const totalPages = Math.ceil(totalRecords / pageSize);
+
+  const prevBtn = document.getElementById("prevPageBtn");
+  const nextBtn = document.getElementById("nextPageBtn");
+  const pageInfo = document.getElementById("pageInfo");
+
+  if (prevBtn) {
+    prevBtn.disabled = currentPage === 1;
+  }
+  if (nextBtn) {
+    nextBtn.disabled = currentPage >= totalPages;
+  }
+  if (pageInfo) {
+    pageInfo.textContent = `Trang ${currentPage} / ${totalPages}`;
+  }
+}
+
+// Go to previous page
+async function prevPage() {
+  if (currentPage > 1) {
+    await fetchProductionOrders(currentPage - 1);
+    updateStats();
+
+    // Check current view mode and render accordingly
+    const activeViewBtn = document.querySelector(".view-btn.active");
+    if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+      renderGridView();
+    } else {
+      renderProductionTable();
+    }
+  }
+}
+
+// Go to next page
+async function nextPage() {
+  const pageSize = 20;
+  const totalPages = Math.ceil(totalRecords / pageSize);
+  if (currentPage < totalPages) {
+    await fetchProductionOrders(currentPage + 1);
+    updateStats();
+
+    // Check current view mode and render accordingly
+    const activeViewBtn = document.querySelector(".view-btn.active");
+    if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+      renderGridView();
+    } else {
+      renderProductionTable();
+    }
+  }
+}
+
+// Expose to global scope for onclick handlers
+window.prevPage = prevPage;
+window.nextPage = nextPage;
 
 // Modal functions
 function openModal(modalId) {
