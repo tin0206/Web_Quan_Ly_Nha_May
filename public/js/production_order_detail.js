@@ -123,7 +123,7 @@ function activateTab(tabId) {
     document.getElementById("materialsPaginationControls").style.display =
       "none";
     document.getElementById("paginationControls").style.display = "flex";
-    loadBatches();
+    fetchBatches();
   } else if (tabId === "tab-materials") {
     batchesContent.style.display = "none";
     materialsContent.style.display = "block";
