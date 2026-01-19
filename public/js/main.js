@@ -6,7 +6,6 @@ let productionOrders = [];
 let currentPage = 1;
 let totalRecords = 0;
 let statsData = {};
-let currentEditingOrder = null;
 let currentDeleteRow = null;
 
 document.addEventListener("DOMContentLoaded", async function () {
@@ -204,65 +203,18 @@ function getProgressStatus(status) {
   }
 }
 
-// Get progress status text from ProgressStatus or Status
-function getProgressStatusForEdit(order) {
-  if (order.ProgressStatus) {
-    return order.ProgressStatus; // Use ProgressStatus if available
-  }
-  // Fallback: map Status numeric to ProgressStatus text
-  switch (order.Status) {
-    case 0:
-      return "cancelled"; // Error
-    case 1:
-      return "running"; // Đang chạy
-    case 2:
-      return "completing"; // Hoàn thành
-    case -1:
-      return "pending"; // Chờ xử lý
-    default:
-      return "pending";
-  }
-}
-
-// Convert ProgressStatus text to Status numeric
-function getStatusFromProgressStatus(progressStatus) {
-  switch (progressStatus) {
-    case "running":
-      return 1;
-    case "completing":
-      return 2;
-    case "cancelled":
-      return 0;
-    case "pending":
-      return -1;
-    default:
-      return 1;
-  }
-}
-
 // Render progress bar HTML
 function renderProgressBar(progress, progressStatus) {
-  const bgGradient =
-    progressStatus === "running"
-      ? "linear-gradient(90deg, #ffd89b 0%, #f9ab6e 100%)"
-      : progressStatus === "stop"
-      ? "linear-gradient(90deg, #e0e0e0 0%, #d0d0d0 100%)"
-      : progressStatus === "cancelled"
-      ? "linear-gradient(90deg, #f48080 0%, #e85555 100%)"
-      : progressStatus === "completing"
-      ? "linear-gradient(90deg, #6dd4b5 0%, #48a68a 100%)"
-      : "linear-gradient(90deg, #e0e0e0 0%, #d0d0d0 100%)"; // pending
-
   const progressGradient =
     progressStatus === "running"
       ? "linear-gradient(90deg, #ffa726 0%, #f57c00 100%)"
       : progressStatus === "stop"
-      ? "linear-gradient(90deg, #bdbdbd 0%, #9e9e9e 100%)"
-      : progressStatus === "cancelled"
-      ? "linear-gradient(90deg, #ef5350 0%, #d32f2f 100%)"
-      : progressStatus === "completing"
-      ? "linear-gradient(90deg, #26a69a 0%, #009688 100%)"
-      : "linear-gradient(90deg, #bdbdbd 0%, #9e9e9e 100%)"; // pending
+        ? "linear-gradient(90deg, #bdbdbd 0%, #9e9e9e 100%)"
+        : progressStatus === "cancelled"
+          ? "linear-gradient(90deg, #ef5350 0%, #d32f2f 100%)"
+          : progressStatus === "completing"
+            ? "linear-gradient(90deg, #26a69a 0%, #009688 100%)"
+            : "linear-gradient(90deg, #bdbdbd 0%, #9e9e9e 100%)"; // pending
 
   return `
     <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
@@ -286,14 +238,14 @@ function renderGridView() {
         <div class="grid-card">
           <div class="grid-card-top">
             <h3 title="${order.ProductionOrderNumber || ""}">${getTruncatedName(
-            order.ProductionOrderNumber || "",
-            30
-          )}</h3>
+              order.ProductionOrderNumber || "",
+              30,
+            )}</h3>
             <span class="status-badge status-${getStatusType(
-              order.Status
+              order.Status,
             )}">${getStatusIcon(getStatusType(order.Status))}${getStatusText(
-            order.Status
-          )}</span>
+              order.Status,
+            )}</span>
           </div>
           
           <div class="grid-card-body">
@@ -302,8 +254,8 @@ function renderGridView() {
                 order.ProductCode || "N/A"
               }</span></div>
               <div class="grid-value">${order.Quantity || 0} ${
-            order.UnitOfMeasurement || ""
-          }</div>
+                order.UnitOfMeasurement || ""
+              }</div>
             </div>
             
             <div class="grid-section">
@@ -354,12 +306,14 @@ function renderGridView() {
           <div class="grid-card-footer">
             <button class="action-btn-grid-primary">Xem Chi tiết</button>
             <div class="grid-card-actions">
-              <button class="action-edit-btn-grid" title="Chỉnh sửa">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
-                  <path d="M13.5 6.5l4 4" />
-                </svg>
-              </button>
+              <a href="/production-order/${order.ProductionOrderId}">
+                <button class="action-edit-btn-grid" title="Chỉnh sửa">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+                    <path d="M13.5 6.5l4 4" />
+                  </svg>
+                </button>
+              </a>
               <button class="action-delete-btn-grid" title="Xóa">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20 6a1 1 0 0 1 .117 1.993l-.117 .007h-.081l-.919 11a3 3 0 0 1 -2.824 2.995l-.176 .005h-8c-1.598 0 -2.904 -1.249 -2.992 -2.75l-.005 -.167l-.923 -11.083h-.08a1 1 0 0 1 -.117 -1.993l.117 -.007h16z" />
@@ -369,7 +323,7 @@ function renderGridView() {
             </div>
           </div>
         </div>
-      `
+      `,
         )
         .join("")}
     </div>
@@ -386,16 +340,6 @@ function renderGridView() {
       const card = this.closest(".grid-card");
       const orderNum = card.querySelector("h3").textContent;
       viewOrder(orderNum);
-    });
-  });
-
-  const editBtns = document.querySelectorAll(".action-edit-btn-grid");
-  editBtns.forEach((btn) => {
-    btn.addEventListener("click", function (e) {
-      e.preventDefault();
-      const card = this.closest(".grid-card");
-      const orderNum = card.querySelector("h3").textContent;
-      editOrder(orderNum);
     });
   });
 
@@ -443,15 +387,15 @@ function renderProductionTable() {
       <td>
         ${renderProgressBar(
           order.Progress || 0,
-          getProgressStatus(order.Status)
+          getProgressStatus(order.Status),
         )}
       </td>
       <td style="text-align: center">
         <span class="status-badge status-${getStatusType(
-          order.Status
+          order.Status,
         )}">${getStatusIcon(getStatusType(order.Status))}${getStatusText(
-        order.Status
-      )}</span>
+          order.Status,
+        )}</span>
       </td>
       <td style="text-align: center">
         <div style="display: flex; gap: 8px; align-items: center; justify-content: center;">
@@ -460,12 +404,14 @@ function renderProductionTable() {
               <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
             </svg>
           </button>
-          <button class="action-edit-btn" title="Chỉnh sửa">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
-              <path d="M13.5 6.5l4 4" />
-            </svg>
-          </button>
+          <a href="/production-order/${order.ProductionOrderId}">
+            <button class="action-edit-btn" title="Chỉnh sửa">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+                <path d="M13.5 6.5l4 4" />
+              </svg>
+            </button>
+          </a>
           <button class="action-delete-btn" title="Xóa">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M20 6a1 1 0 0 1 .117 1.993l-.117 .007h-.081l-.919 11a3 3 0 0 1 -2.824 2.995l-.176 .005h-8c-1.598 0 -2.904 -1.249 -2.992 -2.75l-.005 -.167l-.923 -11.083h-.08a1 1 0 0 1 -.117 -1.993l.117 -.007h16z" />
@@ -475,14 +421,13 @@ function renderProductionTable() {
         </div>
       </td>
     </tr>
-  `
+  `,
     )
     .join("");
 
   // Re-attach event listeners after rendering
   setTimeout(() => {
     const viewBtns = document.querySelectorAll(".action-view-btn");
-    const editBtns = document.querySelectorAll(".action-edit-btn");
     const deleteBtns = document.querySelectorAll(".action-delete-btn");
 
     viewBtns.forEach((btn) => {
@@ -492,16 +437,6 @@ function renderProductionTable() {
         const orderNumber =
           row.querySelector(".area-badge div")?.textContent || "Unknown";
         viewOrder(orderNumber);
-      });
-    });
-
-    editBtns.forEach((btn) => {
-      btn.addEventListener("click", function (e) {
-        e.preventDefault();
-        const row = this.closest("tr");
-        const orderNumber =
-          row.querySelector(".area-badge div")?.textContent || "Unknown";
-        editOrder(orderNumber);
       });
     });
 
@@ -567,7 +502,7 @@ async function fetchAllProductionOrdersForStats() {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (response.ok) {
@@ -628,7 +563,7 @@ async function fetchProductionOrders(page = 1) {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (response.ok) {
@@ -636,8 +571,7 @@ async function fetchProductionOrders(page = 1) {
       productionOrders = data.data.map((po) => new ProductionOrder(po));
       totalRecords = data.total;
       currentPage = data.page;
-      statsData = data.stats || {}; // Store stats from API
-      console.log("Fetched production orders:", productionOrders);
+      statsData = data.stats || {}; // Store stats from API\
       updatePaginationControls();
     } else {
       console.error("Failed to fetch production orders:", response.status);
@@ -760,18 +694,6 @@ function initializeModalHandlers() {
     }
   });
 
-  // Save Edit button
-  const saveEditBtn = document.getElementById("saveEditBtn");
-  if (saveEditBtn) {
-    saveEditBtn.addEventListener("click", confirmEdit);
-  }
-
-  // Confirm Save button
-  const confirmSaveBtn = document.getElementById("confirmSaveBtn");
-  if (confirmSaveBtn) {
-    confirmSaveBtn.addEventListener("click", saveEdit);
-  }
-
   // Confirm Delete button
   const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
   if (confirmDeleteBtn) {
@@ -788,7 +710,7 @@ function initializeModalHandlers() {
 // View Production Order
 function viewOrder(orderNumber) {
   const order = productionOrders.find(
-    (o) => o.ProductionOrderNumber === orderNumber
+    (o) => o.ProductionOrderNumber === orderNumber,
   );
   if (!order) return;
 
@@ -821,133 +743,6 @@ function viewOrder(orderNumber) {
   openModal("viewModal");
 }
 
-// Edit Production Order
-function editOrder(orderNumber) {
-  const order = productionOrders.find(
-    (o) => o.ProductionOrderNumber === orderNumber
-  );
-  if (!order) return;
-
-  currentEditingOrder = order;
-
-  document.getElementById("editOrderNumber").value =
-    order.ProductionOrderNumber || "";
-  document.getElementById("editProductCode").value = order.ProductCode || "";
-  document.getElementById("editProductionLine").value =
-    order.ProductionLine || "";
-  document.getElementById("editRecipeCode").value = order.RecipeCode || "";
-  document.getElementById("editRecipeVersion").value =
-    order.RecipeVersion || "";
-  document.getElementById("editLotNumber").value = order.LotNumber || "";
-  document.getElementById("editQuantity").value = order.Quantity || "";
-  document.getElementById("editUnitOfMeasurement").value =
-    order.UnitOfMeasurement || "";
-  // Format datetime for datetime-local input (YYYY-MM-DDTHH:mm)
-  document.getElementById("editPlannedStart").value = formatDatetimeForInput(
-    order.PlannedStart
-  );
-  document.getElementById("editPlannedEnd").value = formatDatetimeForInput(
-    order.PlannedEnd
-  );
-  document.getElementById("editShift").value = order.Shift || "";
-  document.getElementById("editProgress").value = order.Progress || 0;
-  document.getElementById("editStatus").value = getProgressStatusForEdit(order);
-
-  openModal("editModal");
-}
-
-// Format datetime for datetime-local input
-function formatDatetimeForInput(datetimeString) {
-  if (!datetimeString) return "";
-  const date = new Date(datetimeString);
-  if (isNaN(date.getTime())) return "";
-  // Format: YYYY-MM-DDTHH:mm
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
-// Confirm Edit
-function confirmEdit() {
-  if (!currentEditingOrder) return;
-  openModal("confirmEditModal");
-}
-
-// Save Edit with API call
-async function saveEdit() {
-  if (!currentEditingOrder) return;
-
-  // Get ProgressStatus value and convert to Status numeric
-  const progressStatusValue =
-    document.getElementById("editStatus").value || "pending";
-  const statusNumeric = getStatusFromProgressStatus(progressStatusValue);
-
-  const updateData = {
-    ProductCode: document.getElementById("editProductCode").value,
-    ProductionLine: document.getElementById("editProductionLine").value,
-    RecipeCode: document.getElementById("editRecipeCode").value,
-    RecipeVersion: document.getElementById("editRecipeVersion").value,
-    LotNumber: document.getElementById("editLotNumber").value,
-    Quantity: parseInt(document.getElementById("editQuantity").value) || 0,
-    UnitOfMeasurement: document.getElementById("editUnitOfMeasurement").value,
-    PlannedStart: document.getElementById("editPlannedStart").value,
-    PlannedEnd: document.getElementById("editPlannedEnd").value,
-    Shift: `Ca ${document.getElementById("editShift").value}`,
-    Progress: parseInt(document.getElementById("editProgress").value) || 0,
-    Status: statusNumeric,
-  };
-
-  try {
-    const response = await fetch(
-      `${API_ROUTE}/production-orders/${currentEditingOrder.ProductionOrderId}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updateData),
-      }
-    );
-
-    if (response.ok) {
-      // Update the order object with form values
-      currentEditingOrder.ProductCode = updateData.ProductCode;
-      currentEditingOrder.ProductionLine = updateData.ProductionLine;
-      currentEditingOrder.RecipeCode = updateData.RecipeCode;
-      currentEditingOrder.RecipeVersion = updateData.RecipeVersion;
-      currentEditingOrder.LotNumber = updateData.LotNumber;
-      currentEditingOrder.Quantity = updateData.Quantity;
-      currentEditingOrder.UnitOfMeasurement = updateData.UnitOfMeasurement;
-      currentEditingOrder.PlannedStart = updateData.PlannedStart;
-      currentEditingOrder.PlannedEnd = updateData.PlannedEnd;
-      currentEditingOrder.Shift = updateData.Shift;
-      currentEditingOrder.Progress = updateData.Progress;
-      // ProgressStatus is only for local display, don't update backend
-
-      // Close modals
-      closeModal("confirmEditModal");
-      closeModal("editModal");
-
-      // Refresh table
-      renderProductionTable();
-
-      // Optional: Show success message
-      alert(
-        `Cập nhật thành công lệnh sản xuất: ${currentEditingOrder.ProductionOrderNumber}`
-      );
-    } else {
-      const error = await response.json();
-      alert("Lỗi khi cập nhật lệnh sản xuất: " + error.message);
-    }
-  } catch (error) {
-    console.error("Error updating order:", error);
-    alert("Lỗi khi cập nhật lệnh sản xuất: " + error.message);
-  }
-}
-
 // Perform Delete with API call
 async function performDelete() {
   if (!currentDeleteRow) return;
@@ -959,7 +754,7 @@ async function performDelete() {
 
   // Get the order to find its ID
   const order = productionOrders.find(
-    (o) => o.ProductionOrderNumber === orderNumber
+    (o) => o.ProductionOrderNumber === orderNumber,
   );
 
   if (!order) return;
@@ -972,7 +767,7 @@ async function performDelete() {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (response.ok) {
@@ -985,7 +780,7 @@ async function performDelete() {
 
       // Remove from productionOrders array
       productionOrders = productionOrders.filter(
-        (o) => o.ProductionOrderId !== order.ProductionOrderId
+        (o) => o.ProductionOrderId !== order.ProductionOrderId,
       );
 
       // Refresh table
@@ -1054,7 +849,7 @@ async function createNewOrder() {
 
       // Show success message
       alert(
-        `Tạo lệnh sản xuất mới thành công: ${createData.ProductionOrderNumber}`
+        `Tạo lệnh sản xuất mới thành công: ${createData.ProductionOrderNumber}`,
       );
     } else {
       const error = await response.json();

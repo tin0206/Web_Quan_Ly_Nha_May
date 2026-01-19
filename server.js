@@ -1,10 +1,21 @@
 const express = require("express");
 const sql = require("mssql");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
+
+const PORT = process.env.PORT || 3000;
+
 app.use(cors());
 app.use(express.json());
+
+app.set("view engine", "ejs");
+app.set("views", "./views");
+app.use(express.static(path.join(__dirname, "public")));
+
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
 
 const config = {
   user: "sa",
@@ -17,8 +28,6 @@ const config = {
   },
   port: 1433,
 };
-
-const PORT = process.env.PORT || 3000;
 
 let pool;
 
@@ -33,8 +42,20 @@ async function connectToDB() {
 
 connectToDB();
 
+app.get("/", (req, res) => {
+  res.render("index", { title: "Trang chủ sản phẩm" });
+});
+
+// Get production orders with pagination and status counts
 app.get("/api/production-orders", async (req, res) => {
   try {
+    if (!pool) {
+      return res.status(500).json({
+        success: false,
+        message: "Database chưa kết nối",
+      });
+    }
+
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const pageSize = 20;
     const skip = (page - 1) * pageSize;
@@ -60,7 +81,7 @@ app.get("/api/production-orders", async (req, res) => {
     const result = await pool
       .request()
       .query(
-        `SELECT * FROM ProductionOrders ORDER BY ProductionOrderId DESC OFFSET ${skip} ROWS FETCH NEXT ${pageSize} ROWS ONLY`
+        `SELECT * FROM ProductionOrders ORDER BY ProductionOrderId DESC OFFSET ${skip} ROWS FETCH NEXT ${pageSize} ROWS ONLY`,
       );
 
     res.json({
@@ -78,8 +99,11 @@ app.get("/api/production-orders", async (req, res) => {
       data: result.recordset,
     });
   } catch (error) {
-    console.error("Lỗi khi truy vấn dữ liệu: ", error.message);
-    res.status(500).json({ success: false, message: "Fail" });
+    console.error("❌ Lỗi khi truy vấn dữ liệu: ", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi: " + error.message,
+    });
   }
 });
 
@@ -213,7 +237,7 @@ app.delete("/api/production-orders/:id", async (req, res) => {
       .request()
       .input("ProductionOrderId", sql.Int, id)
       .query(
-        "DELETE FROM ProductionOrders WHERE ProductionOrderId = @ProductionOrderId"
+        "DELETE FROM ProductionOrders WHERE ProductionOrderId = @ProductionOrderId",
       );
 
     res.json({
@@ -226,8 +250,131 @@ app.delete("/api/production-orders/:id", async (req, res) => {
   }
 });
 
+// Render production order detail page
+app.get("/production-order/:id", (req, res) => {
+  res.render("production-order-detail", { orderId: req.params.id });
+});
+
 app.listen(PORT, async () => {
   console.log(`Server đang chạy tại: http://localhost:${PORT}`);
 });
 
-app.post("/api/production-orders/edit/:id", async (req, res) => {});
+// Get production order detail by ID
+app.get("/api/production-order/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!pool) {
+      return res.status(500).json({
+        success: false,
+        message: "Database chưa kết nối",
+      });
+    }
+
+    const result = await pool
+      .request()
+      .input("ProductionOrderId", sql.Int, id)
+      .query(
+        "SELECT * FROM ProductionOrders WHERE ProductionOrderId = @ProductionOrderId",
+      );
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn hàng",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Lấy chi tiết đơn hàng thành công",
+      data: result.recordset[0],
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy chi tiết đơn hàng: ", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi: " + error.message,
+    });
+  }
+});
+
+// Get batches for a production order
+app.get("/api/batches", async (req, res) => {
+  try {
+    const { productionOrderId } = req.query;
+    const result = await pool
+      .request()
+      .input("ProductionOrderId", sql.Int, productionOrderId)
+      .query(
+        "SELECT * FROM Batches WHERE ProductionOrderId = @ProductionOrderId",
+      );
+    res.json({
+      success: true,
+      message: "Lấy danh sách lô sản xuất thành công",
+      data: result.recordset,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy danh sách lô sản xuất: ", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi: " + error.message,
+    });
+  }
+});
+
+//
+app.get("/api/material-consumptions", async (req, res) => {
+  try {
+    const { batchCodes, productionOrderNumber } = req.query;
+    const request = pool.request();
+    let conditions = [];
+
+    if (batchCodes && batchCodes.trim() !== "") {
+      const batchCodesArray = batchCodes.split(",").map((code) => code.trim());
+
+      const placeholders = batchCodesArray
+        .map((_, i) => `@batchCode${i}`)
+        .join(", ");
+
+      batchCodesArray.forEach((code, i) => {
+        request.input(`batchCode${i}`, sql.NVarChar, code);
+      });
+
+      conditions.push(`batchCode IN (${placeholders})`);
+    }
+
+    if (productionOrderNumber) {
+      request.input("prodOrderNum", sql.NVarChar, productionOrderNumber);
+      conditions.push("ProductionOrderNumber = @prodOrderNum");
+    }
+
+    if (conditions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Cần cung cấp ít nhất batchCodes hoặc productionOrderNumber",
+      });
+    }
+
+    const finalQuery = `
+      SELECT * FROM MESMaterialConsumption 
+      WHERE ${conditions.join(" OR ")}
+      ORDER BY batchCode ASC, id DESC
+    `;
+
+    const result = await request.query(finalQuery);
+
+    res.json({
+      success: true,
+      message: "Lấy danh sách tiêu hao vật liệu thành công",
+      count: result.recordset.length,
+      data: result.recordset,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy danh sách tiêu hao vật liệu: ", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi Server: " + error.message,
+    });
+  }
+});
