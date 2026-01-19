@@ -120,10 +120,14 @@ function activateTab(tabId) {
   if (tabId === "tab-batches") {
     batchesContent.style.display = "block";
     materialsContent.style.display = "none";
+    document.getElementById("materialsPaginationControls").style.display =
+      "none";
+    document.getElementById("paginationControls").style.display = "flex";
     loadBatches();
   } else if (tabId === "tab-materials") {
     batchesContent.style.display = "none";
     materialsContent.style.display = "block";
+    document.getElementById("paginationControls").style.display = "none";
     fetchMaterialConsumptions();
   }
 }
@@ -139,7 +143,11 @@ tabMaterials.addEventListener("click", function () {
 
 // Pagination variables
 let currentPage = 1;
+let materialsCurrentPage = 1;
 const batchesPerPage = 10;
+const materialsPerPage = 10;
+let materialsTotalPages = 1;
+let materialsTotalCount = 0;
 
 // Display batches table with rowspan for batch code
 function displayMaterialsTable(materialsArray) {
@@ -197,41 +205,129 @@ function renderMaterialsTable(materialsArray) {
   });
 }
 
-// Filter materials function
-function filterMaterials() {
-  const ingredientCodeFilter = document
-    .getElementById("filterIngredientCode")
-    .value.toLowerCase();
-  const batchCodeFilter = document
-    .getElementById("filterBatchCode")
-    .value.toLowerCase();
-  const lotFilter = document.getElementById("filterLot").value.toLowerCase();
-  const quantityFilter = document.getElementById("filterQuantity").value;
+// Filter materials and fetch from server with pagination
+async function filterMaterials() {
+  materialsCurrentPage = 1; // Reset to first page when filtering
+  await fetchMaterialsWithPagination();
+}
 
-  let filteredMaterials = window.allMaterials.filter((material) => {
-    const matchIngredient =
-      !ingredientCodeFilter ||
-      (material.ingredientCode &&
-        material.ingredientCode.toLowerCase().includes(ingredientCodeFilter));
-    const matchBatch =
-      !batchCodeFilter ||
-      (material.batchCode &&
-        material.batchCode.toLowerCase().includes(batchCodeFilter));
-    const matchLot =
-      !lotFilter ||
-      (material.lot && material.lot.toLowerCase().includes(lotFilter));
-    const matchQuantity =
-      !quantityFilter ||
-      (material.quantity != null &&
-        material.quantity
-          .toString()
-          .replace(/,/g, "")
-          .includes(quantityFilter.toString()));
+// Fetch materials with server-side pagination
+async function fetchMaterialsWithPagination() {
+  try {
+    // Get batch IDs
+    if (batches.length === 0) {
+      document.getElementById("materialsTableBody").innerHTML =
+        '<tr><td colspan="7" style="padding: 20px; text-align: center; color: #999;">Không có batch nào để lấy dữ liệu vật liệu</td></tr>';
+      document.getElementById("materialsPaginationControls").style.display =
+        "none";
+      return;
+    }
 
-    return matchIngredient && matchBatch && matchLot && matchQuantity;
-  });
+    const batchIds = batches.map((batch) => batch.BatchId).join(",");
 
-  renderMaterialsTable(filteredMaterials);
+    // Get search query from filter inputs
+    const filters = {
+      ingredientCode:
+        document.getElementById("filterIngredientCode")?.value || "",
+      batchCode: document.getElementById("filterBatchCode")?.value || "",
+      lot: document.getElementById("filterLot")?.value || "",
+      quantity: document.getElementById("filterQuantity")?.value || "",
+    };
+
+    // Combine all filters into a search query
+    const searchQuery = Object.values(filters)
+      .filter((v) => v.trim())
+      .join(" ");
+
+    // Fetch from server with pagination
+    const response = await fetch(
+      `/api/material-consumptions?batchCodes=${batchIds}&productionOrderNumber=${order.ProductionOrderNumber}&page=${materialsCurrentPage}&limit=${materialsPerPage}&searchQuery=${encodeURIComponent(searchQuery)}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      materials = data.data.map((item) => new MESMaterialConsumption(item));
+      materialsTotalPages = data.totalPages;
+      materialsTotalCount = data.totalCount;
+
+      displayMaterialsTable(materials);
+      updateMaterialsPaginationControls(
+        materialsCurrentPage,
+        materialsTotalPages,
+        materialsTotalCount,
+      );
+    } else {
+      document.getElementById("materialsTableBody").innerHTML =
+        '<tr><td colspan="7" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
+      document.getElementById("materialsPaginationControls").style.display =
+        "none";
+    }
+  } catch (error) {
+    console.error("Error loading materials:", error);
+    document.getElementById("materialsTableBody").innerHTML =
+      '<tr><td colspan="7" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
+    document.getElementById("materialsPaginationControls").style.display =
+      "none";
+  }
+}
+
+// Update pagination controls for materials
+function updateMaterialsPaginationControls(
+  currentPage,
+  totalPages,
+  totalCount,
+) {
+  const prevBtn = document.getElementById("materialsPrevBtn");
+  const nextBtn = document.getElementById("materialsNextBtn");
+  const pageInfo = document.getElementById("materialsPageInfo");
+
+  if (!prevBtn || !nextBtn || !pageInfo) return;
+
+  pageInfo.textContent = `Trang ${currentPage} / ${totalPages} (Tổng: ${totalCount} bản ghi)`;
+
+  // Disable/Enable prev button
+  if (currentPage <= 1) {
+    prevBtn.disabled = true;
+    prevBtn.style.opacity = "0.6";
+    prevBtn.style.cursor = "not-allowed";
+  } else {
+    prevBtn.disabled = false;
+    prevBtn.style.opacity = "1";
+    prevBtn.style.cursor = "pointer";
+    prevBtn.onmouseover = function () {
+      if (!this.disabled) this.style.background = "#0056b3";
+    };
+    prevBtn.onmouseout = function () {
+      if (!this.disabled) this.style.background = "#007aff";
+    };
+  }
+
+  // Disable/Enable next button
+  if (currentPage >= totalPages) {
+    nextBtn.disabled = true;
+    nextBtn.style.opacity = "0.6";
+    nextBtn.style.cursor = "not-allowed";
+  } else {
+    nextBtn.disabled = false;
+    nextBtn.style.opacity = "1";
+    nextBtn.style.cursor = "pointer";
+    nextBtn.onmouseover = function () {
+      if (!this.disabled) this.style.background = "#0056b3";
+    };
+    nextBtn.onmouseout = function () {
+      if (!this.disabled) this.style.background = "#007aff";
+    };
+  }
+
+  // Show pagination controls only if there are multiple pages
+  document.getElementById("materialsPaginationControls").style.display =
+    totalPages > 1 ? "flex" : "none";
 }
 
 // Show material detail modal
@@ -273,43 +369,10 @@ function closeMaterialModal() {
   modal.style.display = "none";
 }
 
-// Fetch materials for production order
+// Fetch materials for production order - initial load
 async function fetchMaterialConsumptions() {
-  try {
-    // Get batch codes from the batches array
-    if (batches.length === 0) {
-      document.getElementById("materialsTableBody").innerHTML =
-        '<tr><td colspan="7" style="padding: 20px; text-align: center; color: #999;">Không có batch nào để lấy dữ liệu vật liệu</td></tr>';
-      return;
-    }
-
-    // Get all batch IDs
-    const batchIds = batches.map((batch) => batch.BatchId).join(",");
-
-    // Fetch material consumptions
-    const response = await fetch(
-      `/api/material-consumptions?batchCodes=${batchIds}&productionOrderNumber=${order.ProductionOrderNumber}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    if (response.ok) {
-      const data = await response.json();
-      materials = data.data.map((item) => new MESMaterialConsumption(item));
-      displayMaterialsTable(materials);
-    } else {
-      document.getElementById("materialsTableBody").innerHTML =
-        '<tr><td colspan="7" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
-    }
-  } catch (error) {
-    console.error("Error loading materials:", error);
-    document.getElementById("materialsTableBody").innerHTML =
-      '<tr><td colspan="7" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
-  }
+  materialsCurrentPage = 1; // Reset to first page
+  await fetchMaterialsWithPagination();
 }
 
 // Display batches in table with pagination
@@ -416,6 +479,28 @@ document.addEventListener("DOMContentLoaded", function () {
       displayBatchesTable(batches);
     }
   });
+
+  // Materials pagination handlers
+  const materialsPrevBtn = document.getElementById("materialsPrevBtn");
+  const materialsNextBtn = document.getElementById("materialsNextBtn");
+
+  if (materialsPrevBtn) {
+    materialsPrevBtn.addEventListener("click", async function () {
+      if (materialsCurrentPage > 1) {
+        materialsCurrentPage--;
+        await fetchMaterialsWithPagination();
+      }
+    });
+  }
+
+  if (materialsNextBtn) {
+    materialsNextBtn.addEventListener("click", async function () {
+      if (materialsCurrentPage < materialsTotalPages) {
+        materialsCurrentPage++;
+        await fetchMaterialsWithPagination();
+      }
+    });
+  }
 });
 
 // Fetch and display batches
@@ -499,7 +584,8 @@ document.addEventListener("DOMContentLoaded", function () {
       if (filterBatchCodeInput) filterBatchCodeInput.value = "";
       if (filterLotInput) filterLotInput.value = "";
       if (filterQuantityInput) filterQuantityInput.value = "";
-      renderMaterialsTable(window.allMaterials || []);
+      materialsCurrentPage = 1; // Reset to first page
+      fetchMaterialsWithPagination();
     });
   }
 });

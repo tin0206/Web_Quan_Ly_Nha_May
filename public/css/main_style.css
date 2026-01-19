@@ -559,7 +559,7 @@ body {
   }
 
   .search-section {
-    flex-direction: column;
+    display: flex;
     align-items: stretch;
   }
 

@@ -57,16 +57,54 @@ app.get("/api/production-orders", async (req, res) => {
     }
 
     const page = Math.max(1, parseInt(req.query.page) || 1);
-    const pageSize = 20;
-    const skip = (page - 1) * pageSize;
+    const limit = Math.max(1, parseInt(req.query.limit) || 20);
+    const searchQuery = req.query.searchQuery || "";
+    const dateFrom = req.query.dateFrom || "";
+    const dateTo = req.query.dateTo || "";
 
-    // Get total count
-    const countResult = await pool
-      .request()
-      .query("SELECT COUNT(*) as total FROM ProductionOrders");
+    const skip = (page - 1) * limit;
+
+    // Build WHERE clause
+    let whereConditions = [];
+    let request = pool.request();
+
+    if (searchQuery && searchQuery.trim() !== "") {
+      request.input("searchQuery", sql.NVarChar, `%${searchQuery.trim()}%`);
+      whereConditions.push(`(
+        ProductionOrderNumber LIKE @searchQuery OR
+        ProductCode LIKE @searchQuery OR
+        ProductionLine LIKE @searchQuery OR
+        RecipeCode LIKE @searchQuery
+      )`);
+    }
+
+    if (dateFrom) {
+      request.input("dateFrom", sql.DateTime2, new Date(dateFrom));
+      whereConditions.push(
+        `CAST(PlannedStart AS DATE) >= CAST(@dateFrom AS DATE)`,
+      );
+    }
+
+    if (dateTo) {
+      request.input("dateTo", sql.DateTime2, new Date(dateTo));
+      whereConditions.push(
+        `CAST(PlannedStart AS DATE) <= CAST(@dateTo AS DATE)`,
+      );
+    }
+
+    const whereClause =
+      whereConditions.length > 0
+        ? `WHERE ${whereConditions.join(" AND ")}`
+        : "";
+
+    // Get total count with filters
+    const countResult = await request.query(
+      `SELECT COUNT(*) as total FROM ProductionOrders ${whereClause}`,
+    );
     const totalRecords = countResult.recordset[0].total;
+    const totalPages = Math.ceil(totalRecords / limit);
 
-    // Get status counts
+    // Get status counts (always all data for stats)
     const statusCountResult = await pool.request().query(`
         SELECT 
           COUNT(*) as total,
@@ -77,19 +115,18 @@ app.get("/api/production-orders", async (req, res) => {
       `);
     const statusCounts = statusCountResult.recordset[0];
 
-    // Get paginated data
-    const result = await pool
-      .request()
-      .query(
-        `SELECT * FROM ProductionOrders ORDER BY ProductionOrderId DESC OFFSET ${skip} ROWS FETCH NEXT ${pageSize} ROWS ONLY`,
-      );
+    // Get paginated data with filters
+    const result = await request.query(
+      `SELECT * FROM ProductionOrders ${whereClause} ORDER BY ProductionOrderId DESC OFFSET ${skip} ROWS FETCH NEXT ${limit} ROWS ONLY`,
+    );
 
     res.json({
       success: true,
       message: "Success",
       total: totalRecords,
+      totalPages: totalPages,
       page: page,
-      pageSize: pageSize,
+      limit: limit,
       stats: {
         total: statusCounts.total,
         inProgress: statusCounts.inProgress || 0,
@@ -323,13 +360,25 @@ app.get("/api/batches", async (req, res) => {
   }
 });
 
-//
+// Get material consumptions with filters, search, and pagination
 app.get("/api/material-consumptions", async (req, res) => {
   try {
-    const { batchCodes, productionOrderNumber } = req.query;
-    const request = pool.request();
-    let conditions = [];
+    const {
+      batchCodes,
+      productionOrderNumber,
+      page = 1,
+      limit = 10,
+      searchQuery = "",
+    } = req.query;
+    const pageNum = parseInt(page) || 1;
+    const pageLimit = parseInt(limit) || 10;
+    const offset = (pageNum - 1) * pageLimit;
 
+    const request = pool.request();
+    let baseConditions = [];
+    let searchCondition = "";
+
+    // Base conditions (batchCodes OR productionOrderNumber)
     if (batchCodes && batchCodes.trim() !== "") {
       const batchCodesArray = batchCodes.split(",").map((code) => code.trim());
 
@@ -341,33 +390,63 @@ app.get("/api/material-consumptions", async (req, res) => {
         request.input(`batchCode${i}`, sql.NVarChar, code);
       });
 
-      conditions.push(`batchCode IN (${placeholders})`);
+      baseConditions.push(`batchCode IN (${placeholders})`);
     }
 
     if (productionOrderNumber) {
       request.input("prodOrderNum", sql.NVarChar, productionOrderNumber);
-      conditions.push("ProductionOrderNumber = @prodOrderNum");
+      baseConditions.push("ProductionOrderNumber = @prodOrderNum");
     }
 
-    if (conditions.length === 0) {
+    if (baseConditions.length === 0) {
       return res.status(400).json({
         success: false,
         message: "Cần cung cấp ít nhất batchCodes hoặc productionOrderNumber",
       });
     }
 
-    const finalQuery = `
-      SELECT * FROM MESMaterialConsumption 
-      WHERE ${conditions.join(" OR ")}
-      ORDER BY batchCode ASC, id DESC
+    // Add search filter (AND with base conditions)
+    if (searchQuery && searchQuery.trim() !== "") {
+      request.input("searchQuery", sql.NVarChar, `%${searchQuery}%`);
+      searchCondition = ` AND (
+        ingredientCode LIKE @searchQuery OR 
+        batchCode LIKE @searchQuery OR 
+        lot LIKE @searchQuery OR 
+        CAST(quantity AS NVARCHAR) LIKE @searchQuery
+      )`;
+    }
+
+    const baseConditionString = baseConditions.join(" OR ");
+    const whereClause = `(${baseConditionString})${searchCondition}`;
+
+    // Count total records
+    const countQuery = `
+      SELECT COUNT(*) as totalCount FROM MESMaterialConsumption 
+      WHERE ${whereClause}
     `;
 
-    const result = await request.query(finalQuery);
+    const countResult = await request.query(countQuery);
+    const totalCount = countResult.recordset[0].totalCount;
+    const totalPages = Math.ceil(totalCount / pageLimit);
+
+    // Fetch paginated data
+    const dataQuery = `
+      SELECT * FROM MESMaterialConsumption 
+      WHERE ${whereClause}
+      ORDER BY batchCode ASC, id DESC
+      OFFSET ${offset} ROWS
+      FETCH NEXT ${pageLimit} ROWS ONLY
+    `;
+
+    const result = await request.query(dataQuery);
 
     res.json({
       success: true,
       message: "Lấy danh sách tiêu hao vật liệu thành công",
-      count: result.recordset.length,
+      page: pageNum,
+      limit: pageLimit,
+      totalCount: totalCount,
+      totalPages: totalPages,
       data: result.recordset,
     });
   } catch (error) {

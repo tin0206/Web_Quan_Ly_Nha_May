@@ -5,11 +5,13 @@ const API_ROUTE = "http://localhost:3000/api";
 let productionOrders = [];
 let currentPage = 1;
 let totalRecords = 0;
+let totalPages = 1;
 let statsData = {};
 let currentDeleteRow = null;
+const pageSize = 20;
 
 document.addEventListener("DOMContentLoaded", async function () {
-  await fetchProductionOrders();
+  await fetchProductionOrders(1);
   updateStats();
   renderProductionTable();
   initializeEventListeners();
@@ -59,7 +61,6 @@ function initializeEventListeners() {
       if (index === 0) {
         // List view
         tableSection.innerHTML =
-          getPaginationHTML() +
           `
           <table class="data-table">
             <thead>
@@ -80,7 +81,7 @@ function initializeEventListeners() {
               <!-- Rows will be rendered by JavaScript -->
             </tbody>
           </table>
-        `;
+        ` + getPaginationHTML();
         updatePaginationControls();
         renderProductionTable();
       } else {
@@ -228,9 +229,7 @@ function renderGridView() {
   const tableSection = document.querySelector(".table-section");
 
   tableSection.innerHTML =
-    getPaginationHTML() +
     `
-
     <div class="grid-container">
       ${productionOrders
         .map(
@@ -327,7 +326,7 @@ function renderGridView() {
         )
         .join("")}
     </div>
-  `;
+  ` + getPaginationHTML();
 
   // Re-attach event listeners
   updatePaginationControls();
@@ -456,37 +455,64 @@ function renderProductionTable() {
 
 // Initialize search functionality
 function initializeSearch() {
-  const searchInput = document.querySelector(".search-bar input");
+  const searchInput = document.getElementById("searchInput");
+  const dateFromInput = document.getElementById("dateFrom");
+  const dateToInput = document.getElementById("dateTo");
+  const resetFilterBtn = document.getElementById("resetFilterBtn");
+
+  // Debounce timer
+  let debounceTimer;
+
+  const handleFilterChange = async () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async () => {
+      currentPage = 1; // Reset to first page when filter changes
+      await fetchProductionOrders(currentPage);
+      updateStats();
+
+      // Check current view and render accordingly
+      const activeViewBtn = document.querySelector(".view-btn.active");
+      if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+        renderGridView();
+      } else {
+        renderProductionTable();
+      }
+      updatePaginationControls();
+    }, 300);
+  };
 
   if (searchInput) {
-    searchInput.addEventListener("keyup", function () {
-      const searchTerm = this.value.toLowerCase();
-      const viewBtns = document.querySelectorAll(".view-btn");
-      const isListView = viewBtns[0].classList.contains("active");
+    searchInput.addEventListener("input", handleFilterChange);
+  }
 
-      if (isListView) {
-        // Search in table
-        const tableRows = document.querySelectorAll(".data-table tbody tr");
-        tableRows.forEach((row) => {
-          const text = row.textContent.toLowerCase();
-          if (text.includes(searchTerm)) {
-            row.style.display = "";
-          } else {
-            row.style.display = "none";
-          }
-        });
+  if (dateFromInput) {
+    dateFromInput.addEventListener("change", handleFilterChange);
+  }
+
+  if (dateToInput) {
+    dateToInput.addEventListener("change", handleFilterChange);
+  }
+
+  if (resetFilterBtn) {
+    resetFilterBtn.addEventListener("click", async () => {
+      // Clear all filter inputs
+      if (searchInput) searchInput.value = "";
+      if (dateFromInput) dateFromInput.value = "";
+      if (dateToInput) dateToInput.value = "";
+
+      // Reset to page 1 and fetch
+      currentPage = 1;
+      await fetchProductionOrders(currentPage);
+      updateStats();
+
+      // Check current view and render accordingly
+      const activeViewBtn = document.querySelector(".view-btn.active");
+      if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+        renderGridView();
       } else {
-        // Search in grid
-        const gridCards = document.querySelectorAll(".grid-card");
-        gridCards.forEach((card) => {
-          const text = card.textContent.toLowerCase();
-          if (text.includes(searchTerm)) {
-            card.style.display = "";
-          } else {
-            card.style.display = "none";
-          }
-        });
+        renderProductionTable();
       }
+      updatePaginationControls();
     });
   }
 }
@@ -556,8 +582,23 @@ window.searchFactory = {
 
 async function fetchProductionOrders(page = 1) {
   try {
+    // Get filter values
+    const searchQuery = document.getElementById("searchInput")?.value || "";
+    const dateFrom = document.getElementById("dateFrom")?.value || "";
+    const dateTo = document.getElementById("dateTo")?.value || "";
+
+    // Build query parameters
+    const params = new URLSearchParams({
+      page: page,
+      limit: pageSize,
+      searchQuery: searchQuery,
+    });
+
+    if (dateFrom) params.append("dateFrom", dateFrom);
+    if (dateTo) params.append("dateTo", dateTo);
+
     const response = await fetch(
-      `${API_ROUTE}/production-orders?page=${page}`,
+      `${API_ROUTE}/production-orders?${params.toString()}`,
       {
         method: "GET",
         headers: {
@@ -570,8 +611,9 @@ async function fetchProductionOrders(page = 1) {
       const data = await response.json();
       productionOrders = data.data.map((po) => new ProductionOrder(po));
       totalRecords = data.total;
+      totalPages = data.totalPages || Math.ceil(totalRecords / pageSize);
       currentPage = data.page;
-      statsData = data.stats || {}; // Store stats from API\
+      statsData = data.stats || {}; // Store stats from API
       updatePaginationControls();
     } else {
       console.error("Failed to fetch production orders:", response.status);
@@ -605,9 +647,6 @@ function getPaginationHTML() {
 }
 
 function updatePaginationControls() {
-  const pageSize = 20;
-  const totalPages = Math.ceil(totalRecords / pageSize);
-
   const prevBtn = document.getElementById("prevPageBtn");
   const nextBtn = document.getElementById("nextPageBtn");
   const pageInfo = document.getElementById("pageInfo");
@@ -619,7 +658,7 @@ function updatePaginationControls() {
     nextBtn.disabled = currentPage >= totalPages;
   }
   if (pageInfo) {
-    pageInfo.textContent = `Trang ${currentPage} / ${totalPages}`;
+    pageInfo.textContent = `Trang ${currentPage} / ${totalPages} (Tổng: ${totalRecords} bản ghi)`;
   }
 }
 

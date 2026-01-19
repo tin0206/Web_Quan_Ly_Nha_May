@@ -150,7 +150,46 @@
       <div class="search-section">
         <div class="search-bar">
           <i class="fa-solid fa-search"></i>
-          <input type="text" placeholder="Tìm kiếm Lệnh SX, Mã sản phẩm..." />
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Tìm kiếm Lệnh SX, Mã sản phẩm..."
+          />
+        </div>
+        <div
+          style="
+            padding-left: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+          "
+        >
+          <div style="display: flex; gap: 10px; align-items: center">
+            <label style="font-weight: 500; color: #666">Từ ngày:</label>
+            <input
+              type="date"
+              id="dateFrom"
+              style="
+                padding: 8px 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 14px;
+              "
+            />
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center">
+            <label style="font-weight: 500; color: #666">Đến ngày:</label>
+            <input
+              type="date"
+              id="dateTo"
+              style="
+                padding: 8px 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 14px;
+              "
+            />
+          </div>
         </div>
         <div class="view-controls">
           <button class="view-btn active" data-view="table" title="Danh sách">
@@ -202,6 +241,26 @@
 
       <!-- Table Section -->
       <div class="table-section">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Mã Lệnh SX</th>
+              <th>Sản Phẩm</th>
+              <th style="text-align: center">Dây chuyền</th>
+              <th>Công thức</th>
+              <th>Lô SX</th>
+              <th style="text-align: center">Ngày Bắt Đầu</th>
+              <th style="text-align: center">Số Lượng</th>
+              <th style="text-align: center">Tiến độ</th>
+              <th style="text-align: center">Trạng Thái</th>
+              <th style="text-align: center">Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody id="orderTableBody">
+            <!-- Rows will be rendered by JavaScript -->
+          </tbody>
+        </table>
+
         <!-- Pagination Controls -->
         <div class="pagination-controls">
           <button id="prevPageBtn" class="pagination-btn" onclick="prevPage()">
@@ -232,26 +291,6 @@
             </svg>
           </button>
         </div>
-
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Mã Lệnh SX</th>
-              <th>Sản Phẩm</th>
-              <th style="text-align: center">Dây chuyền</th>
-              <th>Công thức</th>
-              <th>Lô SX</th>
-              <th style="text-align: center">Ngày Bắt Đầu</th>
-              <th style="text-align: center">Số Lượng</th>
-              <th style="text-align: center">Tiến độ</th>
-              <th style="text-align: center">Trạng Thái</th>
-              <th style="text-align: center">Thao Tác</th>
-            </tr>
-          </thead>
-          <tbody id="orderTableBody">
-            <!-- Rows will be rendered by JavaScript -->
-          </tbody>
-        </table>
       </div>
     </div>
 
