@@ -1,0 +1,52 @@
+services:
+  sqlserver_db:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    container_name: sqlserver_db
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "Sa@123456"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+      - ./IGS-260116.bak:/var/opt/mssql/backup/IGS-260116.bak
+    networks:
+      - app_network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/opt/mssql-tools/bin/sqlcmd",
+          "-S",
+          "localhost",
+          "-U",
+          "sa",
+          "-P",
+          "Sa@123456",
+          "-Q",
+          "SELECT 1",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 15s
+
+  app:
+    build: ./backend
+    container_name: app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    # depends_on:
+    #   sqlserver_db:
+    #     condition: service_healthy
+    networks:
+      - app_network
+
+volumes:
+  sql_data:
+
+networks:
+  app_network:
+    driver: bridge
