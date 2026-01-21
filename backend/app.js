@@ -33,7 +33,7 @@ const config = {
 
 let pool;
 
-// ✅ BƯỚC 1: Chờ SQL Server sẵn sàng bằng cách connect vào master
+// Connect tới app database (IGSMasanDB)
 async function waitForSqlServer(maxRetries = 30, delay = 2000) {
   const masterConfig = {
     user: process.env.DB_USER,
@@ -66,7 +66,7 @@ async function waitForSqlServer(maxRetries = 30, delay = 2000) {
   return false;
 }
 
-// ✅ BƯỚC 2: Restore database từ backup (connect vào master)
+// Connect tới app database (IGSMasanDB)
 async function restoreDatabase() {
   let masterPool;
   try {
@@ -107,7 +107,7 @@ async function restoreDatabase() {
   }
 }
 
-// ✅ BƯỚC 3: Connect tới app database (IGSMasanDB)
+// Connect tới app database (IGSMasanDB)
 async function connectToAppDB() {
   try {
     pool = await sql.connect(config);
@@ -119,16 +119,16 @@ async function connectToAppDB() {
   }
 }
 
-// ✅ BƯỚC 4: Khởi động server (SAU KHI restore & connect thành công)
+// Connect tới app database (IGSMasanDB)
 async function startServer() {
-  // Bước 1: Chờ SQL Server sẵn sàng
+  // Chờ SQL Server sẵn sàng
   const sqlReady = await waitForSqlServer();
   if (!sqlReady) {
     console.error("❌ Server không thể khởi động - SQL Server không sẵn sàng");
     process.exit(1);
   }
 
-  // Bước 2: Restore database
+  // Restore database
   const restored = await restoreDatabase();
   if (!restored) {
     console.error("⚠️ Restore fail nhưng tiếp tục thử connect...");
@@ -137,7 +137,7 @@ async function startServer() {
   // Thêm delay nhỏ để database sẵn sàng
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
-  // Bước 3: Connect tới app database
+  // Connect tới app database
   const connected = await connectToAppDB();
   if (!connected) {
     console.error(
@@ -146,7 +146,7 @@ async function startServer() {
     process.exit(1);
   }
 
-  // Bước 4: Khởi động Express server
+  // Khởi động Express server
   app.listen(PORT, () => {
     console.log(`🚀 Server đang chạy tại: http://localhost:${PORT}`);
   });
