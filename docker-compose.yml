@@ -10,13 +10,18 @@ services:
     volumes:
       - sql_data:/var/opt/mssql
       - ./IGS-260116.bak:/var/opt/mssql/backup/IGS-260116.bak
-    networks:
-      - app_network
+      - ./sqlserver/restore.sh:/restore.sh:ro
+    command: >
+      bash -c "
+      /opt/mssql/bin/sqlservr &
+      /restore.sh &
+      wait
+      "
     healthcheck:
       test:
         [
           "CMD",
-          "/opt/mssql-tools/bin/sqlcmd",
+          "/opt/mssql-tools18/bin/sqlcmd",
           "-S",
           "localhost",
           "-U",
@@ -29,7 +34,9 @@ services:
       interval: 10s
       timeout: 3s
       retries: 30
-      start_period: 15s
+      start_period: 30s
+    networks:
+      - app_network
 
   app:
     build: ./backend
@@ -38,9 +45,6 @@ services:
       - "8000:8000"
     env_file:
       - .env
-    # depends_on:
-    #   sqlserver_db:
-    #     condition: service_healthy
     networks:
       - app_network
 
