@@ -36,15 +36,20 @@ async function fetchOrderDetail() {
         order.LotNumber || "-";
       document.getElementById("detailQuantity").textContent =
         (order.Quantity || 0) + " " + (order.UnitOfMeasurement || "");
-      document.getElementById("detailUnitOfMeasurement").textContent =
-        order.UnitOfMeasurement || "-";
+      document.getElementById("detailCurrentBatch").textContent =
+        `${order.CurrentBatch || 0}/${order.TotalBatches || 0}`;
       document.getElementById("detailPlannedStart").textContent =
         formatDate(order.PlannedStart) || "-";
       document.getElementById("detailPlannedEnd").textContent =
         formatDate(order.PlannedEnd) || "-";
       document.getElementById("detailShift").textContent = order.Shift || "-";
-      document.getElementById("detailProgress").textContent =
-        (order.Progress || 0) + "%";
+      // Calculate progress like modal view: (CurrentBatch / TotalBatches) * 100
+      const progress = Math.round(
+        ((parseInt(order.CurrentBatch) || 0) /
+          (parseInt(order.TotalBatches) || 1)) *
+          100,
+      );
+      document.getElementById("detailProgress").textContent = progress + "%";
       document.getElementById("detailStatus").textContent =
         getStatusText(order.Status) || "-";
       document.getElementById("detailPlant").textContent = order.Plant || "-";
@@ -415,7 +420,7 @@ async function displayBatchesTable(batchesArray) {
               <td style="padding: 12px; text-align: center;">${batch.BatchId}</td>
               <td style="padding: 12px; text-align: center;">${batch.BatchNumber}</td>
               <td style="padding: 12px; text-align: center;">${batch.Quantity} ${batch.UnitOfMeasurement}</td>
-              <td style="padding: 12px; text-align: center;"></td>
+              <td style="padding: 12px; text-align: center;">${batch.ActualQuantity || "-"}</td>
               <td style="padding: 12px; text-align: center;">
                 <button class="viewBatchBtn" data-batch-code="${batch.BatchNumber}" style="background: none; border: none; cursor: pointer; color: #007bff; padding: 6px; transition: color 0.2s;" title="Xem chi tiết">
                   <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
@@ -674,6 +679,7 @@ async function fetchBatches() {
 
     if (response.ok) {
       const data = await response.json();
+      console.log("Fetched batches:", data.data);
       batches = data.data.map((batch) => new Batch(batch));
     }
 
@@ -694,8 +700,9 @@ async function fetchBatches() {
           new Batch({
             BatchId: "",
             ProductionOrderId: orderId,
-            BatchNumber: batch,
+            BatchNumber: batch.batchCode,
             Quantity: "",
+            ActualQuantity: batch.actualQuantity,
             UnitOfMeasurement: "",
           }),
       );
