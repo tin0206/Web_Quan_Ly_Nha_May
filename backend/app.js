@@ -112,21 +112,82 @@ app.get("/api/production-orders", async (req, res) => {
     const totalRecords = countResult.recordset[0].total;
     const totalPages = Math.ceil(totalRecords / limit);
 
-    // Get status counts (always all data for stats)
-    const statusCountResult = await pool.request().query(`
-        SELECT 
-          COUNT(*) as total,
-          SUM(CASE WHEN Status = 1 THEN 1 ELSE 0 END) as inProgress,
-          SUM(CASE WHEN Status = 2 THEN 1 ELSE 0 END) as completed,
-          SUM(CASE WHEN Status = 0 THEN 1 ELSE 0 END) as failed
-        FROM ProductionOrders
-      `);
-    const statusCounts = statusCountResult.recordset[0];
+    // Get status counts based on new logic
+    // Get all production order numbers that exist in MESMaterialConsumption
+    const runningOrdersResult = await pool
+      .request()
+      .query(
+        `SELECT DISTINCT ProductionOrderNumber FROM MESMaterialConsumption`,
+      );
+    const runningOrderNumbers = new Set(
+      runningOrdersResult.recordset.map((row) => row.ProductionOrderNumber),
+    );
+
+    // Count total and get other statuses
+    const statusCountQuery = `
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN Status = 2 THEN 1 ELSE 0 END) as completed
+      FROM ProductionOrders
+    `;
+    const statusCountResult = await pool.request().query(statusCountQuery);
+    const baseStatusCounts = statusCountResult.recordset[0];
+
+    // Count inProgress and stopped based on MESMaterialConsumption
+    const allOrdersResult = await pool
+      .request()
+      .query(`SELECT ProductionOrderNumber FROM ProductionOrders`);
+    const inProgressCount = allOrdersResult.recordset.filter((order) =>
+      runningOrderNumbers.has(order.ProductionOrderNumber),
+    ).length;
+    const stoppedCount = allOrdersResult.recordset.filter(
+      (order) => !runningOrderNumbers.has(order.ProductionOrderNumber),
+    ).length;
+
+    const statusCounts = {
+      total: baseStatusCounts.total,
+      inProgress: inProgressCount,
+      completed: baseStatusCounts.completed || 0,
+      stopped: stoppedCount,
+    };
 
     // Get paginated data with filters
     const result = await request.query(
       `SELECT * FROM ProductionOrders ${whereClause} ORDER BY ProductionOrderId DESC OFFSET ${skip} ROWS FETCH NEXT ${limit} ROWS ONLY`,
     );
+
+    // Get current BatchNumber for each production order
+    const batchNumbersResult = await pool.request().query(`
+        SELECT ProductionOrderId, MAX(BatchNumber) as maxBatchNumber
+        FROM Batches
+        GROUP BY ProductionOrderId
+      `);
+    const batchNumberMap = new Map(
+      batchNumbersResult.recordset.map((row) => [
+        row.ProductionOrderId,
+        row.maxBatchNumber,
+      ]),
+    );
+
+    const totalBatchesResult = await pool.request().query(`
+        SELECT ProductionOrderId, COUNT(*) as totalBatches
+        FROM Batches
+        GROUP BY ProductionOrderId
+    `);
+    const totalBatchesMap = new Map(
+      totalBatchesResult.recordset.map((row) => [
+        row.ProductionOrderId,
+        row.totalBatches,
+      ]),
+    );
+
+    // Update status based on whether the order exists in MESMaterialConsumption
+    const dataWithUpdatedStatus = result.recordset.map((order) => ({
+      ...order,
+      Status: runningOrderNumbers.has(order.ProductionOrderNumber) ? 1 : 0,
+      CurrentBatch: batchNumberMap.get(order.ProductionOrderId) || null,
+      TotalBatches: totalBatchesMap.get(order.ProductionOrderId) || 0,
+    }));
 
     res.json({
       success: true,
@@ -137,11 +198,11 @@ app.get("/api/production-orders", async (req, res) => {
       limit: limit,
       stats: {
         total: statusCounts.total,
-        inProgress: statusCounts.inProgress || 0,
-        completed: statusCounts.completed || 0,
-        failed: statusCounts.failed || 0,
+        inProgress: statusCounts.inProgress,
+        completed: statusCounts.completed,
+        stopped: statusCounts.stopped,
       },
-      data: result.recordset,
+      data: dataWithUpdatedStatus,
     });
   } catch (error) {
     console.error("❌ Lỗi khi truy vấn dữ liệu: ", error.message);
@@ -149,127 +210,6 @@ app.get("/api/production-orders", async (req, res) => {
       success: false,
       message: "Lỗi: " + error.message,
     });
-  }
-});
-
-// Create new production order
-app.post("/api/production-orders", async (req, res) => {
-  try {
-    const {
-      ProductionOrderNumber,
-      ProductCode,
-      ProductionLine,
-      RecipeCode,
-      RecipeVersion,
-      LotNumber,
-      Quantity,
-      UnitOfMeasurement,
-      PlannedStart,
-      PlannedEnd,
-      Shift,
-      Plant,
-      Shopfloor,
-      ProcessArea,
-      Status,
-    } = req.body;
-
-    const result = await pool
-      .request()
-      .input("ProductionOrderNumber", sql.NVarChar, ProductionOrderNumber)
-      .input("ProductCode", sql.NVarChar, ProductCode)
-      .input("ProductionLine", sql.NVarChar, ProductionLine)
-      .input("RecipeCode", sql.NVarChar, RecipeCode)
-      .input("RecipeVersion", sql.NVarChar, RecipeVersion)
-      .input("LotNumber", sql.NVarChar, LotNumber)
-      .input("Quantity", sql.Int, Quantity || 0)
-      .input("UnitOfMeasurement", sql.NVarChar, UnitOfMeasurement)
-      .input("PlannedStart", sql.DateTime2, PlannedStart)
-      .input("PlannedEnd", sql.DateTime2, PlannedEnd || null)
-      .input("Shift", sql.NVarChar, Shift)
-      .input("Plant", sql.NVarChar, Plant)
-      .input("Shopfloor", sql.NVarChar, Shopfloor)
-      .input("ProcessArea", sql.NVarChar, ProcessArea)
-      .input("Status", sql.Int, Status || 1)
-      .query(`INSERT INTO ProductionOrders 
-        (ProductionOrderNumber, ProductCode, ProductionLine, RecipeCode, RecipeVersion, 
-         LotNumber, Quantity, UnitOfMeasurement, PlannedStart, PlannedEnd, Shift, 
-         Plant, Shopfloor, ProcessArea, Status)
-        VALUES 
-        (@ProductionOrderNumber, @ProductCode, @ProductionLine, @RecipeCode, @RecipeVersion,
-         @LotNumber, @Quantity, @UnitOfMeasurement, @PlannedStart, @PlannedEnd, @Shift,
-         @Plant, @Shopfloor, @ProcessArea, @Status)`);
-    res.json({
-      success: true,
-      message: "Tạo lệnh sản xuất thành công",
-      data: req.body,
-    });
-  } catch (error) {
-    console.error("Lỗi khi tạo lệnh sản xuất: ", error.message);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Update production order
-app.put("/api/production-orders/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const {
-      ProductCode,
-      ProductionLine,
-      RecipeCode,
-      RecipeVersion,
-      LotNumber,
-      Quantity,
-      UnitOfMeasurement,
-      PlannedStart,
-      PlannedEnd,
-      Shift,
-      Plant,
-      Shopfloor,
-      ProcessArea,
-      Status,
-    } = req.body;
-
-    const result = await pool
-      .request()
-      .input("ProductionOrderId", sql.Int, id)
-      .input("ProductCode", sql.NVarChar, ProductCode)
-      .input("ProductionLine", sql.NVarChar, ProductionLine)
-      .input("RecipeCode", sql.NVarChar, RecipeCode)
-      .input("RecipeVersion", sql.NVarChar, RecipeVersion)
-      .input("LotNumber", sql.NVarChar, LotNumber)
-      .input("Quantity", sql.Int, Quantity || 0)
-      .input("UnitOfMeasurement", sql.NVarChar, UnitOfMeasurement)
-      .input("PlannedStart", sql.DateTime2, PlannedStart)
-      .input("PlannedEnd", sql.DateTime2, PlannedEnd || null)
-      .input("Shift", sql.NVarChar, Shift)
-      .input("Plant", sql.NVarChar, Plant)
-      .input("Shopfloor", sql.NVarChar, Shopfloor)
-      .input("ProcessArea", sql.NVarChar, ProcessArea)
-      .input("Status", sql.Int, Status || 1).query(`UPDATE ProductionOrders SET
-        ProductCode = @ProductCode,
-        ProductionLine = @ProductionLine,
-        RecipeCode = @RecipeCode,
-        RecipeVersion = @RecipeVersion,
-        LotNumber = @LotNumber,
-        Quantity = @Quantity,
-        UnitOfMeasurement = @UnitOfMeasurement,
-        PlannedStart = @PlannedStart,
-        PlannedEnd = @PlannedEnd,
-        Shift = @Shift,
-        Plant = @Plant,
-        Shopfloor = @Shopfloor,
-        ProcessArea = @ProcessArea,
-        Status = @Status
-        WHERE ProductionOrderId = @ProductionOrderId`);
-
-    res.json({
-      success: true,
-      message: "Cập nhật lệnh sản xuất thành công",
-    });
-  } catch (error) {
-    console.error("Lỗi khi cập nhật lệnh sản xuất: ", error.message);
-    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -392,13 +332,17 @@ app.get("/api/material-consumptions", async (req, res) => {
 
     // Add individual filters (AND with base conditions)
     if (ingredientCode && ingredientCode.trim() !== "") {
-      request.input("ingredientCode", sql.NVarChar, `%${ingredientCode.trim()}%`);
+      request.input(
+        "ingredientCode",
+        sql.NVarChar,
+        `%${ingredientCode.trim()}%`,
+      );
       filterConditions.push("ingredientCode LIKE @ingredientCode");
     }
 
     if (batchCode && batchCode.trim() !== "") {
-      request.input("filterBatchCode", sql.NVarChar, `%${batchCode.trim()}%`);
-      filterConditions.push("batchCode LIKE @filterBatchCode");
+      request.input("filterBatchCode", sql.NVarChar, batchCode.trim());
+      filterConditions.push("batchCode = @filterBatchCode");
     }
 
     if (lot && lot.trim() !== "") {
@@ -413,7 +357,7 @@ app.get("/api/material-consumptions", async (req, res) => {
 
     const baseConditionString = baseConditions.join(" OR ");
     let whereClause = `(${baseConditionString})`;
-    
+
     if (filterConditions.length > 0) {
       whereClause += ` AND (${filterConditions.join(" AND ")})`;
     }
@@ -453,6 +397,47 @@ app.get("/api/material-consumptions", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Lỗi Server: " + error.message,
+    });
+  }
+});
+
+// Get batch codes that have materials in MESMaterialConsumption for a production order
+app.get("/api/batch-codes-with-materials", async (req, res) => {
+  try {
+    const { productionOrderNumber } = req.query;
+
+    if (!productionOrderNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "productionOrderNumber là bắt buộc",
+      });
+    }
+
+    if (!pool) {
+      return res.status(500).json({
+        success: false,
+        message: "Database chưa kết nối",
+      });
+    }
+
+    // Get distinct batch codes from MESMaterialConsumption for this production order
+    const result = await pool
+      .request()
+      .input("productionOrderNumber", sql.NVarChar, productionOrderNumber)
+      .query(
+        "SELECT DISTINCT batchCode FROM MESMaterialConsumption WHERE ProductionOrderNumber = @productionOrderNumber ORDER BY batchCode ASC",
+      );
+
+    res.json({
+      success: true,
+      message: "Lấy danh sách batch codes có dữ liệu thành công",
+      data: result.recordset.map((row) => row.batchCode),
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy batch codes: ", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi: " + error.message,
     });
   }
 });

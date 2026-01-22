@@ -28,25 +28,6 @@ function initializeEventListeners() {
     });
   }
 
-  // Create button
-  const createBtn = document.querySelector(".create-btn");
-  if (createBtn) {
-    createBtn.addEventListener("click", () => {
-      openModal("createModal");
-      // Reset form
-      document.getElementById("createForm").reset();
-      // Set default PlannedStart to current datetime
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const day = String(now.getDate()).padStart(2, "0");
-      const hours = String(now.getHours()).padStart(2, "0");
-      const minutes = String(now.getMinutes()).padStart(2, "0");
-      const datetimeLocal = `${year}-${month}-${day}T${hours}:${minutes}`;
-      document.getElementById("createPlannedStart").value = datetimeLocal;
-    });
-  }
-
   // View controls
   const viewBtns = document.querySelectorAll(".view-btn");
   const tableSection = document.querySelector(".table-section");
@@ -69,8 +50,8 @@ function initializeEventListeners() {
                 <th style="text-align: center">Dây chuyền</th>
                 <th>Công thức</th>
                 <th>Lô SX</th>
-                <th style="text-align: center">Ngày Bắt Đầu</th>
-                <th style="text-align: center">Số Lượng</th>
+                <th style="text-align: center">Ngày Bắt Đầu / Số Lượng</th>
+                <th style="text-align: center">Batch hiện tại</th>
                 <th style="text-align: center">Tiến độ</th>
                 <th style="text-align: center">Trạng Thái</th>
                 <th style="text-align: center">Thao Tác</th>
@@ -199,8 +180,15 @@ function getProgressStatus(status) {
   }
 }
 
-// Render progress bar HTML
-function renderProgressBar(progress, progressStatus) {
+// Render progress bar HTML based on CurrentBatch and TotalBatches
+function renderProgressBar(currentBatch, totalBatches, progressStatus) {
+  // Convert to integers
+  const current = parseInt(currentBatch) || 0;
+  const total = parseInt(totalBatches) || 0;
+
+  // Calculate progress percentage
+  const progress = total === 0 ? 0 : Math.round((current / total) * 100);
+
   const progressGradient =
     progressStatus === "running"
       ? "linear-gradient(90deg, #ffa726 0%, #f57c00 100%)"
@@ -215,6 +203,7 @@ function renderProgressBar(progress, progressStatus) {
   return `
     <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
       <span style="font-size: 12px; font-weight: 700; color: white; min-width: 32px; background: ${progressGradient}; padding: 2px 8px; border-radius: 12px; text-align: center;">${progress}%</span>
+      <span style="font-size: 12px; color: #666;">${current}/${total}</span>
     </div>
   `;
 }
@@ -279,6 +268,13 @@ function renderGridView() {
             </div>
 
             <div class="grid-section">
+              <div class="grid-section-label">Batch hiện tại</div>
+              <div class="grid-section-value">${
+                order.CurrentBatch || "0 / 0"
+              }</div>
+            </div>
+
+            <div class="grid-section">
               <div class="grid-section-label">LỊCH TRÌNH</div>
               <div class="grid-schedule">
                 <span class="schedule-start">${
@@ -293,9 +289,17 @@ function renderGridView() {
             <div class="grid-section">
               <div class="grid-section-label">TIẾN ĐỘ</div>
               <div class="grid-progress">
-                <div class="progress-bar" style="width: 0%"></div>
+                <div class="progress-bar" style="width: ${Math.round(
+                  ((parseInt(order.CurrentBatch) || 0) /
+                    (parseInt(order.TotalBatches) || 1)) *
+                    100,
+                )}%"></div>
               </div>
-              <div class="progress-text">0%</div>
+              <div class="progress-text">${Math.round(
+                ((parseInt(order.CurrentBatch) || 0) /
+                  (parseInt(order.TotalBatches) || 1)) *
+                  100,
+              )}%</div>
             </div>
           </div>
 
@@ -348,15 +352,17 @@ function renderProductionTable() {
       <td>${order.LotNumber || "N/A"}</td>
       <td style="text-align: center">
         <div style="display: flex; align-items: center; justify-content: center;">
-            ${formatDate(order.PlannedStart) || "N/A"}
+          ${formatDate(order.PlannedStart) || "N/A"}
         </div>
+        ${order.Quantity || 0} ${order.UnitOfMeasurement || ""}
       </td>
-      <td style="text-align: center">${order.Quantity || 0} ${
-        order.UnitOfMeasurement || ""
-      }</td>
+      <td style="text-align: center">
+        ${order.CurrentBatch || "N/A"}
+      </td>
       <td>
         ${renderProgressBar(
-          order.Progress || 0,
+          order.CurrentBatch,
+          order.TotalBatches,
           getProgressStatus(order.Status),
         )}
       </td>
@@ -490,12 +496,12 @@ function updateStats() {
   const totalPO = statsData.total || totalRecords;
   const inProgress = statsData.inProgress || 0;
   const completed = statsData.completed || 0;
-  const failed = statsData.failed || 0;
+  const stopped = statsData.stopped || 0;
 
   document.getElementById("kvsx-stat").textContent = totalPO;
   document.getElementById("total-po-stat").textContent = inProgress;
   document.getElementById("in-progress-stat").textContent = completed;
-  document.getElementById("completed-stat").textContent = failed;
+  document.getElementById("stopped-stat").textContent = stopped;
 }
 
 // Optional: Add animation for stats numbers
@@ -676,12 +682,6 @@ function initializeModalHandlers() {
       event.target.classList.remove("show");
     }
   });
-
-  // Create Submit button
-  const createSubmitBtn = document.getElementById("createSubmitBtn");
-  if (createSubmitBtn) {
-    createSubmitBtn.addEventListener("click", createNewOrder);
-  }
 }
 
 // View Production Order
@@ -710,73 +710,18 @@ function viewOrder(orderNumber) {
   document.getElementById("viewPlannedEnd").textContent =
     formatDate(order.PlannedEnd) || "-";
   document.getElementById("viewShift").textContent = order.Shift || "-";
-  document.getElementById("viewProgress").textContent =
-    (order.Progress || 0) + "%";
+  document.getElementById("viewCurrentBatch").textContent =
+    `${order.CurrentBatch || 0}/${order.TotalBatches || 0}`;
+  const progress = Math.round(
+    ((parseInt(order.CurrentBatch) || 0) /
+      (parseInt(order.TotalBatches) || 1)) *
+      100,
+  );
+  document.getElementById("viewProgress").textContent = progress + "%";
   document.getElementById("viewStatus").textContent =
     getStatusText(order.Status) || "-";
   document.getElementById("viewPlant").textContent = order.Plant || "-";
   document.getElementById("viewShopfloor").textContent = order.Shopfloor || "-";
 
   openModal("viewModal");
-}
-
-// Create New Production Order with API call
-async function createNewOrder() {
-  const form = document.getElementById("createForm");
-  if (!form) return;
-
-  // Get form values
-  const createData = {
-    ProductionOrderNumber:
-      document.getElementById("createOrderNumber").value || `PO-${Date.now()}`,
-    ProductCode: document.getElementById("createProductCode").value,
-    ProductionLine: document.getElementById("createProductionLine").value,
-    RecipeCode: document.getElementById("createRecipeCode").value,
-    RecipeVersion: document.getElementById("createRecipeVersion").value,
-    LotNumber: document.getElementById("createLotNumber").value,
-    Quantity: parseInt(document.getElementById("createQuantity").value) || 0,
-    UnitOfMeasurement: document.getElementById("createUnitOfMeasurement").value,
-    PlannedStart: document.getElementById("createPlannedStart").value,
-    PlannedEnd: document.getElementById("createPlannedEnd").value,
-    Shift: `Ca ${document.getElementById("createShift").value}`,
-    Plant: document.getElementById("createPlant").value,
-    Shopfloor: document.getElementById("createShopfloor").value,
-    Status: 1, // Đang chạy
-    Progress: 0,
-  };
-
-  try {
-    const response = await fetch(`${API_ROUTE}/production-orders`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(createData),
-    });
-
-    if (response.ok) {
-      // Close modal
-      closeModal("createModal");
-
-      // Fetch latest data from API
-      await fetchProductionOrders();
-
-      // Update stats
-      updateStats();
-
-      // Refresh table
-      renderProductionTable();
-
-      // Show success message
-      alert(
-        `Tạo lệnh sản xuất mới thành công: ${createData.ProductionOrderNumber}`,
-      );
-    } else {
-      const error = await response.json();
-      alert("Lỗi khi tạo lệnh sản xuất: " + error.message);
-    }
-  } catch (error) {
-    console.error("Error creating order:", error);
-    alert("Lỗi khi tạo lệnh sản xuất: " + error.message);
-  }
 }

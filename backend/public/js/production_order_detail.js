@@ -94,7 +94,11 @@ function getStatusText(status) {
 }
 
 // Load order details when page loads
-document.addEventListener("DOMContentLoaded", fetchOrderDetail);
+document.addEventListener("DOMContentLoaded", function () {
+  fetchOrderDetail();
+  // Initialize the first tab on page load
+  activateTab("tab-batches");
+});
 
 const batchesContent = document.getElementById("batchesContent");
 const materialsContent = document.getElementById("materialsContent");
@@ -128,6 +132,8 @@ function activateTab(tabId) {
     batchesContent.style.display = "none";
     materialsContent.style.display = "block";
     document.getElementById("paginationControls").style.display = "none";
+    document.getElementById("materialsPaginationControls").style.display =
+      "flex";
     fetchMaterialConsumptions();
   }
 }
@@ -383,7 +389,7 @@ async function fetchMaterialConsumptions() {
 }
 
 // Display batches in table with pagination
-function displayBatchesTable(batchesArray) {
+async function displayBatchesTable(batchesArray) {
   if (batchesArray.length === 0) {
     document.getElementById("batchesTableBody").innerHTML =
       '<tr><td colspan="4" style="padding: 20px; text-align: center; color: #999;">Không có batch nào</td></tr>';
@@ -408,8 +414,8 @@ function displayBatchesTable(batchesArray) {
             <tr style="border-bottom: 1px solid #eee;">
               <td style="padding: 12px; text-align: center;">${batch.BatchId}</td>
               <td style="padding: 12px; text-align: center;">${batch.BatchNumber}</td>
-              <td style="padding: 12px; text-align: center;">${batch.Quantity}</td>
-              <td style="padding: 12px; text-align: center;">${batch.UnitOfMeasurement}</td>
+              <td style="padding: 12px; text-align: center;">${batch.Quantity} ${batch.UnitOfMeasurement}</td>
+              <td style="padding: 12px; text-align: center;"></td>
               <td style="padding: 12px; text-align: center;">
                 <button class="viewBatchBtn" data-batch-code="${batch.BatchNumber}" style="background: none; border: none; cursor: pointer; color: #007bff; padding: 6px; transition: color 0.2s;" title="Xem chi tiết">
                   <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
@@ -642,6 +648,20 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 });
 
+function mergeBatchesRemoveDuplicate(arr1, arr2) {
+  const map = new Map();
+
+  arr1.forEach((batch) => {
+    map.set(batch.BatchNumber, batch);
+  });
+
+  arr2.forEach((batch) => {
+    map.set(batch.BatchNumber, batch);
+  });
+
+  return Array.from(map.values());
+}
+
 // Fetch and display batches
 async function fetchBatches() {
   try {
@@ -655,6 +675,32 @@ async function fetchBatches() {
     if (response.ok) {
       const data = await response.json();
       batches = data.data.map((batch) => new Batch(batch));
+    }
+
+    const response2 = await fetch(
+      `/api/batch-codes-with-materials?productionOrderNumber=${order.ProductionOrderNumber}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    if (response2.ok) {
+      const data2 = await response2.json();
+      const batchCodesWithMaterials = data2.data.map(
+        (batch) =>
+          new Batch({
+            BatchId: "",
+            ProductionOrderId: orderId,
+            BatchNumber: batch,
+            Quantity: "",
+            UnitOfMeasurement: "",
+          }),
+      );
+
+      batches = mergeBatchesRemoveDuplicate(batches, batchCodesWithMaterials);
     }
 
     currentPage = 1;

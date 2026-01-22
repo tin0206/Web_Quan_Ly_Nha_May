@@ -17,6 +17,8 @@ export class ProductionOrder {
     Shopfloor,
     ProcessArea,
     Status,
+    CurrentBatch,
+    TotalBatches,
     Progress = 0,
     ProgressStatus = "running",
   }) {
@@ -37,6 +39,8 @@ export class ProductionOrder {
     this.Shopfloor = Shopfloor;
     this.ProcessArea = ProcessArea;
     this.Status = Status;
+    this.CurrentBatch = CurrentBatch;
+    this.TotalBatches = TotalBatches;
     this.Progress = Progress;
     this.ProgressStatus = ProgressStatus;
   }
