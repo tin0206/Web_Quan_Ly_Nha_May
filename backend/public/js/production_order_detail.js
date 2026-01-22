@@ -225,23 +225,30 @@ async function fetchMaterialsWithPagination() {
 
     const batchIds = batches.map((batch) => batch.BatchId).join(",");
 
-    // Get search query from filter inputs
-    const filters = {
-      ingredientCode:
-        document.getElementById("filterIngredientCode")?.value || "",
-      batchCode: document.getElementById("filterBatchCode")?.value || "",
-      lot: document.getElementById("filterLot")?.value || "",
-      quantity: document.getElementById("filterQuantity")?.value || "",
-    };
+    // Get filter inputs separately
+    const ingredientCode =
+      document.getElementById("filterIngredientCode")?.value || "";
+    const batchCode =
+      document.querySelector('input[name="filterBatchCode"]:checked')?.value ||
+      "";
+    const lot = document.getElementById("filterLot")?.value || "";
+    const quantity = document.getElementById("filterQuantity")?.value || "";
 
-    // Combine all filters into a search query
-    const searchQuery = Object.values(filters)
-      .filter((v) => v.trim())
-      .join(" ");
+    // Build query parameters with individual filters
+    const queryParams = new URLSearchParams({
+      batchCodes: batchIds,
+      productionOrderNumber: order.ProductionOrderNumber,
+      page: materialsCurrentPage,
+      limit: materialsPerPage,
+      ingredientCode: ingredientCode,
+      batchCode: batchCode,
+      lot: lot,
+      quantity: quantity,
+    });
 
     // Fetch from server with pagination
     const response = await fetch(
-      `/api/material-consumptions?batchCodes=${batchIds}&productionOrderNumber=${order.ProductionOrderNumber}&page=${materialsCurrentPage}&limit=${materialsPerPage}&searchQuery=${encodeURIComponent(searchQuery)}`,
+      `/api/material-consumptions?${queryParams.toString()}`,
       {
         method: "GET",
         headers: {
@@ -384,6 +391,9 @@ function displayBatchesTable(batchesArray) {
     return;
   }
 
+  // Render batch code radio buttons
+  renderBatchCodeRadioButtons(batchesArray);
+
   // Calculate pagination
   const totalPages = Math.ceil(batchesArray.length / batchesPerPage);
   const startIndex = (currentPage - 1) * batchesPerPage;
@@ -400,13 +410,142 @@ function displayBatchesTable(batchesArray) {
               <td style="padding: 12px; text-align: center;">${batch.BatchNumber}</td>
               <td style="padding: 12px; text-align: center;">${batch.Quantity}</td>
               <td style="padding: 12px; text-align: center;">${batch.UnitOfMeasurement}</td>
+              <td style="padding: 12px; text-align: center;">
+                <button class="viewBatchBtn" data-batch-code="${batch.BatchNumber}" style="background: none; border: none; cursor: pointer; color: #007bff; padding: 6px; transition: color 0.2s;" title="Xem chi tiết">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
+                  </svg>
+                </button>
+              </td>
             </tr>
           `,
     )
     .join("");
 
+  // Add event listeners to View buttons
+  const viewButtons = document.querySelectorAll(".viewBatchBtn");
+  viewButtons.forEach((btn) => {
+    btn.addEventListener("click", function () {
+      const batchCode = this.getAttribute("data-batch-code");
+      // Switch to materials tab and select this batch code
+      activateTab("tab-materials");
+      // Select the radio button for this batch code
+      const radio = document.querySelector(
+        `input[name="filterBatchCode"][value="${batchCode}"]`,
+      );
+      if (radio) {
+        radio.checked = true;
+        updateBatchCodeRadioStyles();
+        filterMaterials();
+      }
+    });
+    btn.addEventListener("mouseover", function () {
+      this.style.color = "#0056b3";
+    });
+    btn.addEventListener("mouseout", function () {
+      this.style.color = "#007bff";
+    });
+  });
+
   // Update pagination controls
   updatePaginationControls(currentPage, totalPages);
+}
+
+// Render batch code radio buttons
+function renderBatchCodeRadioButtons(batchesArray) {
+  const container = document.getElementById("filterBatchCodeOptions");
+  if (!container) return;
+
+  const uniqueBatchCodes = [...new Set(batchesArray.map((b) => b.BatchNumber))];
+
+  // Start with "Tất cả" option
+  let html = `
+    <label style="
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      border: 1px solid #0056b3;
+      border-radius: 4px;
+      transition: all 0.2s;
+      font-size: 14px;
+      font-weight: 500;
+    " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">
+      <input
+        type="radio"
+        name="filterBatchCode"
+        value=""
+        checked
+        style="margin-right: 8px; cursor: pointer; accent-color: white; width: 16px;"
+      />
+      <span>Tất cả</span>
+    </label>
+  `;
+
+  // Add batch code options
+  html += uniqueBatchCodes
+    .map(
+      (code) => `
+    <label style="
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      cursor: pointer;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      transition: all 0.2s;
+      font-size: 14px;
+    " onmouseover="this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'" onmouseout="this.style.borderColor='#ddd'; this.style.boxShadow='none'">
+      <input
+        type="radio"
+        name="filterBatchCode"
+        value="${code}"
+        style="margin-right: 8px; cursor: pointer; width: 30px;"
+      />
+      <span>${code}</span>
+    </label>
+  `,
+    )
+    .join("");
+
+  container.innerHTML = html;
+
+  // Add event listeners to radio buttons
+  const radios = document.querySelectorAll('input[name="filterBatchCode"]');
+  radios.forEach((radio) => {
+    radio.addEventListener("change", function () {
+      // Update styling for selected radio
+      updateBatchCodeRadioStyles();
+      filterMaterials();
+    });
+  });
+
+  // Initial styling
+  updateBatchCodeRadioStyles();
+}
+
+// Update radio button styling to highlight selected
+function updateBatchCodeRadioStyles() {
+  const labels = document.querySelectorAll("#filterBatchCodeContainer label");
+  labels.forEach((label) => {
+    const radio = label.querySelector('input[type="radio"]');
+    if (radio && radio.checked) {
+      label.style.background = "#007bff";
+      label.style.color = "white";
+      label.style.borderColor = "#0056b3";
+      label.style.fontWeight = "500";
+    } else {
+      label.style.background = "white";
+      label.style.color = "inherit";
+      label.style.borderColor = "#ddd";
+      label.style.fontWeight = "normal";
+    }
+  });
 }
 
 // Update pagination buttons and info
@@ -561,16 +700,12 @@ document.addEventListener("DOMContentLoaded", function () {
   const filterIngredientCodeInput = document.getElementById(
     "filterIngredientCode",
   );
-  const filterBatchCodeInput = document.getElementById("filterBatchCode");
   const filterLotInput = document.getElementById("filterLot");
   const filterQuantityInput = document.getElementById("filterQuantity");
   const resetFilterBtn = document.getElementById("resetFilterBtn");
 
   if (filterIngredientCodeInput) {
     filterIngredientCodeInput.addEventListener("input", filterMaterials);
-  }
-  if (filterBatchCodeInput) {
-    filterBatchCodeInput.addEventListener("input", filterMaterials);
   }
   if (filterLotInput) {
     filterLotInput.addEventListener("input", filterMaterials);
@@ -581,7 +716,13 @@ document.addEventListener("DOMContentLoaded", function () {
   if (resetFilterBtn) {
     resetFilterBtn.addEventListener("click", function () {
       if (filterIngredientCodeInput) filterIngredientCodeInput.value = "";
-      if (filterBatchCodeInput) filterBatchCodeInput.value = "";
+      // Reset batch code radio to "Tất cả"
+      const batchCodeRadios = document.querySelectorAll(
+        'input[name="filterBatchCode"]',
+      );
+      if (batchCodeRadios.length > 0) {
+        batchCodeRadios[0].checked = true; // Select first radio (Tất cả)
+      }
       if (filterLotInput) filterLotInput.value = "";
       if (filterQuantityInput) filterQuantityInput.value = "";
       materialsCurrentPage = 1; // Reset to first page

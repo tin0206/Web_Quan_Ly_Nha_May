@@ -265,6 +265,16 @@
                 >
                   Unit of Measurement
                 </th>
+                <th
+                  style="
+                    padding: 12px;
+                    text-align: left;
+                    font-weight: bold;
+                    text-align: center;
+                  "
+                >
+                  View
+                </th>
               </tr>
             </thead>
             <tbody id="batchesTableBody">
@@ -364,6 +374,48 @@
           </div>
         </div>
         <div id="materialsContent" style="display: none; margin-top: 20px">
+          <!-- Batch Code Selection Section -->
+          <div
+            style="
+              background: white;
+              padding: 20px;
+              border-radius: 8px;
+              margin-bottom: 20px;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            "
+          >
+            <label
+              style="
+                font-weight: bold;
+                color: #333;
+                display: block;
+                margin-bottom: 12px;
+                font-size: 14px;
+              "
+              >Batch Code</label
+            >
+            <div
+              id="filterBatchCodeContainer"
+              style="
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                padding: 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background: #fafafa;
+                max-height: 200px;
+                overflow-y: auto;
+                overflow-x: hidden;
+              "
+            >
+              <div
+                id="filterBatchCodeOptions"
+                style="display: flex; flex-wrap: wrap; gap: 10px; width: 100%"
+              ></div>
+            </div>
+          </div>
+
           <!-- Filter Section -->
           <div
             style="
@@ -377,7 +429,7 @@
             <div
               style="
                 display: grid;
-                grid-template-columns: 1fr 1fr 1fr 1fr auto;
+                grid-template-columns: 1fr 1fr 1fr auto;
                 gap: 15px;
                 align-items: flex-end;
               "
@@ -396,29 +448,6 @@
                   type="text"
                   id="filterIngredientCode"
                   placeholder="Nhập mã nguyên liệu..."
-                  style="
-                    width: 100%;
-                    padding: 8px 12px;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    font-size: 14px;
-                  "
-                />
-              </div>
-              <div>
-                <label
-                  style="
-                    font-weight: bold;
-                    color: #666;
-                    display: block;
-                    margin-bottom: 8px;
-                  "
-                  >Batch Code</label
-                >
-                <input
-                  type="text"
-                  id="filterBatchCode"
-                  placeholder="Nhập mã batch..."
                   style="
                     width: 100%;
                     padding: 8px 12px;

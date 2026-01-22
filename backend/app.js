@@ -1,13 +1,15 @@
-require("dotenv").config();
-
 const express = require("express");
 const sql = require("mssql");
 const cors = require("cors");
 const path = require("path");
 
-const app = express();
+require("dotenv").config({
+  path: path.resolve(__dirname, "../.env"),
+});
 
 const PORT = process.env.PORT || 8000;
+
+const app = express();
 
 app.use(cors());
 app.use(express.json());
@@ -33,126 +35,20 @@ const config = {
 
 let pool;
 
-// Connect tới app database (IGSMasanDB)
-async function waitForSqlServer(maxRetries = 30, delay = 2000) {
-  const masterConfig = {
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    server: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT) || 1433,
-    database: "master",
-    options: {
-      encrypt: false,
-      trustServerCertificate: true,
-    },
-  };
-
-  let retries = 0;
-  while (retries < maxRetries) {
-    try {
-      const testPool = await sql.connect(masterConfig);
-      await testPool.close();
-      console.log("✅ SQL Server sẵn sàng");
-      return true;
-    } catch (err) {
-      retries++;
-      console.log(`⏳ Chờ SQL Server (${retries}/${maxRetries})...`);
-      if (retries < maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-  }
-  console.error("❌ SQL Server không sẵn sàng sau 30 lần thử");
-  return false;
-}
-
-// Connect tới app database (IGSMasanDB)
-async function restoreDatabase() {
-  let masterPool;
-  try {
-    const masterConfig = {
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      server: process.env.DB_HOST,
-      port: Number(process.env.DB_PORT) || 1433,
-      database: "master",
-      options: {
-        encrypt: false,
-        trustServerCertificate: true,
-      },
-    };
-
-    masterPool = await sql.connect(masterConfig);
-    console.log("🔄 Đang kiểm tra và restore database...");
-
-    const restoreQuery = `
-      IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = '${process.env.DB_NAME}')
-      BEGIN
-        RESTORE DATABASE [${process.env.DB_NAME}]
-        FROM DISK = '/var/opt/mssql/backup/IGS-260116.bak'
-        WITH REPLACE
-      END
-    `;
-
-    await masterPool.request().query(restoreQuery);
-    console.log("✅ Restore database thành công!");
-    return true;
-  } catch (err) {
-    console.error("❌ Lỗi restore database:", err.message);
-    return false;
-  } finally {
-    if (masterPool) {
-      await masterPool.close();
-    }
-  }
-}
-
-// Connect tới app database (IGSMasanDB)
-async function connectToAppDB() {
+async function connectToDB() {
   try {
     pool = await sql.connect(config);
-    console.log("✅ App connected to " + process.env.DB_NAME);
-    return true;
+    console.log("✅ Đã kết nối thành công tới SQL Server (IGSMasanDB)");
   } catch (err) {
-    console.error("❌ Lỗi kết nối tới app database:", err.message);
-    return false;
+    console.error("Kết nối thất bại: ", err.message);
   }
 }
 
-// Connect tới app database (IGSMasanDB)
-async function startServer() {
-  // Chờ SQL Server sẵn sàng
-  const sqlReady = await waitForSqlServer();
-  if (!sqlReady) {
-    console.error("❌ Server không thể khởi động - SQL Server không sẵn sàng");
-    process.exit(1);
-  }
+connectToDB();
 
-  // Restore database
-  const restored = await restoreDatabase();
-  if (!restored) {
-    console.error("⚠️ Restore fail nhưng tiếp tục thử connect...");
-  }
-
-  // Thêm delay nhỏ để database sẵn sàng
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  // Connect tới app database
-  const connected = await connectToAppDB();
-  if (!connected) {
-    console.error(
-      "❌ Server không thể khởi động - không kết nối được app database",
-    );
-    process.exit(1);
-  }
-
-  // Khởi động Express server
-  app.listen(PORT, () => {
-    console.log(`🚀 Server đang chạy tại: http://localhost:${PORT}`);
-  });
-}
-
-startServer();
+app.listen(PORT, () => {
+  console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+});
 
 app.get("/", (req, res) => {
   res.render("index", { title: "Trang chủ sản phẩm" });
@@ -377,28 +273,6 @@ app.put("/api/production-orders/:id", async (req, res) => {
   }
 });
 
-// Delete production order
-app.delete("/api/production-orders/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    await pool
-      .request()
-      .input("ProductionOrderId", sql.Int, id)
-      .query(
-        "DELETE FROM ProductionOrders WHERE ProductionOrderId = @ProductionOrderId",
-      );
-
-    res.json({
-      success: true,
-      message: "Xóa lệnh sản xuất thành công",
-    });
-  } catch (error) {
-    console.error("Lỗi khi xóa lệnh sản xuất: ", error.message);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
 // Render production order detail page
 app.get("/production-order/:id", (req, res) => {
   res.render("production-order-detail", { orderId: req.params.id });
@@ -476,7 +350,10 @@ app.get("/api/material-consumptions", async (req, res) => {
       productionOrderNumber,
       page = 1,
       limit = 10,
-      searchQuery = "",
+      ingredientCode = "",
+      batchCode = "",
+      lot = "",
+      quantity = "",
     } = req.query;
     const pageNum = parseInt(page) || 1;
     const pageLimit = parseInt(limit) || 10;
@@ -484,7 +361,7 @@ app.get("/api/material-consumptions", async (req, res) => {
 
     const request = pool.request();
     let baseConditions = [];
-    let searchCondition = "";
+    let filterConditions = [];
 
     // Base conditions (batchCodes OR productionOrderNumber)
     if (batchCodes && batchCodes.trim() !== "") {
@@ -513,19 +390,33 @@ app.get("/api/material-consumptions", async (req, res) => {
       });
     }
 
-    // Add search filter (AND with base conditions)
-    if (searchQuery && searchQuery.trim() !== "") {
-      request.input("searchQuery", sql.NVarChar, `%${searchQuery}%`);
-      searchCondition = ` AND (
-        ingredientCode LIKE @searchQuery OR 
-        batchCode LIKE @searchQuery OR 
-        lot LIKE @searchQuery OR 
-        CAST(quantity AS NVARCHAR) LIKE @searchQuery
-      )`;
+    // Add individual filters (AND with base conditions)
+    if (ingredientCode && ingredientCode.trim() !== "") {
+      request.input("ingredientCode", sql.NVarChar, `%${ingredientCode.trim()}%`);
+      filterConditions.push("ingredientCode LIKE @ingredientCode");
+    }
+
+    if (batchCode && batchCode.trim() !== "") {
+      request.input("filterBatchCode", sql.NVarChar, `%${batchCode.trim()}%`);
+      filterConditions.push("batchCode LIKE @filterBatchCode");
+    }
+
+    if (lot && lot.trim() !== "") {
+      request.input("filterLot", sql.NVarChar, `%${lot.trim()}%`);
+      filterConditions.push("lot LIKE @filterLot");
+    }
+
+    if (quantity && quantity.trim() !== "") {
+      request.input("filterQuantity", sql.NVarChar, `%${quantity.trim()}%`);
+      filterConditions.push("CAST(quantity AS NVARCHAR) LIKE @filterQuantity");
     }
 
     const baseConditionString = baseConditions.join(" OR ");
-    const whereClause = `(${baseConditionString})${searchCondition}`;
+    let whereClause = `(${baseConditionString})`;
+    
+    if (filterConditions.length > 0) {
+      whereClause += ` AND (${filterConditions.join(" AND ")})`;
+    }
 
     // Count total records
     const countQuery = `

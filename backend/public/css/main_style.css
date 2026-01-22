@@ -405,6 +405,15 @@ body {
   gap: 6px;
 }
 
+.area-badge-link {
+  text-decoration: none;
+  color: #5b4ce8;
+}
+
+.area-badge-link:hover {
+  text-decoration: underline;
+}
+
 .badge-number {
   background-color: #389cf7;
   color: white;
@@ -474,9 +483,7 @@ body {
 
 /* Action Buttons */
 .action-btn,
-.action-view-btn,
-.action-edit-btn,
-.action-delete-btn {
+.action-view-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -497,22 +504,6 @@ body {
 .action-view-btn:hover {
   color: #4e42d0;
   background-color: #f0f0f0;
-}
-
-.action-edit-btn {
-  color: #007aff;
-}
-
-.action-edit-btn:hover {
-  background-color: #f0f7ff;
-}
-
-.action-delete-btn {
-  color: #d32f2f;
-}
-
-.action-delete-btn:hover {
-  background-color: #ffebee;
 }
 
 /* Responsive Design */
@@ -770,38 +761,6 @@ body {
 .grid-card-actions {
   display: flex;
   gap: 8px;
-}
-
-.action-edit-btn-grid,
-.action-delete-btn-grid {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid #e8e7f0;
-  border-radius: 6px;
-  background: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.action-edit-btn-grid {
-  color: #007aff;
-}
-
-.action-edit-btn-grid:hover {
-  background-color: #f0f7ff;
-  border-color: #007aff;
-}
-
-.action-delete-btn-grid {
-  color: #d32f2f;
-}
-
-.action-delete-btn-grid:hover {
-  background-color: #ffebee;
-  border-color: #d32f2f;
 }
 
 .action-btn-grid svg {

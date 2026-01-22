@@ -7,7 +7,6 @@ let currentPage = 1;
 let totalRecords = 0;
 let totalPages = 1;
 let statsData = {};
-let currentDeleteRow = null;
 const pageSize = 20;
 
 document.addEventListener("DOMContentLoaded", async function () {
@@ -159,14 +158,10 @@ function getStatusType(status) {
 function getStatusText(status) {
   if (typeof status === "number") {
     switch (status) {
-      case 0:
-        return "Lỗi";
       case 1:
         return "Đang chạy";
-      case 2:
-        return "Hoàn thành";
       default:
-        return "Không xác định";
+        return "Dừng";
     }
   }
   return String(status);
@@ -236,10 +231,12 @@ function renderGridView() {
           (order) => `
         <div class="grid-card">
           <div class="grid-card-top">
-            <h3 title="${order.ProductionOrderNumber || ""}">${getTruncatedName(
-              order.ProductionOrderNumber || "",
-              30,
-            )}</h3>
+            <a href="/production-order/${order.ProductionOrderId}" class="area-badge-link" target="_blank" title="Xem chi tiết Batch">
+              <h3 title="${order.ProductionOrderNumber || ""}">${getTruncatedName(
+                order.ProductionOrderNumber || "",
+                30,
+              )}</h3>
+            </a>
             <span class="status-badge status-${getStatusType(
               order.Status,
             )}">${getStatusIcon(getStatusType(order.Status))}${getStatusText(
@@ -304,22 +301,6 @@ function renderGridView() {
 
           <div class="grid-card-footer">
             <button class="action-btn-grid-primary">Xem Chi tiết</button>
-            <div class="grid-card-actions">
-              <a href="/production-order/${order.ProductionOrderId}">
-                <button class="action-edit-btn-grid" title="Chỉnh sửa">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
-                    <path d="M13.5 6.5l4 4" />
-                  </svg>
-                </button>
-              </a>
-              <button class="action-delete-btn-grid" title="Xóa">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M20 6a1 1 0 0 1 .117 1.993l-.117 .007h-.081l-.919 11a3 3 0 0 1 -2.824 2.995l-.176 .005h-8c-1.598 0 -2.904 -1.249 -2.992 -2.75l-.005 -.167l-.923 -11.083h-.08a1 1 0 0 1 -.117 -1.993l.117 -.007h16z" />
-                  <path d="M14 2a2 2 0 0 1 2 2a1 1 0 0 1 -1.993 .117l-.007 -.117h-4l-.007 .117a1 1 0 0 1 -1.993 -.117a2 2 0 0 1 1.85 -1.995l.15 -.005h4z" />
-                </svg>
-              </button>
-            </div>
           </div>
         </div>
       `,
@@ -341,18 +322,6 @@ function renderGridView() {
       viewOrder(orderNum);
     });
   });
-
-  const deleteBtns = document.querySelectorAll(".action-delete-btn-grid");
-  deleteBtns.forEach((btn) => {
-    btn.addEventListener("click", function (e) {
-      e.preventDefault();
-      const card = this.closest(".grid-card");
-      const orderNum = card.querySelector("h3").textContent;
-      currentDeleteRow = card;
-      document.getElementById("deleteOrderName").textContent = orderNum;
-      openModal("confirmDeleteModal");
-    });
-  });
 }
 
 // Render production table from data
@@ -365,9 +334,11 @@ function renderProductionTable() {
       (order) => `
     <tr>
       <td>
-        <div class="area-badge">
-          <div>${order.ProductionOrderNumber}</div>
-        </div>
+        <a href="/production-order/${order.ProductionOrderId}" class="area-badge-link" target="_blank" title="Xem chi tiết Batch">
+          <div class="area-badge">
+            <div>${order.ProductionOrderNumber}</div>
+          </div>
+        </a>
       </td>
       <td>${getTruncatedName(order.ProductCode || "")}</td>
       <td style="text-align: center">
@@ -403,20 +374,6 @@ function renderProductionTable() {
               <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
             </svg>
           </button>
-          <a href="/production-order/${order.ProductionOrderId}">
-            <button class="action-edit-btn" title="Chỉnh sửa">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
-                <path d="M13.5 6.5l4 4" />
-              </svg>
-            </button>
-          </a>
-          <button class="action-delete-btn" title="Xóa">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20 6a1 1 0 0 1 .117 1.993l-.117 .007h-.081l-.919 11a3 3 0 0 1 -2.824 2.995l-.176 .005h-8c-1.598 0 -2.904 -1.249 -2.992 -2.75l-.005 -.167l-.923 -11.083h-.08a1 1 0 0 1 -.117 -1.993l.117 -.007h16z" />
-              <path d="M14 2a2 2 0 0 1 2 2a1 1 0 0 1 -1.993 .117l-.007 -.117h-4l-.007 .117a1 1 0 0 1 -1.993 -.117a2 2 0 0 1 1.85 -1.995l.15 -.005h4z" />
-            </svg>
-          </button>
         </div>
       </td>
     </tr>
@@ -427,7 +384,6 @@ function renderProductionTable() {
   // Re-attach event listeners after rendering
   setTimeout(() => {
     const viewBtns = document.querySelectorAll(".action-view-btn");
-    const deleteBtns = document.querySelectorAll(".action-delete-btn");
 
     viewBtns.forEach((btn) => {
       btn.addEventListener("click", function (e) {
@@ -436,18 +392,6 @@ function renderProductionTable() {
         const orderNumber =
           row.querySelector(".area-badge div")?.textContent || "Unknown";
         viewOrder(orderNumber);
-      });
-    });
-
-    deleteBtns.forEach((btn) => {
-      btn.addEventListener("click", function (e) {
-        e.preventDefault();
-        const row = this.closest("tr");
-        const orderNumber =
-          row.querySelector(".area-badge div")?.textContent || "Unknown";
-        currentDeleteRow = row;
-        document.getElementById("deleteOrderName").textContent = orderNumber;
-        openModal("confirmDeleteModal");
       });
     });
   }, 0);
@@ -733,12 +677,6 @@ function initializeModalHandlers() {
     }
   });
 
-  // Confirm Delete button
-  const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
-  if (confirmDeleteBtn) {
-    confirmDeleteBtn.addEventListener("click", performDelete);
-  }
-
   // Create Submit button
   const createSubmitBtn = document.getElementById("createSubmitBtn");
   if (createSubmitBtn) {
@@ -780,63 +718,6 @@ function viewOrder(orderNumber) {
   document.getElementById("viewShopfloor").textContent = order.Shopfloor || "-";
 
   openModal("viewModal");
-}
-
-// Perform Delete with API call
-async function performDelete() {
-  if (!currentDeleteRow) return;
-
-  const orderNumber =
-    currentDeleteRow.querySelector(".area-badge div")?.textContent ||
-    currentDeleteRow.querySelector("h3")?.textContent ||
-    "Unknown";
-
-  // Get the order to find its ID
-  const order = productionOrders.find(
-    (o) => o.ProductionOrderNumber === orderNumber,
-  );
-
-  if (!order) return;
-
-  try {
-    const response = await fetch(
-      `${API_ROUTE}/production-orders/${order.ProductionOrderId}`,
-      {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    if (response.ok) {
-      // Close modals
-      closeModal("confirmDeleteModal");
-
-      // Remove row/card
-      currentDeleteRow.remove();
-      currentDeleteRow = null;
-
-      // Remove from productionOrders array
-      productionOrders = productionOrders.filter(
-        (o) => o.ProductionOrderId !== order.ProductionOrderId,
-      );
-
-      // Refresh table
-      renderProductionTable();
-
-      // Update stats
-      updateStats();
-
-      // Show success message
-      alert(`Đã xóa lệnh sản xuất: ${orderNumber}`);
-    } else {
-      alert("Lỗi khi xóa lệnh sản xuất");
-    }
-  } catch (error) {
-    console.error("Error deleting order:", error);
-    alert("Lỗi khi xóa lệnh sản xuất: " + error.message);
-  }
 }
 
 // Create New Production Order with API call
