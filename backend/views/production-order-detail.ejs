@@ -213,6 +213,21 @@
           >
             Production Order Materials
           </button>
+          <button
+            class="tab-button"
+            id="tab-ingredients"
+            style="
+              padding: 10px 20px;
+              border: none;
+              background: none;
+              cursor: pointer;
+              font-size: 16px;
+              border-bottom: 3px solid transparent;
+              color: #666;
+            "
+          >
+            Production Ingredients
+          </button>
         </div>
         <div id="batchesContent" style="margin-top: 20px">
           <table
@@ -680,6 +695,271 @@
             id="materialsNextBtn"
             style="
               background: #007aff;
+              color: white;
+              border: none;
+              border-radius: 6px;
+              padding: 8px 12px;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              transition:
+                background 0.3s ease,
+                opacity 0.3s ease;
+              font-size: 16px;
+            "
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+        <!-- Ingredients Content -->
+        <div id="ingredientsContent" style="display: none; margin-top: 20px">
+          <!-- Batch Code Filter for Ingredients -->
+          <div
+            style="
+              background: white;
+              padding: 20px;
+              border-radius: 8px;
+              margin-bottom: 20px;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            "
+          >
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 12px;
+              "
+              >Batch Code</label
+            >
+            <div
+              id="filterIngredientsBatchCodeContainer"
+              style="
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                padding: 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background: #fafafa;
+                max-height: 200px;
+                overflow-y: auto;
+                overflow-x: hidden;
+              "
+            >
+              <div
+                id="filterIngredientsBatchCodeOptions"
+                style="display: flex; flex-wrap: wrap; gap: 10px; width: 100%"
+              ></div>
+            </div>
+          </div>
+
+          <!-- Ingredients Summary -->
+          <div id="ingredientsSummary"></div>
+
+          <!-- Ingredients Filter Section -->
+          <div
+            style="
+              background: white;
+              padding: 20px;
+              border-radius: 8px;
+              margin-bottom: 20px;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            "
+          >
+            <div
+              style="
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr auto;
+                gap: 15px;
+                align-items: flex-end;
+              "
+            >
+              <div>
+                <label
+                  style="
+                    font-weight: bold;
+                    color: #666;
+                    display: block;
+                    margin-bottom: 8px;
+                  "
+                  >Quantity</label
+                >
+                <input
+                  id="filterIngredientsQuantity"
+                  placeholder="Nhập số lượng..."
+                  style="
+                    width: 100%;
+                    padding: 6px 10px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 13px;
+                  "
+                />
+              </div>
+              <button
+                id="resetIngredientsFilterBtn"
+                style="
+                  background: #6c757d;
+                  color: white;
+                  border: none;
+                  padding: 6px 12px;
+                  border-radius: 4px;
+                  cursor: pointer;
+                  font-size: 13px;
+                  font-weight: bold;
+                  width: 100px;
+                  transition: background 0.2s;
+                "
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+
+          <table
+            style="
+              width: 100%;
+              border-collapse: collapse;
+              background: white;
+              margin-bottom: 20px;
+            "
+          >
+            <thead>
+              <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd">
+                <th
+                  style="
+                    padding: 12px;
+                    text-align: center;
+                    font-weight: 600;
+                    color: #333;
+                  "
+                >
+                  ID
+                </th>
+                <th
+                  style="
+                    padding: 12px;
+                    text-align: center;
+                    font-weight: 600;
+                    color: #333;
+                  "
+                >
+                  Batch Code
+                </th>
+                <th
+                  style="
+                    padding: 12px;
+                    text-align: center;
+                    font-weight: 600;
+                    color: #333;
+                  "
+                >
+                  Quantity
+                </th>
+                <th
+                  style="
+                    padding: 12px;
+                    text-align: center;
+                    font-weight: 600;
+                    color: #333;
+                  "
+                >
+                  DateTime
+                </th>
+                <th
+                  style="
+                    padding: 12px;
+                    text-align: center;
+                    font-weight: 600;
+                    color: #333;
+                  "
+                >
+                  View
+                </th>
+              </tr>
+            </thead>
+            <tbody id="ingredientsTableBody">
+              <tr>
+                <td
+                  colspan="7"
+                  style="padding: 20px; text-align: center; color: #999"
+                >
+                  Không có dữ liệu
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Ingredients Pagination Controls -->
+        <div
+          id="ingredientsPaginationControls"
+          style="
+            margin-top: 20px;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 0 20px 0;
+          "
+        >
+          <button
+            id="ingredientsPrevBtn"
+            style="
+              background: #28a745;
+              color: white;
+              border: none;
+              border-radius: 6px;
+              padding: 8px 12px;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              transition:
+                background 0.3s ease,
+                opacity 0.3s ease;
+              font-size: 16px;
+            "
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <span
+            id="ingredientsPageInfo"
+            style="
+              font-size: 14px;
+              color: #666;
+              font-weight: 500;
+              min-width: 200px;
+              text-align: center;
+            "
+          >
+            Trang 1 / 1
+          </span>
+          <button
+            id="ingredientsNextBtn"
+            style="
+              background: #28a745;
               color: white;
               border: none;
               border-radius: 6px;
