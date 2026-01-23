@@ -1,7 +1,7 @@
 import { Batch } from "./models/Batch.js";
 import { MESMaterialConsumption } from "./models/MESMaterialConsumption.js";
 
-const API_ROUTE = "http://localhost:8000/api";
+const API_ROUTE = window.location.origin + "/api";
 
 const orderId = window.location.pathname.split("/").pop();
 let batches = [];
@@ -86,7 +86,7 @@ function getStatusText(status) {
   if (typeof status === "number") {
     switch (status) {
       case 0:
-        return "Lỗi";
+        return "Đang dừng";
       case 1:
         return "Đang chạy";
       case 2:
@@ -99,8 +99,9 @@ function getStatusText(status) {
 }
 
 // Load order details when page loads
-document.addEventListener("DOMContentLoaded", function () {
-  fetchOrderDetail();
+document.addEventListener("DOMContentLoaded", async function () {
+  await fetchOrderDetail();
+  await fetchBatches();
   // Initialize the first tab on page load
   activateTab("tab-batches");
 });
@@ -111,7 +112,7 @@ const tabBatches = document.getElementById("tab-batches");
 const tabMaterials = document.getElementById("tab-materials");
 const allTabButtons = document.querySelectorAll(".tab-button");
 
-function activateTab(tabId) {
+async function activateTab(tabId) {
   // Remove active state from all tabs
   allTabButtons.forEach((btn) => {
     btn.style.borderBottom = "3px solid transparent";
@@ -132,7 +133,11 @@ function activateTab(tabId) {
     document.getElementById("materialsPaginationControls").style.display =
       "none";
     document.getElementById("paginationControls").style.display = "flex";
-    fetchBatches();
+    if (batches.length === 0) {
+      await fetchBatches();
+    } else {
+      displayBatchesTable(batches);
+    }
   } else if (tabId === "tab-materials") {
     batchesContent.style.display = "none";
     materialsContent.style.display = "block";
@@ -167,6 +172,20 @@ function displayMaterialsTable(materialsArray) {
 
   renderMaterialsTable(materialsArray);
 }
+
+// function getBatchNumber(batchCode) {
+//   const batch = batches.findLast(
+//     (b) => Number(b.BatchId) === Number(batchCode),
+//   );
+
+//   return batch ? batch.BatchNumber : "-";
+// }
+
+// function getBatchCode(batchNumber) {
+//   const batch = batches.findLast((b) => b.BatchNumber === batchNumber);
+
+//   return batch ? batch.BatchId : "-";
+// }
 
 // Render materials table
 function renderMaterialsTable(materialsArray) {
@@ -234,7 +253,7 @@ async function fetchMaterialsWithPagination() {
       return;
     }
 
-    const batchIds = batches.map((batch) => batch.BatchId).join(",");
+    const batchNumbers = batches.map((batch) => batch.BatchNumber).join(",");
 
     // Get filter inputs separately
     const ingredientCode =
@@ -246,8 +265,9 @@ async function fetchMaterialsWithPagination() {
     const quantity = document.getElementById("filterQuantity")?.value || "";
 
     // Build query parameters with individual filters
+
     const queryParams = new URLSearchParams({
-      batchCodes: batchIds,
+      batchCodes: batchNumbers,
       productionOrderNumber: order.ProductionOrderNumber,
       page: materialsCurrentPage,
       limit: materialsPerPage,
@@ -259,7 +279,7 @@ async function fetchMaterialsWithPagination() {
 
     // Fetch from server with pagination
     const response = await fetch(
-      `/api/material-consumptions?${queryParams.toString()}`,
+      `${API_ROUTE}/material-consumptions?${queryParams.toString()}`,
       {
         method: "GET",
         headers: {
@@ -420,13 +440,13 @@ async function displayBatchesTable(batchesArray) {
               <td style="padding: 12px; text-align: center;">${batch.BatchId}</td>
               <td style="padding: 12px; text-align: center;">${batch.BatchNumber}</td>
               <td style="padding: 12px; text-align: center;">${batch.Quantity} ${batch.UnitOfMeasurement}</td>
-              <td style="padding: 12px; text-align: center;">${batch.ActualQuantity || "-"}</td>
               <td style="padding: 12px; text-align: center;">
-                <button class="viewBatchBtn" data-batch-code="${batch.BatchNumber}" style="background: none; border: none; cursor: pointer; color: #007bff; padding: 6px; transition: color 0.2s;" title="Xem chi tiết">
+                <button class="viewBatchBtn" data-batch-code="${batch.BatchNumber}" style="background: none; border: none; cursor: pointer; color: #007bff; padding: 6px; transition: color 0.2s;" title="Xem materials">
                   <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
                   </svg>
                 </button>
+                
               </td>
             </tr>
           `,
@@ -481,7 +501,6 @@ function renderBatchCodeRadioButtons(batchesArray) {
       color: white;
       border: 1px solid #0056b3;
       border-radius: 4px;
-      transition: all 0.2s;
       font-size: 14px;
       font-weight: 500;
     " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">
@@ -542,7 +561,7 @@ function renderBatchCodeRadioButtons(batchesArray) {
 
 // Update radio button styling to highlight selected
 function updateBatchCodeRadioStyles() {
-  const labels = document.querySelectorAll("#filterBatchCodeContainer label");
+  const labels = document.querySelectorAll("#filterBatchIdContainer label");
   labels.forEach((label) => {
     const radio = label.querySelector('input[type="radio"]');
     if (radio && radio.checked) {
@@ -661,7 +680,9 @@ function mergeBatchesRemoveDuplicate(arr1, arr2) {
   });
 
   arr2.forEach((batch) => {
-    map.set(batch.BatchNumber, batch);
+    if (!map.has(batch.BatchNumber)) {
+      map.set(batch.BatchNumber, batch);
+    }
   });
 
   return Array.from(map.values());
@@ -670,21 +691,23 @@ function mergeBatchesRemoveDuplicate(arr1, arr2) {
 // Fetch and display batches
 async function fetchBatches() {
   try {
-    const response = await fetch(`/api/batches?productionOrderId=${orderId}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `${API_ROUTE}/batches?productionOrderId=${orderId}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     if (response.ok) {
       const data = await response.json();
-      console.log("Fetched batches:", data.data);
       batches = data.data.map((batch) => new Batch(batch));
     }
 
     const response2 = await fetch(
-      `/api/batch-codes-with-materials?productionOrderNumber=${order.ProductionOrderNumber}`,
+      `${API_ROUTE}/batch-codes-with-materials?productionOrderNumber=${order.ProductionOrderNumber}`,
       {
         method: "GET",
         headers: {
@@ -702,7 +725,6 @@ async function fetchBatches() {
             ProductionOrderId: orderId,
             BatchNumber: batch.batchCode,
             Quantity: "",
-            ActualQuantity: batch.actualQuantity,
             UnitOfMeasurement: "",
           }),
       );
@@ -727,9 +749,6 @@ tabBatches.addEventListener("click", function () {
 tabMaterials.addEventListener("click", function () {
   activateTab("tab-materials");
 });
-
-// Load batches on page load
-fetchBatches();
 
 // Modal event listeners
 document.addEventListener("DOMContentLoaded", function () {

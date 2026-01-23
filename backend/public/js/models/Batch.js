@@ -5,7 +5,6 @@ export class Batch {
     BatchNumber,
     Quantity,
     UnitOfMeasurement,
-    ActualQuantity,
     Status,
   }) {
     this.BatchId = BatchId;
@@ -13,7 +12,6 @@ export class Batch {
     this.BatchNumber = BatchNumber;
     this.Quantity = Quantity;
     this.UnitOfMeasurement = UnitOfMeasurement;
-    this.ActualQuantity = ActualQuantity;
     this.Status = Status;
   }
 }

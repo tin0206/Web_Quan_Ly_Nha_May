@@ -46,8 +46,8 @@ async function connectToDB() {
 
 connectToDB();
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Server đang chạy tại ${process.env.API_ROUTE}`);
 });
 
 app.get("/", (req, res) => {
@@ -297,24 +297,6 @@ app.get("/api/batches", async (req, res) => {
   try {
     const { productionOrderId } = req.query;
 
-    // Get ProductionOrderNumber from ProductionOrders
-    const orderResult = await pool
-      .request()
-      .input("ProductionOrderId", sql.Int, productionOrderId)
-      .query(
-        "SELECT ProductionOrderNumber FROM ProductionOrders WHERE ProductionOrderId = @ProductionOrderId",
-      );
-
-    if (orderResult.recordset.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy đơn hàng",
-      });
-    }
-
-    const productionOrderNumber =
-      orderResult.recordset[0].ProductionOrderNumber;
-
     // Get batches
     const batchesResult = await pool
       .request()
@@ -323,58 +305,10 @@ app.get("/api/batches", async (req, res) => {
         "SELECT * FROM Batches WHERE ProductionOrderId = @ProductionOrderId",
       );
 
-    // Get actual quantities from MESMaterialConsumption grouped by batchCode and unitOfMeasurement
-    const materialsResult = await pool
-      .request()
-      .input("ProductionOrderNumber", sql.NVarChar, productionOrderNumber)
-      .query(`
-    SELECT 
-      LOWER(mmc.batchCode) AS batchCode,
-      mmc.unitOfMeasurement,
-      SUM(CAST(mmc.quantity AS FLOAT)) AS totalQuantity
-    FROM ProductionOrders po
-    JOIN Batches b
-      ON po.ProductionOrderId = b.ProductionOrderId
-    JOIN MESMaterialConsumption mmc
-      ON b.BatchId = mmc.batchCode
-    WHERE po.ProductionOrderNumber = @ProductionOrderNumber
-    AND mmc.unitOfMeasurement IS NOT NULL
-    AND LTRIM(RTRIM(mmc.unitOfMeasurement)) <> ''
-    GROUP BY LOWER(mmc.batchCode), mmc.unitOfMeasurement
-  `);
-    // Create map for quick lookup - group all units for each batch code
-    const materialsMap = new Map();
-    materialsResult.recordset.forEach((material) => {
-      const batchKey = material.batchCode;
-      if (!materialsMap.has(batchKey)) {
-        materialsMap.set(batchKey, []);
-      }
-      materialsMap.get(batchKey).push(material);
-    });
-
-    // Add actualQuantity to batches
-    const batchesWithActualQty = batchesResult.recordset.map((batch) => {
-      const batchKey = batch.BatchNumber.toLowerCase();
-      const materials = materialsMap.get(batchKey);
-
-      let actualQuantity = null;
-      if (materials && materials.length > 0) {
-        // Format all quantities with their units
-        actualQuantity = materials
-          .map((m) => `${m.totalQuantity} ${m.unitOfMeasurement}`)
-          .join(", ");
-      }
-
-      return {
-        ...batch,
-        ActualQuantity: actualQuantity,
-      };
-    });
-
     res.json({
       success: true,
       message: "Lấy danh sách lô sản xuất thành công",
-      data: batchesWithActualQty,
+      data: batchesResult.recordset,
     });
   } catch (error) {
     console.error("Lỗi khi lấy danh sách lô sản xuất: ", error.message);
@@ -398,6 +332,7 @@ app.get("/api/material-consumptions", async (req, res) => {
       lot = "",
       quantity = "",
     } = req.query;
+
     const pageNum = parseInt(page) || 1;
     const pageLimit = parseInt(limit) || 10;
     const offset = (pageNum - 1) * pageLimit;
@@ -523,49 +458,20 @@ app.get("/api/batch-codes-with-materials", async (req, res) => {
       });
     }
 
-    // Get batch codes with actual quantities grouped by unitOfMeasurement
+    // Get distinct batch codes from MESMaterialConsumption for this production order
     const result = await pool
       .request()
       .input("productionOrderNumber", sql.NVarChar, productionOrderNumber)
-      .query(`
-        SELECT 
-          batchCode,
-          CONCAT(SUM(CAST(quantity AS FLOAT)), ISNULL(unitOfMeasurement, '')) as actualQuantity
-        FROM MESMaterialConsumption 
-        WHERE ProductionOrderNumber = @productionOrderNumber
-        AND unitOfMeasurement IS NOT NULL
-        AND LTRIM(RTRIM(unitOfMeasurement)) <> ''
-        GROUP BY batchCode, unitOfMeasurement
-        ORDER BY batchCode ASC
-      `);
-
-    // Group all units by batch code
-    const batchCodesMap = new Map();
-    result.recordset.forEach((row) => {
-      if (!batchCodesMap.has(row.batchCode)) {
-        batchCodesMap.set(row.batchCode, []);
-      }
-      batchCodesMap.get(row.batchCode).push(row);
-    });
-
-    // Transform to array with combined actual quantities
-    const data = Array.from(batchCodesMap.entries()).map(
-      ([batchCode, materials]) => {
-        const actualQuantity = materials
-          .map((m) => m.actualQuantity)
-          .join(", ");
-
-        return {
-          batchCode: batchCode,
-          actualQuantity: actualQuantity,
-        };
-      },
-    );
+      .query(
+        "SELECT DISTINCT batchCode FROM MESMaterialConsumption WHERE ProductionOrderNumber = @productionOrderNumber ORDER BY batchCode ASC",
+      );
 
     res.json({
       success: true,
       message: "Lấy danh sách batch codes có dữ liệu thành công",
-      data: data,
+      data: result.recordset.map((row) => ({
+        batchCode: row.batchCode,
+      })),
     });
   } catch (error) {
     console.error("Lỗi khi lấy batch codes: ", error.message);

@@ -1,6 +1,7 @@
 import { ProductionOrder } from "./models/ProductionOrder.js";
 
-const API_ROUTE = "http://localhost:8000/api";
+const API_ROUTE =
+  window.location.origin + "/api" || "http://localhost:8000/api";
 
 let productionOrders = [];
 let currentPage = 1;
@@ -142,7 +143,7 @@ function getStatusText(status) {
       case 1:
         return "Đang chạy";
       default:
-        return "Dừng";
+        return "Đang dừng";
     }
   }
   return String(status);
