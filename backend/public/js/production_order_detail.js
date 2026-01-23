@@ -600,7 +600,7 @@ function renderIngredientsBatchCodeRadioButtons(batchesArray) {
         ${selectedIngredientsBatchCode === code ? "checked" : ""}
         style="margin-right: 6px; cursor: pointer; width: 16px;"
       />
-      <span>${index + 1}</span>
+      <span>${code}</span>
     </label>
   `,
     )
@@ -929,7 +929,7 @@ function renderBatchCodeRadioButtons(batchesArray) {
   // Add batch code options - display as numbered buttons
   html += uniqueBatchCodes
     .map(
-      (code, index) => `
+      (code) => `
     <label style="
       display: flex;
       align-items: center;
@@ -949,7 +949,7 @@ function renderBatchCodeRadioButtons(batchesArray) {
         value="${code}"
         style="margin-right: 6px; cursor: pointer; width: 16px;"
       />
-      <span>${index + 1}</span>
+      <span>${code}</span>
     </label>
   `,
     )

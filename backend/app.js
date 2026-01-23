@@ -56,7 +56,7 @@ app.get("/", (req, res) => {
   res.render("index", { title: "Trang chủ sản phẩm" });
 });
 
-// Get production orders with pagination and status counts
+// Get production orders - Simple endpoint (pagination only)
 app.get("/api/production-orders", async (req, res) => {
   try {
     if (!pool) {
@@ -67,7 +67,121 @@ app.get("/api/production-orders", async (req, res) => {
     }
 
     const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.max(1, parseInt(req.query.limit) || 20);
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    // Simple query without filters
+    const countResult = await pool
+      .request()
+      .query(`SELECT COUNT(*) as total FROM ProductionOrders`);
+
+    const statsResult = await pool.request().query(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN Status = 2 THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN mmc.ProductionOrderNumber IS NOT NULL THEN 1 ELSE 0 END) as inProgress
+      FROM ProductionOrders po
+      LEFT JOIN (
+        SELECT DISTINCT ProductionOrderNumber FROM MESMaterialConsumption
+      ) mmc ON po.ProductionOrderNumber = mmc.ProductionOrderNumber
+    `);
+
+    const totalRecords = countResult.recordset[0].total;
+    const totalPages = Math.ceil(totalRecords / limit);
+    const stats = statsResult.recordset[0];
+    const stopped = stats.total - (stats.inProgress || 0);
+
+    // Get paginated data
+    const result = await pool
+      .request()
+      .query(
+        `SELECT * FROM ProductionOrders ORDER BY ProductionOrderId DESC OFFSET ${skip} ROWS FETCH NEXT ${limit} ROWS ONLY`,
+      );
+
+    // Get batch info ONLY for the paginated orders (not all)
+    const productionOrderIds = result.recordset.map((o) => o.ProductionOrderId);
+    let batchMaps = { batchNumbers: new Map(), totalBatches: new Map() };
+
+    if (productionOrderIds.length > 0) {
+      const placeholders = productionOrderIds
+        .map((_, i) => `@id${i}`)
+        .join(",");
+
+      const batchRequest = pool.request();
+      productionOrderIds.forEach((id, i) => {
+        batchRequest.input(`id${i}`, sql.Int, id);
+      });
+
+      const batchResult = await batchRequest.query(`
+        SELECT 
+          ProductionOrderId,
+          MAX(BatchNumber) as maxBatchNumber,
+          COUNT(*) as totalBatches
+        FROM Batches
+        WHERE ProductionOrderId IN (${placeholders})
+        GROUP BY ProductionOrderId
+      `);
+
+      batchResult.recordset.forEach((row) => {
+        batchMaps.batchNumbers.set(row.ProductionOrderId, row.maxBatchNumber);
+        batchMaps.totalBatches.set(row.ProductionOrderId, row.totalBatches);
+      });
+    }
+
+    // Get running order numbers for status update
+    const runningOrdersResult = await pool
+      .request()
+      .query(
+        `SELECT DISTINCT ProductionOrderNumber FROM MESMaterialConsumption`,
+      );
+    const runningOrderNumbers = new Set(
+      runningOrdersResult.recordset.map((row) => row.ProductionOrderNumber),
+    );
+
+    // Update status based on whether the order exists in MESMaterialConsumption
+    const dataWithUpdatedStatus = result.recordset.map((order) => ({
+      ...order,
+      Status: runningOrderNumbers.has(order.ProductionOrderNumber) ? 1 : 0,
+      CurrentBatch: batchMaps.batchNumbers.get(order.ProductionOrderId) || null,
+      TotalBatches: batchMaps.totalBatches.get(order.ProductionOrderId) || 0,
+    }));
+
+    res.json({
+      success: true,
+      message: "Success",
+      total: totalRecords,
+      totalPages: totalPages,
+      page: page,
+      limit: limit,
+      stats: {
+        total: stats.total,
+        inProgress: stats.inProgress || 0,
+        completed: stats.completed || 0,
+        stopped: stopped,
+      },
+      data: dataWithUpdatedStatus,
+    });
+  } catch (error) {
+    console.error("❌ Lỗi khi truy vấn dữ liệu: ", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi: " + error.message,
+    });
+  }
+});
+
+// Get production orders with advanced filters
+app.get("/api/production-orders/search", async (req, res) => {
+  try {
+    if (!pool) {
+      return res.status(500).json({
+        success: false,
+        message: "Database chưa kết nối",
+      });
+    }
+
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit) || 20));
     const searchQuery = req.query.searchQuery || "";
     const dateFrom = req.query.dateFrom || "";
     const dateTo = req.query.dateTo || "";
@@ -214,7 +328,7 @@ app.get("/api/production-orders", async (req, res) => {
       data: dataWithUpdatedStatus,
     });
   } catch (error) {
-    console.error("❌ Lỗi khi truy vấn dữ liệu: ", error.message);
+    console.error("❌ Lỗi khi tìm kiếm đơn hàng: ", error.message);
     res.status(500).json({
       success: false,
       message: "Lỗi: " + error.message,
@@ -361,6 +475,13 @@ app.get("/api/material-consumptions", async (req, res) => {
           mc.quantity,
           mc.unitOfMeasurement,
           mc.datetime,
+          mc.operator_ID,
+          mc.supplyMachine,
+          mc.count,
+          mc.request,
+          mc.respone,
+          mc.status1,
+          mc.timestamp,
           ROW_NUMBER() OVER (ORDER BY mc.batchCode ASC, mc.id DESC) as rn
         FROM MESMaterialConsumption mc
         LEFT JOIN ProductMasters pm ON mc.ingredientCode = pm.ItemCode
@@ -410,6 +531,13 @@ app.get("/api/material-consumptions", async (req, res) => {
       quantity: row.quantity,
       unitOfMeasurement: row.unitOfMeasurement,
       datetime: row.datetime,
+      operator_ID: row.operator_ID,
+      supplyMachine: row.supplyMachine,
+      count: row.count,
+      request: row.request,
+      respone: row.respone,
+      status1: row.status1,
+      timestamp: row.timestamp,
     }));
 
     res.json({
@@ -527,6 +655,13 @@ app.get("/api/material-consumptions/search", async (req, res) => {
         mc.quantity,
         mc.unitOfMeasurement,
         mc.datetime,
+        mc.operator_ID,
+        mc.supplyMachine,
+        mc.count,
+        mc.request,
+        mc.respone,
+        mc.status1,
+        mc.timestamp,
         ROW_NUMBER() OVER (ORDER BY mc.batchCode ASC, mc.id DESC) as rn
       FROM MESMaterialConsumption mc
       LEFT JOIN ProductMasters pm ON mc.ingredientCode = pm.ItemCode
@@ -550,7 +685,14 @@ app.get("/api/material-consumptions/search", async (req, res) => {
         lot,
         quantity,
         unitOfMeasurement,
-        datetime
+        datetime,
+        operator_ID,
+        supplyMachine,
+        count,
+        request,
+        respone,
+        status1,
+        timestamp
       FROM FilteredData
       WHERE rn BETWEEN ${offset + 1} AND ${offset + pageLimit}
       ORDER BY batchCode ASC, id DESC
@@ -583,6 +725,13 @@ app.get("/api/material-consumptions/search", async (req, res) => {
       quantity: row.quantity,
       unitOfMeasurement: row.unitOfMeasurement,
       datetime: row.datetime,
+      operator_ID: row.operator_ID,
+      supplyMachine: row.supplyMachine,
+      count: row.count,
+      request: row.request,
+      respone: row.respone,
+      status1: row.status1,
+      timestamp: row.timestamp,
     }));
 
     res.json({

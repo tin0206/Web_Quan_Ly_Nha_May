@@ -553,18 +553,27 @@ async function fetchProductionOrders(page = 1) {
     const dateFrom = document.getElementById("dateFrom")?.value || "";
     const dateTo = document.getElementById("dateTo")?.value || "";
 
+    // Determine which endpoint to use based on filters
+    const hasFilters = searchQuery || dateFrom || dateTo;
+    const endpoint = hasFilters
+      ? "/production-orders/search"
+      : "/production-orders";
+
     // Build query parameters
     const params = new URLSearchParams({
       page: page,
       limit: pageSize,
-      searchQuery: searchQuery,
     });
 
-    if (dateFrom) params.append("dateFrom", dateFrom);
-    if (dateTo) params.append("dateTo", dateTo);
+    // Add filters only if using search endpoint
+    if (hasFilters) {
+      if (searchQuery) params.append("searchQuery", searchQuery);
+      if (dateFrom) params.append("dateFrom", dateFrom);
+      if (dateTo) params.append("dateTo", dateTo);
+    }
 
     const response = await fetch(
-      `${API_ROUTE}/production-orders?${params.toString()}`,
+      `${API_ROUTE}${endpoint}?${params.toString()}`,
       {
         method: "GET",
         headers: {
