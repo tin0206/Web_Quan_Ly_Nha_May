@@ -412,7 +412,20 @@ app.get("/api/material-consumptions", async (req, res) => {
 
     // Fetch paginated data
     const dataQuery = `
-      SELECT * FROM MESMaterialConsumption 
+      SELECT 
+        mc.id,
+        mc.productionOrderNumber,
+        mc.batchCode,
+        CASE 
+          WHEN pm.ItemName IS NOT NULL THEN mc.ingredientCode + ' - ' + pm.ItemName
+          ELSE mc.ingredientCode
+        END as ingredientCode,
+        mc.lot,
+        mc.quantity,
+        mc.unitOfMeasurement,
+        mc.datetime
+      FROM MESMaterialConsumption mc
+      LEFT JOIN ProductMasters pm ON mc.ingredientCode = pm.ItemCode
       WHERE ${whereClause}
       ORDER BY batchCode ASC, id DESC
       OFFSET ${offset} ROWS
