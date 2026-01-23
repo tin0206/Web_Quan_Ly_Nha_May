@@ -1,7 +1,6 @@
 import { ProductionOrder } from "./models/ProductionOrder.js";
 
-const API_ROUTE =
-  window.location.origin + "/api" || "http://localhost:8000/api";
+const API_ROUTE = window.location.origin + "/api";
 
 let productionOrders = [];
 let currentPage = 1;
@@ -11,6 +10,22 @@ let statsData = {};
 const pageSize = 20;
 
 document.addEventListener("DOMContentLoaded", async function () {
+  // Set default date range: yesterday 0h to tomorrow end of day
+  // const yesterday = new Date();
+  // yesterday.setDate(yesterday.getDate() - 1);
+  // const tomorrow = new Date();
+  // tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // const dateFromInput = document.getElementById("dateFrom");
+  // const dateToInput = document.getElementById("dateTo");
+
+  // if (dateFromInput) {
+  //   dateFromInput.value = yesterday.toISOString().split("T")[0];
+  // }
+  // if (dateToInput) {
+  //   dateToInput.value = tomorrow.toISOString().split("T")[0];
+  // }
+
   await fetchProductionOrders(1);
   updateStats();
   renderProductionTable();

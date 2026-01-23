@@ -286,22 +286,31 @@ async function fetchMaterialsWithPagination() {
     const lot = document.getElementById("filterLot")?.value || "";
     const quantity = document.getElementById("filterQuantity")?.value || "";
 
-    // Build query parameters with individual filters
+    // Determine which endpoint to use based on filters
+    const hasFilters = ingredientCode || batchCode || lot || quantity;
+    const endpoint = hasFilters
+      ? "/material-consumptions/search"
+      : "/material-consumptions";
 
+    // Build query parameters
     const queryParams = new URLSearchParams({
-      batchCodes: batchNumbers,
       productionOrderNumber: order.ProductionOrderNumber,
       page: materialsCurrentPage,
       limit: materialsPerPage,
-      ingredientCode: ingredientCode,
-      batchCode: batchCode,
-      lot: lot,
-      quantity: quantity,
     });
+
+    // Add batch codes or ingredient filters only if using search endpoint
+    if (hasFilters) {
+      queryParams.append("batchCodes", batchNumbers);
+      if (ingredientCode) queryParams.append("ingredientCode", ingredientCode);
+      if (batchCode) queryParams.append("batchCode", batchCode);
+      if (lot) queryParams.append("lot", lot);
+      if (quantity) queryParams.append("quantity", quantity);
+    }
 
     // Fetch from server with pagination
     const response = await fetch(
-      `${API_ROUTE}/material-consumptions?${queryParams.toString()}`,
+      `${API_ROUTE}${endpoint}?${queryParams.toString()}`,
       {
         method: "GET",
         headers: {
@@ -448,25 +457,29 @@ async function fetchIngredients() {
     // Get all batch numbers like materials does
     const batchNumbers = batches.map((batch) => batch.BatchNumber).join(",");
 
+    // Determine which endpoint to use
+    const hasFilters = selectedBatchCode || quantity;
+    const endpoint = hasFilters
+      ? "/material-consumptions/search"
+      : "/material-consumptions";
+
     // Build query parameters for current page
     const queryParams = new URLSearchParams({
-      batchCodes: batchNumbers, // ← Send all batch codes like materials
       productionOrderNumber: order.ProductionOrderNumber,
       page: ingredientsCurrentPage,
       limit: ingredientsPerPage,
     });
 
-    // If specific batch is selected (not "Tất cả"), add it to filter
-    if (selectedBatchCode) {
-      queryParams.append("batchCode", selectedBatchCode);
-    }
-    if (quantity) {
-      queryParams.append("quantity", quantity);
+    // Add batch codes if using search endpoint
+    if (hasFilters) {
+      queryParams.append("batchCodes", batchNumbers);
+      if (selectedBatchCode) queryParams.append("batchCode", selectedBatchCode);
+      if (quantity) queryParams.append("quantity", quantity);
     }
 
     // Fetch from server with pagination
     const response = await fetch(
-      `${API_ROUTE}/material-consumptions?${queryParams.toString()}`,
+      `${API_ROUTE}${endpoint}?${queryParams.toString()}`,
       {
         method: "GET",
         headers: {
@@ -483,17 +496,17 @@ async function fetchIngredients() {
 
       // ALWAYS fetch ALL data (no batch filter) for actual quantity total calculation
       const allDataParams = new URLSearchParams({
-        batchCodes: batchNumbers,
         productionOrderNumber: order.ProductionOrderNumber,
         limit: 999999, // Fetch all records for accurate summary
       });
 
-      if (quantity) {
-        allDataParams.append("quantity", quantity);
+      if (hasFilters) {
+        allDataParams.append("batchCodes", batchNumbers);
+        if (quantity) allDataParams.append("quantity", quantity);
       }
 
       const allDataResponse = await fetch(
-        `${API_ROUTE}/material-consumptions?${allDataParams.toString()}`,
+        `${API_ROUTE}${hasFilters ? "/material-consumptions/search" : "/material-consumptions"}?${allDataParams.toString()}`,
         {
           method: "GET",
           headers: {
