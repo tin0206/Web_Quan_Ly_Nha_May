@@ -724,7 +724,7 @@
         </div>
         <!-- Ingredients Content -->
         <div id="ingredientsContent" style="display: none; margin-top: 20px">
-          <!-- Batch Code Filter for Ingredients -->
+          <!-- Batch Number Filter for Ingredients -->
           <div
             style="
               background: white;
@@ -741,7 +741,7 @@
                 display: block;
                 margin-bottom: 12px;
               "
-              >Batch Code</label
+              >Batch Number</label
             >
             <div
               id="filterIngredientsBatchCodeContainer"
@@ -767,66 +767,6 @@
 
           <!-- Ingredients Summary -->
           <div id="ingredientsSummary"></div>
-
-          <!-- Ingredients Filter Section -->
-          <div
-            style="
-              background: white;
-              padding: 20px;
-              border-radius: 8px;
-              margin-bottom: 20px;
-              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            "
-          >
-            <div
-              style="
-                display: grid;
-                grid-template-columns: 1fr 1fr 1fr auto;
-                gap: 15px;
-                align-items: flex-end;
-              "
-            >
-              <div>
-                <label
-                  style="
-                    font-weight: bold;
-                    color: #666;
-                    display: block;
-                    margin-bottom: 8px;
-                  "
-                  >Quantity</label
-                >
-                <input
-                  id="filterIngredientsQuantity"
-                  placeholder="Nhập số lượng..."
-                  style="
-                    width: 100%;
-                    padding: 6px 10px;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    font-size: 13px;
-                  "
-                />
-              </div>
-              <button
-                id="resetIngredientsFilterBtn"
-                style="
-                  background: #6c757d;
-                  color: white;
-                  border: none;
-                  padding: 6px 12px;
-                  border-radius: 4px;
-                  cursor: pointer;
-                  font-size: 13px;
-                  font-weight: bold;
-                  width: 100px;
-                  transition: background 0.2s;
-                "
-              >
-                Reset
-              </button>
-            </div>
-          </div>
 
           <table
             style="
@@ -856,7 +796,7 @@
                     color: #333;
                   "
                 >
-                  Batch Code
+                  Batch Number
                 </th>
                 <th
                   style="

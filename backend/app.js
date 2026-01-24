@@ -461,51 +461,45 @@ app.get("/api/material-consumptions", async (req, res) => {
     const request = pool.request();
     request.input("prodOrderNum", sql.NVarChar, productionOrderNumber.trim());
 
-    // Simple query without complex filters
-    const paginationQuery = `
-      WITH FilteredData AS (
-        SELECT 
-          COUNT(*) OVER() as totalCount,
-          mc.id,
-          mc.productionOrderNumber,
-          mc.batchCode,
-          COALESCE(pm.ItemName, '') as itemName,
-          mc.ingredientCode,
-          mc.lot,
-          mc.quantity,
-          mc.unitOfMeasurement,
-          mc.datetime,
-          mc.operator_ID,
-          mc.supplyMachine,
-          mc.count,
-          mc.request,
-          mc.respone,
-          mc.status1,
-          mc.timestamp,
-          ROW_NUMBER() OVER (ORDER BY mc.batchCode ASC, mc.id DESC) as rn
-        FROM MESMaterialConsumption mc
-        LEFT JOIN ProductMasters pm ON mc.ingredientCode = pm.ItemCode
-        WHERE mc.ProductionOrderNumber = @prodOrderNum
-      )
-      SELECT 
-        totalCount,
-        id,
-        productionOrderNumber,
-        batchCode,
-        CASE 
-          WHEN itemName IS NOT NULL AND itemName != '' THEN ingredientCode + ' - ' + itemName
-          ELSE ingredientCode
-        END as ingredientCode,
-        lot,
-        quantity,
-        unitOfMeasurement,
-        datetime
-      FROM FilteredData
-      WHERE rn BETWEEN ${offset + 1} AND ${offset + pageLimit}
-      ORDER BY batchCode ASC, id DESC
+    // Tách query đếm và query dữ liệu để tăng tốc
+    // Đếm tổng số (query đơn giản, nhanh)
+    const countQuery = `
+      SELECT COUNT(*) as totalCount
+      FROM MESMaterialConsumption mc
+      WHERE mc.ProductionOrderNumber = @prodOrderNum
     `;
 
-    const result = await request.query(paginationQuery);
+    const countResult = await request.query(countQuery);
+    const totalCount = countResult.recordset[0].totalCount;
+
+    // Lấy dữ liệu với OFFSET/FETCH (nhanh hơn ROW_NUMBER)
+    const dataQuery = `
+      SELECT 
+        mc.id,
+        mc.productionOrderNumber,
+        mc.batchCode,
+        mc.ingredientCode,
+        COALESCE(pm.ItemName, '') as itemName,
+        mc.lot,
+        mc.quantity,
+        mc.unitOfMeasurement,
+        mc.datetime,
+        mc.operator_ID,
+        mc.supplyMachine,
+        mc.count,
+        mc.request,
+        mc.respone,
+        mc.status1,
+        mc.timestamp
+      FROM MESMaterialConsumption mc WITH (NOLOCK)
+      LEFT JOIN ProductMasters pm WITH (NOLOCK) ON mc.ingredientCode = pm.ItemCode
+      WHERE mc.ProductionOrderNumber = @prodOrderNum
+      ORDER BY mc.batchCode ASC, mc.id DESC
+      OFFSET ${offset} ROWS
+      FETCH NEXT ${pageLimit} ROWS ONLY
+    `;
+
+    const result = await request.query(dataQuery);
 
     if (result.recordset.length === 0) {
       return res.json({
@@ -519,14 +513,16 @@ app.get("/api/material-consumptions", async (req, res) => {
       });
     }
 
-    const totalCount = result.recordset[0].totalCount;
     const totalPages = Math.ceil(totalCount / pageLimit);
 
     const data = result.recordset.map((row) => ({
       id: row.id,
       productionOrderNumber: row.productionOrderNumber,
       batchCode: row.batchCode,
-      ingredientCode: row.ingredientCode,
+      ingredientCode:
+        row.itemName && row.itemName !== ""
+          ? `${row.ingredientCode} - ${row.itemName}`
+          : row.ingredientCode,
       lot: row.lot,
       quantity: row.quantity,
       unitOfMeasurement: row.unitOfMeasurement,
@@ -551,200 +547,6 @@ app.get("/api/material-consumptions", async (req, res) => {
     });
   } catch (error) {
     console.error("Lỗi khi lấy danh sách tiêu hao vật liệu: ", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Lỗi Server: " + error.message,
-    });
-  }
-});
-
-// Get material consumptions with advanced filters
-app.get("/api/material-consumptions/search", async (req, res) => {
-  try {
-    const {
-      batchCodes,
-      productionOrderNumber,
-      page = 1,
-      limit = 10,
-      ingredientCode = "",
-      batchCode = "",
-      lot = "",
-      quantity = "",
-    } = req.query;
-
-    const pageNum = Math.max(1, parseInt(page) || 1);
-    const pageLimit = Math.max(1, Math.min(100, parseInt(limit) || 10));
-    const offset = (pageNum - 1) * pageLimit;
-
-    let baseConditions = [];
-    let filterConditions = [];
-    const request = pool.request();
-
-    // Base conditions (batchCodes OR productionOrderNumber)
-    if (batchCodes && batchCodes.trim() !== "") {
-      const batchCodesArray = batchCodes
-        .split(",")
-        .map((code) => code.trim())
-        .filter((code) => code.length > 0);
-
-      if (batchCodesArray.length > 0) {
-        const placeholders = batchCodesArray
-          .map((code, i) => {
-            request.input(`batchCode${i}`, sql.NVarChar, code);
-            return `@batchCode${i}`;
-          })
-          .join(", ");
-        baseConditions.push(`mc.batchCode IN (${placeholders})`);
-      }
-    }
-
-    if (productionOrderNumber && productionOrderNumber.trim() !== "") {
-      request.input("prodOrderNum", sql.NVarChar, productionOrderNumber.trim());
-      baseConditions.push("mc.ProductionOrderNumber = @prodOrderNum");
-    }
-
-    if (baseConditions.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Cần cung cấp ít nhất batchCodes hoặc productionOrderNumber",
-      });
-    }
-
-    // Add individual filters (AND with base conditions)
-    if (ingredientCode && ingredientCode.trim() !== "") {
-      request.input(
-        "ingredientCode",
-        sql.NVarChar,
-        `%${ingredientCode.trim()}%`,
-      );
-      filterConditions.push("mc.ingredientCode LIKE @ingredientCode");
-    }
-
-    if (batchCode && batchCode.trim() !== "") {
-      request.input("filterBatchCode", sql.NVarChar, batchCode.trim());
-      filterConditions.push("mc.batchCode = @filterBatchCode");
-    }
-
-    if (lot && lot.trim() !== "") {
-      request.input("filterLot", sql.NVarChar, `%${lot.trim()}%`);
-      filterConditions.push("mc.lot LIKE @filterLot");
-    }
-
-    if (quantity && quantity.trim() !== "") {
-      const qtyValue = quantity.trim();
-      request.input("filterQuantity", sql.NVarChar, qtyValue);
-      filterConditions.push("mc.quantity = @filterQuantity");
-    }
-
-    const baseConditionString = baseConditions.join(" OR ");
-    let whereClause = `(${baseConditionString})`;
-    if (filterConditions.length > 0) {
-      whereClause += ` AND ${filterConditions.join(" AND ")}`;
-    }
-
-    // Combined query using window function for count + pagination
-    const combinedQuery = `
-      SELECT 
-        COUNT(*) OVER() as totalCount,
-        mc.id,
-        mc.productionOrderNumber,
-        mc.batchCode,
-        COALESCE(pm.ItemName, '') as itemName,
-        mc.ingredientCode,
-        mc.lot,
-        mc.quantity,
-        mc.unitOfMeasurement,
-        mc.datetime,
-        mc.operator_ID,
-        mc.supplyMachine,
-        mc.count,
-        mc.request,
-        mc.respone,
-        mc.status1,
-        mc.timestamp,
-        ROW_NUMBER() OVER (ORDER BY mc.batchCode ASC, mc.id DESC) as rn
-      FROM MESMaterialConsumption mc
-      LEFT JOIN ProductMasters pm ON mc.ingredientCode = pm.ItemCode
-      WHERE ${whereClause}
-    `;
-
-    // Wrap with pagination
-    const paginationQuery = `
-      WITH FilteredData AS (
-        ${combinedQuery}
-      )
-      SELECT 
-        totalCount,
-        id,
-        productionOrderNumber,
-        batchCode,
-        CASE 
-          WHEN itemName IS NOT NULL AND itemName != '' THEN ingredientCode + ' - ' + itemName
-          ELSE ingredientCode
-        END as ingredientCode,
-        lot,
-        quantity,
-        unitOfMeasurement,
-        datetime,
-        operator_ID,
-        supplyMachine,
-        count,
-        request,
-        respone,
-        status1,
-        timestamp
-      FROM FilteredData
-      WHERE rn BETWEEN ${offset + 1} AND ${offset + pageLimit}
-      ORDER BY batchCode ASC, id DESC
-    `;
-
-    const result = await request.query(paginationQuery);
-
-    if (result.recordset.length === 0) {
-      return res.json({
-        success: true,
-        message: "Không có dữ liệu",
-        page: pageNum,
-        limit: pageLimit,
-        totalCount: 0,
-        totalPages: 0,
-        data: [],
-      });
-    }
-
-    const totalCount = result.recordset[0].totalCount;
-    const totalPages = Math.ceil(totalCount / pageLimit);
-
-    // Format response
-    const data = result.recordset.map((row) => ({
-      id: row.id,
-      productionOrderNumber: row.productionOrderNumber,
-      batchCode: row.batchCode,
-      ingredientCode: row.ingredientCode,
-      lot: row.lot,
-      quantity: row.quantity,
-      unitOfMeasurement: row.unitOfMeasurement,
-      datetime: row.datetime,
-      operator_ID: row.operator_ID,
-      supplyMachine: row.supplyMachine,
-      count: row.count,
-      request: row.request,
-      respone: row.respone,
-      status1: row.status1,
-      timestamp: row.timestamp,
-    }));
-
-    res.json({
-      success: true,
-      message: "Lấy danh sách tiêu hao vật liệu thành công",
-      page: pageNum,
-      limit: pageLimit,
-      totalCount: totalCount,
-      totalPages: totalPages,
-      data: data,
-    });
-  } catch (error) {
-    console.error("Lỗi khi tìm kiếm tiêu hao vật liệu: ", error.message);
     res.status(500).json({
       success: false,
       message: "Lỗi Server: " + error.message,
