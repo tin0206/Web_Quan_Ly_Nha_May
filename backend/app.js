@@ -56,6 +56,53 @@ app.get("/", (req, res) => {
   res.render("index", { title: "Trang chủ sản phẩm" });
 });
 
+// Get production orders statistics only
+app.get("/api/production-orders/stats", async (req, res) => {
+  try {
+    if (!pool) {
+      return res.status(500).json({
+        success: false,
+        message: "Database chưa kết nối",
+      });
+    }
+
+    // Optimized stats query - avoid full table scan on MESMaterialConsumption
+    const statsResult = await pool.request().query(`
+      SELECT
+        (SELECT COUNT(*) FROM ProductionOrders) as total,
+        (SELECT COUNT(*) FROM ProductionOrders WHERE Status = 2) as completed,
+        (
+          SELECT COUNT(DISTINCT po.ProductionOrderId)
+          FROM ProductionOrders po
+          WHERE EXISTS (
+            SELECT 1 FROM MESMaterialConsumption mmc 
+            WHERE mmc.ProductionOrderNumber = po.ProductionOrderNumber
+          )
+        ) as inProgress
+    `);
+
+    const stats = statsResult.recordset[0];
+    const stopped = stats.total - (stats.inProgress || 0);
+
+    res.json({
+      success: true,
+      message: "Success",
+      stats: {
+        total: stats.total,
+        inProgress: stats.inProgress || 0,
+        completed: stats.completed || 0,
+        stopped: stopped,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Lỗi khi lấy thống kê: ", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi: " + error.message,
+    });
+  }
+});
+
 // Get production orders - Simple endpoint (pagination only)
 app.get("/api/production-orders", async (req, res) => {
   try {
@@ -70,26 +117,17 @@ app.get("/api/production-orders", async (req, res) => {
     const limit = Math.max(1, Math.min(100, parseInt(req.query.limit) || 20));
     const skip = (page - 1) * limit;
 
-    // Simple query without filters
-    const countResult = await pool
-      .request()
-      .query(`SELECT COUNT(*) as total FROM ProductionOrders`);
+    // Only do expensive COUNT on first page
+    // For subsequent pages, frontend should pass cached total from page 1
+    let totalRecords = parseInt(req.query.total) || 0;
+    if (page === 1 || totalRecords === 0) {
+      const countResult = await pool
+        .request()
+        .query(`SELECT COUNT(*) as total FROM ProductionOrders`);
+      totalRecords = countResult.recordset[0].total;
+    }
 
-    const statsResult = await pool.request().query(`
-      SELECT
-        COUNT(*) as total,
-        SUM(CASE WHEN Status = 2 THEN 1 ELSE 0 END) as completed,
-        SUM(CASE WHEN mmc.ProductionOrderNumber IS NOT NULL THEN 1 ELSE 0 END) as inProgress
-      FROM ProductionOrders po
-      LEFT JOIN (
-        SELECT DISTINCT ProductionOrderNumber FROM MESMaterialConsumption
-      ) mmc ON po.ProductionOrderNumber = mmc.ProductionOrderNumber
-    `);
-
-    const totalRecords = countResult.recordset[0].total;
-    const totalPages = Math.ceil(totalRecords / limit);
-    const stats = statsResult.recordset[0];
-    const stopped = stats.total - (stats.inProgress || 0);
+    const totalPages = totalRecords > 0 ? Math.ceil(totalRecords / limit) : 0;
 
     // Get paginated data
     const result = await pool
@@ -128,15 +166,30 @@ app.get("/api/production-orders", async (req, res) => {
       });
     }
 
-    // Get running order numbers for status update
-    const runningOrdersResult = await pool
-      .request()
-      .query(
-        `SELECT DISTINCT ProductionOrderNumber FROM MESMaterialConsumption`,
-      );
-    const runningOrderNumbers = new Set(
-      runningOrdersResult.recordset.map((row) => row.ProductionOrderNumber),
+    // ✅ FIX: Only check running status for CURRENT PAGE orders, not all orders
+    const productionOrderNumbers = result.recordset.map(
+      (o) => o.ProductionOrderNumber,
     );
+    const runningOrderNumbers = new Set();
+
+    if (productionOrderNumbers.length > 0) {
+      const poPlaceholders = productionOrderNumbers
+        .map((_, i) => `@po${i}`)
+        .join(",");
+
+      const runningRequest = pool.request();
+      productionOrderNumbers.forEach((num, i) => {
+        runningRequest.input(`po${i}`, sql.NVarChar, num);
+      });
+
+      const runningOrdersResult = await runningRequest.query(
+        `SELECT DISTINCT ProductionOrderNumber FROM MESMaterialConsumption WHERE ProductionOrderNumber IN (${poPlaceholders})`,
+      );
+
+      runningOrdersResult.recordset.forEach((row) => {
+        runningOrderNumbers.add(row.ProductionOrderNumber);
+      });
+    }
 
     // Update status based on whether the order exists in MESMaterialConsumption
     const dataWithUpdatedStatus = result.recordset.map((order) => ({
@@ -153,12 +206,6 @@ app.get("/api/production-orders", async (req, res) => {
       totalPages: totalPages,
       page: page,
       limit: limit,
-      stats: {
-        total: stats.total,
-        inProgress: stats.inProgress || 0,
-        completed: stats.completed || 0,
-        stopped: stopped,
-      },
       data: dataWithUpdatedStatus,
     });
   } catch (error) {
@@ -221,27 +268,17 @@ app.get("/api/production-orders/search", async (req, res) => {
         ? `WHERE ${whereConditions.join(" AND ")}`
         : "";
 
-    // Execute count and status queries in parallel
-    const [countResult, statsResult] = await Promise.all([
-      baseRequest.query(
+    // Only do expensive COUNT on first page
+    // For subsequent pages, frontend should pass cached total from page 1
+    let totalRecords = parseInt(req.query.total) || 0;
+    if (page === 1 || totalRecords === 0) {
+      const countResult = await baseRequest.query(
         `SELECT COUNT(*) as total FROM ProductionOrders ${whereClause}`,
-      ),
-      pool.request().query(`
-        SELECT
-          COUNT(*) as total,
-          SUM(CASE WHEN Status = 2 THEN 1 ELSE 0 END) as completed,
-          SUM(CASE WHEN mmc.ProductionOrderNumber IS NOT NULL THEN 1 ELSE 0 END) as inProgress
-        FROM ProductionOrders po
-        LEFT JOIN (
-          SELECT DISTINCT ProductionOrderNumber FROM MESMaterialConsumption
-        ) mmc ON po.ProductionOrderNumber = mmc.ProductionOrderNumber
-      `),
-    ]);
+      );
+      totalRecords = countResult.recordset[0].total;
+    }
 
-    const totalRecords = countResult.recordset[0].total;
-    const totalPages = Math.ceil(totalRecords / limit);
-    const stats = statsResult.recordset[0];
-    const stopped = stats.total - (stats.inProgress || 0);
+    const totalPages = totalRecords > 0 ? Math.ceil(totalRecords / limit) : 0;
 
     // Get paginated data with filters
     const paginatedRequest = pool.request();
@@ -294,15 +331,30 @@ app.get("/api/production-orders/search", async (req, res) => {
       });
     }
 
-    // Get running order numbers for status update
-    const runningOrdersResult = await pool
-      .request()
-      .query(
-        `SELECT DISTINCT ProductionOrderNumber FROM MESMaterialConsumption`,
-      );
-    const runningOrderNumbers = new Set(
-      runningOrdersResult.recordset.map((row) => row.ProductionOrderNumber),
+    // ✅ FIX: Only check running status for CURRENT PAGE orders, not all orders
+    const productionOrderNumbers = result.recordset.map(
+      (o) => o.ProductionOrderNumber,
     );
+    const runningOrderNumbers = new Set();
+
+    if (productionOrderNumbers.length > 0) {
+      const poPlaceholders = productionOrderNumbers
+        .map((_, i) => `@po${i}`)
+        .join(",");
+
+      const runningRequest = pool.request();
+      productionOrderNumbers.forEach((num, i) => {
+        runningRequest.input(`po${i}`, sql.NVarChar, num);
+      });
+
+      const runningOrdersResult = await runningRequest.query(
+        `SELECT DISTINCT ProductionOrderNumber FROM MESMaterialConsumption WHERE ProductionOrderNumber IN (${poPlaceholders})`,
+      );
+
+      runningOrdersResult.recordset.forEach((row) => {
+        runningOrderNumbers.add(row.ProductionOrderNumber);
+      });
+    }
 
     // Update status based on whether the order exists in MESMaterialConsumption
     const dataWithUpdatedStatus = result.recordset.map((order) => ({
@@ -319,12 +371,6 @@ app.get("/api/production-orders/search", async (req, res) => {
       totalPages: totalPages,
       page: page,
       limit: limit,
-      stats: {
-        total: stats.total,
-        inProgress: stats.inProgress || 0,
-        completed: stats.completed || 0,
-        stopped: stopped,
-      },
       data: dataWithUpdatedStatus,
     });
   } catch (error) {

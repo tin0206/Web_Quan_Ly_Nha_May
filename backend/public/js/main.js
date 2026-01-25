@@ -26,6 +26,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   //   dateToInput.value = tomorrow.toISOString().split("T")[0];
   // }
 
+  await fetchStats();
   await fetchProductionOrders(1);
   updateStats();
   renderProductionTable();
@@ -434,7 +435,6 @@ function initializeSearch() {
     debounceTimer = setTimeout(async () => {
       currentPage = 1; // Reset to first page when filter changes
       await fetchProductionOrders(currentPage);
-      updateStats();
 
       // Check current view and render accordingly
       const activeViewBtn = document.querySelector(".view-btn.active");
@@ -469,7 +469,6 @@ function initializeSearch() {
       // Reset to page 1 and fetch
       currentPage = 1;
       await fetchProductionOrders(currentPage);
-      updateStats();
 
       // Check current view and render accordingly
       const activeViewBtn = document.querySelector(".view-btn.active");
@@ -483,28 +482,26 @@ function initializeSearch() {
   }
 }
 
-// Update stats cards based on productionOrders
-// Fetch all production orders for stats calculation
-async function fetchAllProductionOrdersForStats() {
+// Fetch statistics from dedicated stats endpoint
+async function fetchStats() {
   try {
-    const response = await fetch(
-      `${API_ROUTE}/production-orders?page=1&limit=10000`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+    const response = await fetch(`${API_ROUTE}/production-orders/stats`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+    });
 
     if (response.ok) {
       const data = await response.json();
-      return data.data || [];
+      statsData = data.stats || {};
+      updateStats();
+    } else {
+      console.error("Failed to fetch stats:", response.status);
     }
   } catch (error) {
-    console.error("Error fetching all orders for stats:", error);
+    console.error("Error fetching stats:", error);
   }
-  return [];
 }
 
 function updateStats() {
@@ -565,6 +562,11 @@ async function fetchProductionOrders(page = 1) {
       limit: pageSize,
     });
 
+    // Add cached total for pages > 1 to avoid expensive COUNT query
+    if (page > 1 && totalRecords > 0) {
+      params.append("total", totalRecords);
+    }
+
     // Add filters only if using search endpoint
     if (hasFilters) {
       if (searchQuery) params.append("searchQuery", searchQuery);
@@ -588,7 +590,6 @@ async function fetchProductionOrders(page = 1) {
       totalRecords = data.total;
       totalPages = data.totalPages || Math.ceil(totalRecords / pageSize);
       currentPage = data.page;
-      statsData = data.stats || {}; // Store stats from API
       updatePaginationControls();
     } else {
       console.error("Failed to fetch production orders:", response.status);
@@ -641,7 +642,6 @@ function updatePaginationControls() {
 async function prevPage() {
   if (currentPage > 1) {
     await fetchProductionOrders(currentPage - 1);
-    updateStats();
 
     // Check current view mode and render accordingly
     const activeViewBtn = document.querySelector(".view-btn.active");
@@ -659,7 +659,6 @@ async function nextPage() {
   const totalPages = Math.ceil(totalRecords / pageSize);
   if (currentPage < totalPages) {
     await fetchProductionOrders(currentPage + 1);
-    updateStats();
 
     // Check current view mode and render accordingly
     const activeViewBtn = document.querySelector(".view-btn.active");

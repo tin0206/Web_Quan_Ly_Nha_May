@@ -331,9 +331,17 @@ async function fetchMaterialsWithPagination() {
       );
     }
     if (batchCode) {
-      filteredMaterials = filteredMaterials.filter(
-        (item) => item.batchCode === batchCode,
-      );
+      if (batchCode === "null") {
+        // Filter items with NULL batch code
+        filteredMaterials = filteredMaterials.filter(
+          (item) =>
+            !item.batchCode || item.batchCode === "" || item.batchCode === null,
+        );
+      } else {
+        filteredMaterials = filteredMaterials.filter(
+          (item) => item.batchCode === batchCode,
+        );
+      }
     }
     if (lot) {
       filteredMaterials = filteredMaterials.filter((item) =>
@@ -520,9 +528,17 @@ async function fetchIngredients() {
     let filteredIngredients = allIngredients;
 
     if (batchCode) {
-      filteredIngredients = allIngredients.filter(
-        (item) => item.batchCode === batchCode,
-      );
+      if (batchCode === "null") {
+        // Filter items with NULL batch code
+        filteredIngredients = allIngredients.filter(
+          (item) =>
+            !item.batchCode || item.batchCode === "" || item.batchCode === null,
+        );
+      } else {
+        filteredIngredients = allIngredients.filter(
+          (item) => item.batchCode === batchCode,
+        );
+      }
     }
 
     // Calculate pagination for filtered data
@@ -693,7 +709,17 @@ function calculateBatchQuantitySummary(ingredientsArray, batchCode) {
 
   const batchTotals = {};
   ingredientsArray.forEach((item) => {
-    if (item.batchCode === batchCode) {
+    let matchesBatch = false;
+
+    if (batchCode === "null") {
+      // Match items with NULL batch code
+      matchesBatch =
+        !item.batchCode || item.batchCode === "" || item.batchCode === null;
+    } else {
+      matchesBatch = item.batchCode === batchCode;
+    }
+
+    if (matchesBatch) {
       const uom = item.unitOfMeasurement || "N/A";
       if (!batchTotals[uom]) {
         batchTotals[uom] = 0;
