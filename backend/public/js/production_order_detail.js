@@ -552,8 +552,8 @@ async function fetchIngredients() {
     const endIndex = startIndex + ingredientsPerPage;
     ingredients = filteredIngredients.slice(startIndex, endIndex);
 
-    // Display table with current page data and all data for summary
-    displayIngredientsTable(ingredients, allIngredients);
+    // Display table with current page data, all data for Actual Quantity, and filtered data for Batch quantity
+    displayIngredientsTable(ingredients, allIngredients, filteredIngredients);
 
     updateIngredientsPageInfo(
       ingredientsCurrentPage,
@@ -576,7 +576,13 @@ function renderIngredientsBatchCodeRadioButtons(batchesArray) {
   );
   if (!container) return;
 
-  const uniqueBatchCodes = [...new Set(batchesArray.map((b) => b.BatchNumber))];
+  const uniqueBatchCodes = [
+    ...new Set(
+      batchesArray.map((b) =>
+        b.BatchNumber === null ? "null" : b.BatchNumber,
+      ),
+    ),
+  ];
 
   // Start with "Tất cả" option
   let html = `
@@ -620,7 +626,7 @@ function renderIngredientsBatchCodeRadioButtons(batchesArray) {
       transition: all 0.2s;
       font-size: 13px;
       min-width: 50px;
-    " onmouseover="this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'" onmouseout="this.style.borderColor='#ddd'; this.style.boxShadow='none'">
+    " onmouseover="this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='white'; this.style.color='inherit'; this.style.borderColor='#ddd'; this.style.fontWeight='normal'; } else { this.style.borderColor='#0056b3'; } this.style.boxShadow='none'">
       <input
         type="radio"
         name="filterIngredientsBatchCode"
@@ -659,7 +665,7 @@ function renderIngredientsBatchCodeRadioButtons(batchesArray) {
 // Update radio button styling to highlight selected for ingredients
 function updateIngredientsBatchCodeRadioStyles() {
   const labels = document.querySelectorAll(
-    "#filterIngredientsBatchCodeContainer label",
+    "#filterIngredientsBatchCodeOptions label",
   );
   labels.forEach((label) => {
     const radio = label.querySelector('input[type="radio"]');
@@ -739,14 +745,19 @@ function calculateBatchQuantitySummary(ingredientsArray, batchCode) {
 function displayIngredientsTable(
   ingredientsArray,
   allIngredientsForActualQuantity = null,
+  filteredIngredientsForBatchQuantity = null,
 ) {
   const tbody = document.getElementById("ingredientsTableBody");
 
   if (!tbody) return;
 
-  // Use all data for actual quantity (grand total), current page data for batch total
+  // Use all data for actual quantity (grand total)
   const allIngredientsData =
     allIngredientsForActualQuantity || ingredientsArray;
+
+  // Use filtered data for batch quantity (all filtered data, not just current page)
+  const filteredIngredientsData =
+    filteredIngredientsForBatchQuantity || ingredientsArray;
 
   // Display plan quantity info and actual quantity above the table
   const ingredientsSummary = document.getElementById("ingredientsSummary");
@@ -755,12 +766,12 @@ function displayIngredientsTable(
     const actualQuantitySummary =
       calculateActualQuantitySummary(allIngredientsData);
 
-    // Calculate batch-specific summary if a batch is selected (use current page data)
+    // Calculate batch-specific summary if a batch is selected (use all filtered data)
     const selectedBatchCode =
       document.querySelector('input[name="filterIngredientsBatchCode"]:checked')
         ?.value || "";
     const batchQuantitySummary = calculateBatchQuantitySummary(
-      ingredientsArray,
+      filteredIngredientsData,
       selectedBatchCode,
     );
 
@@ -977,10 +988,6 @@ async function displayBatchesTable(batchesArray) {
       selectedIngredientsBatchCode = batchCode;
       // Switch to ingredients tab (this will call fetchIngredients and render radio buttons)
       activateTab("tab-ingredients");
-      console.log(
-        "Selected Ingredients Batch Code:",
-        selectedIngredientsBatchCode,
-      );
     });
     btn.addEventListener("mouseover", function () {
       this.style.background = "#218838";
@@ -999,7 +1006,13 @@ function renderBatchCodeRadioButtons(batchesArray) {
   const container = document.getElementById("filterBatchCodeOptions");
   if (!container) return;
 
-  const uniqueBatchCodes = [...new Set(batchesArray.map((b) => b.BatchNumber))];
+  const uniqueBatchCodes = [
+    ...new Set(
+      batchesArray.map((b) =>
+        b.BatchNumber === null ? "null" : b.BatchNumber,
+      ),
+    ),
+  ];
 
   // Start with "Tất cả" option
   let html = `
@@ -1043,7 +1056,7 @@ function renderBatchCodeRadioButtons(batchesArray) {
       transition: all 0.2s;
       font-size: 13px;
       min-width: 50px;
-    " onmouseover="this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'" onmouseout="this.style.borderColor='#ddd'; this.style.boxShadow='none'">
+    " onmouseover="this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='white'; this.style.color='inherit'; this.style.borderColor='#ddd'; this.style.fontWeight='normal'; } else { this.style.borderColor='#0056b3'; } this.style.boxShadow='none'">
       <input
         type="radio"
         name="filterBatchCode"
@@ -1077,7 +1090,7 @@ function renderBatchCodeRadioButtons(batchesArray) {
 
 // Update radio button styling to highlight selected
 function updateBatchCodeRadioStyles() {
-  const labels = document.querySelectorAll("#filterBatchIdContainer label");
+  const labels = document.querySelectorAll("#filterBatchCodeOptions label");
   labels.forEach((label) => {
     const radio = label.querySelector('input[type="radio"]');
     if (radio && radio.checked) {
