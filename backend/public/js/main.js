@@ -1,6 +1,6 @@
 import { ProductionOrder } from "./models/ProductionOrder.js";
 
-const API_ROUTE = window.location.origin + "/api";
+const API_ROUTE = window.location.origin;
 
 let productionOrders = [];
 let currentPage = 1;
@@ -485,7 +485,7 @@ function initializeSearch() {
 // Fetch statistics from dedicated stats endpoint
 async function fetchStats() {
   try {
-    const response = await fetch(`${API_ROUTE}/production-orders/stats`, {
+    const response = await fetch(`${API_ROUTE}/api/production-orders/stats`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -553,8 +553,8 @@ async function fetchProductionOrders(page = 1) {
     // Determine which endpoint to use based on filters
     const hasFilters = searchQuery || dateFrom || dateTo;
     const endpoint = hasFilters
-      ? "/production-orders/search"
-      : "/production-orders";
+      ? "/api/production-orders/search"
+      : "/api/production-orders";
 
     // Build query parameters
     const params = new URLSearchParams({

@@ -1,7 +1,7 @@
 import { Batch } from "./models/Batch.js";
 import { MESMaterialConsumption } from "./models/MESMaterialConsumption.js";
 
-const API_ROUTE = window.location.origin + "/api";
+const API_ROUTE = window.location.origin;
 
 const orderId = window.location.pathname.split("/").pop();
 let batches = [];
@@ -10,12 +10,15 @@ let order = {};
 
 async function fetchOrderDetail() {
   try {
-    const response = await fetch(`${API_ROUTE}/production-order/${orderId}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `${API_ROUTE}/api/production-order-detail/${orderId}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     if (response.ok) {
       const data = await response.json();
@@ -287,7 +290,7 @@ async function fetchMaterialsWithPagination() {
       });
 
       const response = await fetch(
-        `${API_ROUTE}/material-consumptions?${queryParams.toString()}`,
+        `${API_ROUTE}/api/production-order-detail/material-consumptions?${queryParams.toString()}`,
         {
           method: "GET",
           headers: {
@@ -500,7 +503,7 @@ async function fetchIngredients() {
       });
 
       const response = await fetch(
-        `${API_ROUTE}/material-consumptions?${queryParams.toString()}`,
+        `${API_ROUTE}/api/production-order-detail/material-consumptions?${queryParams.toString()}`,
         {
           method: "GET",
           headers: {
@@ -1221,7 +1224,7 @@ function mergeBatchesRemoveDuplicate(arr1, arr2) {
 async function fetchBatches() {
   try {
     const response = await fetch(
-      `${API_ROUTE}/batches?productionOrderId=${orderId}`,
+      `${API_ROUTE}/api/production-order-detail/batches?productionOrderId=${orderId}`,
       {
         method: "GET",
         headers: {
@@ -1236,7 +1239,7 @@ async function fetchBatches() {
     }
 
     const response2 = await fetch(
-      `${API_ROUTE}/batch-codes-with-materials?productionOrderNumber=${order.ProductionOrderNumber}`,
+      `${API_ROUTE}/api/production-order-detail/batch-codes-with-materials?productionOrderNumber=${order.ProductionOrderNumber}`,
       {
         method: "GET",
         headers: {
