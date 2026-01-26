@@ -37,6 +37,65 @@ router.get("/batches", async (req, res) => {
   }
 });
 
+// Get ingredients by ProductCode (IngredientCode == ProductCode of PO)
+router.get("/ingredients-by-product", async (req, res) => {
+  try {
+    const { productionOrderNumber } = req.query;
+
+    if (!productionOrderNumber?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "productionOrderNumber là bắt buộc",
+      });
+    }
+
+    const request = getPool().request();
+    request.input("prodOrderNum", sql.NVarChar, productionOrderNumber.trim());
+
+    const query = `
+      SELECT
+        i.ProcessId,
+        i.IngredientCode,
+        i.Quantity,
+        i.UnitOfMeasurement,
+        pm.ItemName,
+        po.ProductCode,
+        po.RecipeCode
+      FROM ProductionOrders po
+      JOIN Ingredients i 
+        ON i.IngredientCode = po.ProductCode
+      LEFT JOIN ProductMasters pm 
+        ON pm.ItemCode = i.IngredientCode
+      WHERE po.ProductionOrderNumber = @prodOrderNum
+      ORDER BY i.ProcessId;
+    `;
+
+    const result = await request.query(query);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy dữ liệu ingredients",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Lấy danh sách ingredients thành công",
+      productCode: result.recordset[0].ProductCode,
+      recipeCode: result.recordset[0].RecipeCode,
+      total: result.recordset.length,
+      data: result.recordset,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy ingredients:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+    });
+  }
+});
+
 // Get material consumptions - Simple endpoint (basic query only)
 router.get("/material-consumptions", async (req, res) => {
   try {

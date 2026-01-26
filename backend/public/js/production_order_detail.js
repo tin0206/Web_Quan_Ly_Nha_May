@@ -112,9 +112,10 @@ document.addEventListener("DOMContentLoaded", async function () {
 const batchesContent = document.getElementById("batchesContent");
 const materialsContent = document.getElementById("materialsContent");
 const ingredientsContent = document.getElementById("ingredientsContent");
+const recipesContent = document.getElementById("recipesContent");
 const tabBatches = document.getElementById("tab-batches");
 const tabMaterials = document.getElementById("tab-materials");
-const tabIngredients = document.getElementById("tab-ingredients");
+const tabIngredients = document.getElementById("tab-recipes");
 const allTabButtons = document.querySelectorAll(".tab-button");
 
 async function activateTab(tabId) {
@@ -156,16 +157,17 @@ async function activateTab(tabId) {
     document.getElementById("materialsPaginationControls").style.display =
       "flex";
     fetchMaterialConsumptions();
-  } else if (tabId === "tab-ingredients") {
+  } else if (tabId === "tab-recipes") {
     batchesContent.style.display = "none";
     materialsContent.style.display = "none";
-    ingredientsContent.style.display = "block";
+    ingredientsContent.style.display = "none";
+    recipesContent.style.display = "block";
     document.getElementById("paginationControls").style.display = "none";
     document.getElementById("materialsPaginationControls").style.display =
       "none";
     document.getElementById("ingredientsPaginationControls").style.display =
-      "flex";
-    fetchIngredients();
+      "none";
+    fetchRecipeMaterials();
   }
 }
 
@@ -180,7 +182,7 @@ tabMaterials.addEventListener("click", function () {
 
 if (tabIngredients) {
   tabIngredients.addEventListener("click", function () {
-    activateTab("tab-ingredients");
+    activateTab("tab-recipes");
   });
 }
 
@@ -200,37 +202,88 @@ let allIngredients = []; // Store all ingredients for client-side filtering
 let allMaterials = []; // Store all materials for client-side filtering
 let selectedMaterialsBatchCode = ""; // Store selected batch for materials tab
 let selectedIngredientsBatchCode = ""; // Store selected batch for ingredients tab
+let ingredientsTotalsByUOM = {}; // Store totals grouped by UnitOfMeasurement
+
+// Group materials by batch number, ingredient code, lot, and unit of measurement
+function groupMaterials(materialsArray) {
+  const groupMap = new Map();
+
+  materialsArray.forEach((material) => {
+    // Create a unique key based on batch, ingredient, lot, and unit
+    const key = `${material.batchCode || ""}_${material.ingredientCode || ""}_${material.lot || ""}_${material.unitOfMeasurement || ""}`;
+
+    if (groupMap.has(key)) {
+      const group = groupMap.get(key);
+      // Add quantity to total
+      group.totalQuantity += parseFloat(material.quantity) || 0;
+      // Add material to items array
+      group.items.push(material);
+      // Add ID to ids array
+      group.ids.push(material.id);
+      // Update latest datetime
+      if (
+        material.datetime &&
+        (!group.latestDatetime ||
+          new Date(material.datetime) > new Date(group.latestDatetime))
+      ) {
+        group.latestDatetime = material.datetime;
+      }
+    } else {
+      // Create new group
+      groupMap.set(key, {
+        batchCode: material.batchCode,
+        ingredientCode: material.ingredientCode,
+        lot: material.lot,
+        unitOfMeasurement: material.unitOfMeasurement,
+        totalQuantity: parseFloat(material.quantity) || 0,
+        items: [material],
+        ids: [material.id],
+        latestDatetime: material.datetime,
+        key: key,
+      });
+    }
+  });
+
+  return Array.from(groupMap.values());
+}
 
 // Display batches table with rowspan for batch code
 function displayMaterialsTable(materialsArray) {
   // Store original materials for filtering
   window.allMaterials = materialsArray;
 
-  renderMaterialsTable(materialsArray);
+  // Group materials before rendering
+  const groupedMaterials = groupMaterials(materialsArray);
+  renderMaterialsTable(groupedMaterials);
 }
 
 // Render materials table
-function renderMaterialsTable(materialsArray) {
+function renderMaterialsTable(groupedMaterialsArray) {
   const tbody = document.getElementById("materialsTableBody");
 
-  if (materialsArray.length === 0) {
+  if (groupedMaterialsArray.length === 0) {
     tbody.innerHTML =
       '<tr><td colspan="9" style="padding: 20px; text-align: center; color: #999;">Không có dữ liệu vật liệu nào</td></tr>';
     return;
   }
 
-  // Build table HTML
+  // Build table HTML for grouped materials
   let html = "";
-  materialsArray.forEach((material, index) => {
+  groupedMaterialsArray.forEach((group, index) => {
+    const idsDisplay =
+      group.ids.length >= 2
+        ? `${group.ids.length} items`
+        : group.ids.join(", ");
     html += `<tr style="border-bottom: 1px solid #eee;">
-      <td style="padding: 12px; text-align: center; font-weight: bold;">${material.id || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${material.batchCode || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${material.ingredientCode || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${material.lot || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${material.quantity || 0} ${material.unitOfMeasurement || ""}</td>
-      <td style="padding: 12px; text-align: center;">${formatDate(material.datetime) || "-"}</td>
+      <td style="padding: 12px; text-align: center; font-weight: bold;">${idsDisplay}</td>
+      <td style="padding: 12px; text-align: center;">${group.batchCode || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${group.ingredientCode || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${group.lot || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${group.unitOfMeasurement || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}</td>
+      <td style="padding: 12px; text-align: center;">${formatDate(group.latestDatetime) || "-"}</td>
       <td style="padding: 12px; text-align: center;">
-        <button class="viewMaterialBtn" data-index="${index}" style="background: none; border: none; cursor: pointer; color: #007bff; padding: 6px; transition: color 0.2s;" title="Xem chi tiết">
+        <button class="viewMaterialGroupBtn" data-index="${index}" style="background: none; border: none; cursor: pointer; color: #007bff; padding: 6px; transition: color 0.2s;" title="Xem danh sách">
           <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
           </svg>
@@ -242,11 +295,11 @@ function renderMaterialsTable(materialsArray) {
   tbody.innerHTML = html;
 
   // Add event listeners to View buttons
-  const viewButtons = document.querySelectorAll(".viewMaterialBtn");
+  const viewButtons = document.querySelectorAll(".viewMaterialGroupBtn");
   viewButtons.forEach((btn) => {
     btn.addEventListener("click", function () {
       const index = this.getAttribute("data-index");
-      showMaterialModal(materialsArray[index]);
+      showMaterialListModal(groupedMaterialsArray[index]);
     });
     btn.addEventListener("mouseover", function () {
       this.style.color = "#0056b3";
@@ -468,13 +521,101 @@ function showMaterialModal(material) {
   document.getElementById("modalStatus").textContent = material.status1 || "-";
 
   modal.style.display = "flex";
+
+  // Add click event to close modal when clicking outside
+  modal.onclick = function (event) {
+    if (event.target === modal) {
+      closeMaterialModal();
+    }
+  };
 }
 
+// Show material list modal for grouped materials
+function showMaterialListModal(group) {
+  // If only 1 item, show detail modal directly
+  if (group.items.length === 1) {
+    showMaterialModal(group.items[0]);
+    return;
+  }
+
+  const modal = document.getElementById("materialListModal");
+  const tbody = document.getElementById("materialListTableBody");
+
+  // Update modal header with group info
+  document.getElementById("listModalTitle").innerHTML = `
+    <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">Danh sách Materials</div>
+    <div style="font-size: 14px; color: #666;">
+      <span style="margin-right: 20px;"><strong>Batch:</strong> ${group.batchCode || "-"}</span>
+      <span style="margin-right: 20px;"><strong>Ingredient:</strong> ${group.ingredientCode || "-"}</span>
+      <span style="margin-right: 20px;"><strong>Lot:</strong> ${group.lot || "-"}</span>
+      <span><strong>Total Quantity:</strong> ${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}</span>
+    </div>
+  `;
+
+  // Build table rows for individual items
+  let html = "";
+  group.items.forEach((material, index) => {
+    html += `<tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 12px; text-align: center; font-weight: bold;">${material.id || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${material.batchCode || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${material.ingredientCode || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${material.lot || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${material.quantity || 0} ${material.unitOfMeasurement || ""}</td>
+      <td style="padding: 12px; text-align: center;">${formatDate(material.datetime) || "-"}</td>
+      <td style="padding: 12px; text-align: center;">
+        <button class="viewMaterialDetailBtn" data-index="${index}" style="background: none; border: none; cursor: pointer; color: #007bff; padding: 6px; transition: color 0.2s;" title="Xem chi tiết">
+          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
+          </svg>
+        </button>
+      </td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = html;
+
+  // Add event listeners to View buttons
+  const viewButtons = document.querySelectorAll(".viewMaterialDetailBtn");
+  viewButtons.forEach((btn) => {
+    btn.addEventListener("click", function () {
+      const index = this.getAttribute("data-index");
+      // Close list modal and show detail modal
+      closeMaterialListModal();
+      showMaterialModal(group.items[index]);
+    });
+    btn.addEventListener("mouseover", function () {
+      this.style.color = "#0056b3";
+    });
+    btn.addEventListener("mouseout", function () {
+      this.style.color = "#007bff";
+    });
+  });
+
+  modal.style.display = "flex";
+
+  // Add click event to close modal when clicking outside
+  modal.onclick = function (event) {
+    if (event.target === modal) {
+      closeMaterialListModal();
+    }
+  };
+}
+
+// Close material list modal function
+window.closeMaterialListModal = function () {
+  const modal = document.getElementById("materialListModal");
+  modal.style.display = "none";
+  // Remove click event listener
+  modal.onclick = null;
+};
+
 // Close modal function
-function closeMaterialModal() {
+window.closeMaterialModal = function () {
   const modal = document.getElementById("materialModal");
   modal.style.display = "none";
-}
+  // Remove click event listener
+  modal.onclick = null;
+};
 
 // Fetch materials for production order - initial load
 async function fetchMaterialConsumptions() {
@@ -496,14 +637,13 @@ async function fetchIngredients() {
 
     // Only fetch from API if we don't have data yet
     if (allIngredients.length === 0) {
-      // Fetch ALL data from server (no pagination, no filter)
+      // Fetch ingredients by ProductCode
       const queryParams = new URLSearchParams({
         productionOrderNumber: order.ProductionOrderNumber,
-        limit: 999999, // Fetch all records
       });
 
       const response = await fetch(
-        `${API_ROUTE}/api/production-order-detail/material-consumptions?${queryParams.toString()}`,
+        `${API_ROUTE}/api/production-order-detail/ingredients-by-product?${queryParams.toString()}`,
         {
           method: "GET",
           headers: {
@@ -514,15 +654,19 @@ async function fetchIngredients() {
 
       if (response.ok) {
         const data = await response.json();
-        allIngredients = data.data.map(
-          (item) => new MESMaterialConsumption(item),
-        );
-      } else {
-        document.getElementById("ingredientsTableBody").innerHTML =
-          '<tr><td colspan="5" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
-        document.getElementById("ingredientsPaginationControls").style.display =
-          "none";
-        return;
+
+        // Store all ingredients
+        allIngredients = data.data || [];
+
+        // Calculate totals grouped by UnitOfMeasurement
+        ingredientsTotalsByUOM = {};
+        allIngredients.forEach((item) => {
+          const uom = item.UnitOfMeasurement || "N/A";
+          if (!ingredientsTotalsByUOM[uom]) {
+            ingredientsTotalsByUOM[uom] = 0;
+          }
+          ingredientsTotalsByUOM[uom] += parseFloat(item.Quantity) || 0;
+        });
       }
     }
 
@@ -570,6 +714,128 @@ async function fetchIngredients() {
     document.getElementById("ingredientsPaginationControls").style.display =
       "none";
   }
+}
+
+// Fetch and display materials for recipe tab with plan quantity calculation
+async function fetchRecipeMaterials() {
+  try {
+    // Check if we have batches
+    if (batches.length === 0) {
+      document.getElementById("recipesTableBody").innerHTML =
+        '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #999;">Không có batch nào</td></tr>';
+      return;
+    }
+
+    // Fetch ingredients data for recipe totals if not already loaded
+    if (Object.keys(ingredientsTotalsByUOM).length === 0) {
+      const queryParams = new URLSearchParams({
+        productionOrderNumber: order.ProductionOrderNumber,
+      });
+
+      const response = await fetch(
+        `${API_ROUTE}/api/production-order-detail/ingredients-by-product?${queryParams.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const ingredientsData = data.data || [];
+
+        // Calculate totals grouped by IngredientCode
+        ingredientsData.forEach((item) => {
+          const ingredientCode = item.IngredientCode;
+          if (!ingredientsTotalsByUOM[ingredientCode]) {
+            ingredientsTotalsByUOM[ingredientCode] = 0;
+          }
+          ingredientsTotalsByUOM[ingredientCode] +=
+            parseFloat(item.Quantity) || 0;
+        });
+      }
+    }
+
+    // Fetch all materials
+    if (allMaterials.length === 0) {
+      const queryParams = new URLSearchParams({
+        productionOrderNumber: order.ProductionOrderNumber,
+        limit: 999999,
+      });
+
+      const response = await fetch(
+        `${API_ROUTE}/api/production-order-detail/material-consumptions?${queryParams.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        allMaterials = data.data.map(
+          (item) => new MESMaterialConsumption(item),
+        );
+      }
+    }
+
+    // Display materials with plan quantity calculation
+    displayRecipeMaterialsTable(allMaterials);
+  } catch (error) {
+    console.error("Error loading recipe materials:", error);
+    document.getElementById("recipesTableBody").innerHTML =
+      '<tr><td colspan="5" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
+  }
+}
+
+// Display recipe materials table with plan quantity calculation
+function displayRecipeMaterialsTable(materialsArray) {
+  const tbody = document.getElementById("recipesTableBody");
+
+  if (!tbody) return;
+
+  if (materialsArray.length === 0) {
+    tbody.innerHTML =
+      '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #999;">Không có dữ liệu vật liệu</td></tr>';
+    return;
+  }
+
+  // Get PO Quantity for calculation
+  const poQuantity = parseFloat(order.Quantity) || 1;
+
+  // Build table HTML
+  let html = "";
+  materialsArray.forEach((material) => {
+    const ingredientCode = material.ingredientCode;
+    const batchCode = material.batchCode;
+
+    // Find batch quantity
+    const batch = batches.find((b) => b.BatchNumber === batchCode);
+    const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
+
+    // Get recipe quantity from ingredientsTotalsByUOM
+    const recipeQuantity = ingredientsTotalsByUOM[ingredientCode] || 0;
+
+    // Calculate plan quantity: (recipeQuantity / poQuantity) * batchQuantity
+    const planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
+
+    // Actual quantity from material
+    const actualQuantity = parseFloat(material.quantity) || 0;
+
+    html += `<tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 12px; text-align: center; font-weight: bold;">${material.id || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${batchCode || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${ingredientCode || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${actualQuantity.toFixed(2)} ${material.unitOfMeasurement || ""}</td>
+      <td style="padding: 12px; text-align: center;">${planQuantity.toFixed(2)} ${material.unitOfMeasurement || ""}</td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = html;
 }
 
 // Render batch code radio buttons for ingredients
@@ -990,7 +1256,7 @@ async function displayBatchesTable(batchesArray) {
       // Set selected batch code BEFORE switching tabs
       selectedIngredientsBatchCode = batchCode;
       // Switch to ingredients tab (this will call fetchIngredients and render radio buttons)
-      activateTab("tab-ingredients");
+      activateTab("tab-recipes");
     });
     btn.addEventListener("mouseover", function () {
       this.style.background = "#218838";
