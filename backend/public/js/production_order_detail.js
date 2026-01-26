@@ -89,7 +89,7 @@ function getStatusText(status) {
   if (typeof status === "number") {
     switch (status) {
       case 0:
-        return "Đang dừng";
+        return "Đang chờ";
       case 1:
         return "Đang chạy";
       case 2:
