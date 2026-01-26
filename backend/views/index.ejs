@@ -8,6 +8,11 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
     />
     <link rel="stylesheet" href="/css/main_style.css" />
+    <script>
+      const MATERIAL_SOURCE_CODE = "<%= process.env.MATERIAL_SOURCE_CODE %>";
+      const MATERIAL_DESTINATION_CODE =
+        "<%= process.env.MATERIAL_DESTINATION_CODE %>";
+    </script>
     <script type="module" src="/js/main.js" defer></script>
     <title>Quản Lý Nhà Máy - Factory Management</title>
   </head>
@@ -21,9 +26,9 @@
       <div class="nav-breadcrumb">
         <span>Lệnh Sản xuất</span>
         <span class="separator">></span>
-        <span>MIP</span>
+        <span id="material-source-code">MIP</span>
         <span class="separator">></span>
-        <span>CS1</span>
+        <span id="material-destination-code">CS1</span>
       </div>
     </div>
 

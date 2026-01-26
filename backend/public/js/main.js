@@ -9,22 +9,35 @@ let totalPages = 1;
 let statsData = {};
 const pageSize = 20;
 
+const sourceCodeSpan = document.getElementById("material-source-code");
+const destinationCodeSpan = document.getElementById(
+  "material-destination-code",
+);
+sourceCodeSpan.textContent = window.MATERIAL_SOURCE_CODE;
+destinationCodeSpan.textContent = window.MATERIAL_DESTINATION_CODE;
+
 document.addEventListener("DOMContentLoaded", async function () {
   // Set default date range: yesterday 0h to tomorrow end of day
-  // const yesterday = new Date();
-  // yesterday.setDate(yesterday.getDate() - 1);
-  // const tomorrow = new Date();
-  // tomorrow.setDate(tomorrow.getDate() + 1);
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // const dateFromInput = document.getElementById("dateFrom");
-  // const dateToInput = document.getElementById("dateTo");
+  const dateFromInput = document.getElementById("dateFrom");
+  const dateToInput = document.getElementById("dateTo");
+  const sourceCodeSpan = document.getElementById("material-source-code");
+  const destinationCodeSpan = document.getElementById(
+    "material-destination-code",
+  );
+  sourceCodeSpan.textContent = MATERIAL_SOURCE_CODE;
+  destinationCodeSpan.textContent = MATERIAL_DESTINATION_CODE;
 
-  // if (dateFromInput) {
-  //   dateFromInput.value = yesterday.toISOString().split("T")[0];
-  // }
-  // if (dateToInput) {
-  //   dateToInput.value = tomorrow.toISOString().split("T")[0];
-  // }
+  if (dateFromInput) {
+    dateFromInput.value = yesterday.toISOString().split("T")[0];
+  }
+  if (dateToInput) {
+    dateToInput.value = tomorrow.toISOString().split("T")[0];
+  }
 
   await fetchStats();
   await fetchProductionOrders(1);

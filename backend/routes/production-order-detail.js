@@ -2,6 +2,38 @@ const express = require("express");
 const router = express.Router();
 const { getPool, sql } = require("../db");
 
+// In-memory cache for ingredients data
+const ingredientsCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Get from cache or return null if expired
+function getCachedData(key) {
+  const cached = ingredientsCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  ingredientsCache.delete(key);
+  return null;
+}
+
+// Set cache with timestamp
+function setCacheData(key, data) {
+  ingredientsCache.set(key, {
+    data: data,
+    timestamp: Date.now(),
+  });
+
+  // Auto cleanup expired entries
+  if (ingredientsCache.size > 1000) {
+    const now = Date.now();
+    for (const [k, v] of ingredientsCache.entries()) {
+      if (now - v.timestamp >= CACHE_TTL) {
+        ingredientsCache.delete(k);
+      }
+    }
+  }
+}
+
 // Get batches for a production order
 router.get("/batches", async (req, res) => {
   try {
@@ -49,6 +81,14 @@ router.get("/ingredients-by-product", async (req, res) => {
       });
     }
 
+    const cacheKey = `ingredients:${productionOrderNumber.trim()}`;
+
+    // Check cache first
+    const cachedResult = getCachedData(cacheKey);
+    if (cachedResult) {
+      return res.json(cachedResult);
+    }
+
     const request = getPool().request();
     request.input("prodOrderNum", sql.NVarChar, productionOrderNumber.trim());
 
@@ -83,14 +123,19 @@ router.get("/ingredients-by-product", async (req, res) => {
       });
     }
 
-    res.json({
+    const response = {
       success: true,
       message: "Lấy danh sách ingredients thành công",
       productCode: result.recordset[0].ProductCode,
       recipeVersion: result.recordset[0].RecipeVersion,
       total: result.recordset.length,
       data: result.recordset,
-    });
+    };
+
+    // Store in cache
+    setCacheData(cacheKey, response);
+
+    res.json(response);
   } catch (error) {
     console.error("Lỗi khi lấy ingredients:", error);
     res.status(500).json({
