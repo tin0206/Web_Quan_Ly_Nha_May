@@ -13,8 +13,8 @@ const sourceCodeSpan = document.getElementById("material-source-code");
 const destinationCodeSpan = document.getElementById(
   "material-destination-code",
 );
-sourceCodeSpan.textContent = window.MATERIAL_SOURCE_CODE;
-destinationCodeSpan.textContent = window.MATERIAL_DESTINATION_CODE;
+sourceCodeSpan.textContent = window.PLANTCODE;
+destinationCodeSpan.textContent = window.LINE;
 
 document.addEventListener("DOMContentLoaded", async function () {
   // Set default date range: yesterday 0h to tomorrow end of day
@@ -29,8 +29,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   const destinationCodeSpan = document.getElementById(
     "material-destination-code",
   );
-  sourceCodeSpan.textContent = MATERIAL_SOURCE_CODE;
-  destinationCodeSpan.textContent = MATERIAL_DESTINATION_CODE;
+  sourceCodeSpan.textContent = PLANTCODE;
+  destinationCodeSpan.textContent = LINE;
 
   if (dateFromInput) {
     dateFromInput.value = yesterday.toISOString().split("T")[0];
