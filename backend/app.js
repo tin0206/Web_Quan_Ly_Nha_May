@@ -49,7 +49,8 @@ async function connectToDB() {
 connectToDB();
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+  // console.log(`🚀 Server đang chạy tại http://172.18.160.1:${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
 
 app.get("/", (req, res) => {

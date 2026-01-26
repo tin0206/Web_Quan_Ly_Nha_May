@@ -238,7 +238,7 @@ function renderGridView() {
         <div class="grid-card">
           <div class="grid-card-top">
             <a href="/production-order/${order.ProductionOrderId}" class="area-badge-link" target="_blank" title="Xem chi tiết Batch">
-              <h3 title="${order.ProductionOrderNumber || ""}">${getTruncatedName(
+              <h3 style="color: #5b4ce8;" title="${order.ProductionOrderNumber || ""}">${getTruncatedName(
                 order.ProductionOrderNumber || "",
                 30,
               )}</h3>
