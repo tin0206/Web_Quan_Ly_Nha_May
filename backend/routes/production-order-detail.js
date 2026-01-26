@@ -60,14 +60,18 @@ router.get("/ingredients-by-product", async (req, res) => {
         i.UnitOfMeasurement,
         pm.ItemName,
         po.ProductCode,
-        po.RecipeCode
+        po.RecipeVersion
       FROM ProductionOrders po
+      JOIN RecipeDetails rd 
+        ON rd.ProductCode = po.ProductCode 
+        AND rd.Version = po.RecipeVersion
+      JOIN Processes p 
+        ON p.RecipeDetailsId = rd.RecipeDetailsId
       JOIN Ingredients i 
-        ON i.IngredientCode = po.ProductCode
+        ON i.ProcessId = p.ProcessId
       LEFT JOIN ProductMasters pm 
         ON pm.ItemCode = i.IngredientCode
       WHERE po.ProductionOrderNumber = @prodOrderNum
-      ORDER BY i.ProcessId;
     `;
 
     const result = await request.query(query);
@@ -83,7 +87,7 @@ router.get("/ingredients-by-product", async (req, res) => {
       success: true,
       message: "Lấy danh sách ingredients thành công",
       productCode: result.recordset[0].ProductCode,
-      recipeCode: result.recordset[0].RecipeCode,
+      recipeVersion: result.recordset[0].RecipeVersion,
       total: result.recordset.length,
       data: result.recordset,
     });

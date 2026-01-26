@@ -112,10 +112,8 @@ document.addEventListener("DOMContentLoaded", async function () {
 const batchesContent = document.getElementById("batchesContent");
 const materialsContent = document.getElementById("materialsContent");
 const ingredientsContent = document.getElementById("ingredientsContent");
-const recipesContent = document.getElementById("recipesContent");
 const tabBatches = document.getElementById("tab-batches");
 const tabMaterials = document.getElementById("tab-materials");
-const tabIngredients = document.getElementById("tab-recipes");
 const allTabButtons = document.querySelectorAll(".tab-button");
 
 async function activateTab(tabId) {
@@ -157,17 +155,6 @@ async function activateTab(tabId) {
     document.getElementById("materialsPaginationControls").style.display =
       "flex";
     fetchMaterialConsumptions();
-  } else if (tabId === "tab-recipes") {
-    batchesContent.style.display = "none";
-    materialsContent.style.display = "none";
-    ingredientsContent.style.display = "none";
-    recipesContent.style.display = "block";
-    document.getElementById("paginationControls").style.display = "none";
-    document.getElementById("materialsPaginationControls").style.display =
-      "none";
-    document.getElementById("ingredientsPaginationControls").style.display =
-      "none";
-    fetchRecipeMaterials();
   }
 }
 
@@ -179,12 +166,6 @@ tabBatches.addEventListener("click", function () {
 tabMaterials.addEventListener("click", function () {
   activateTab("tab-materials");
 });
-
-if (tabIngredients) {
-  tabIngredients.addEventListener("click", function () {
-    activateTab("tab-recipes");
-  });
-}
 
 // Pagination variables
 let currentPage = 1;
@@ -263,23 +244,40 @@ function renderMaterialsTable(groupedMaterialsArray) {
 
   if (groupedMaterialsArray.length === 0) {
     tbody.innerHTML =
-      '<tr><td colspan="9" style="padding: 20px; text-align: center; color: #999;">Không có dữ liệu vật liệu nào</td></tr>';
+      '<tr><td colspan="8" style="padding: 20px; text-align: center; color: #999;">Không có dữ liệu vật liệu nào</td></tr>';
     return;
   }
 
   // Build table HTML for grouped materials
   let html = "";
+  const poQuantity = parseFloat(order.Quantity) || 1;
+
   groupedMaterialsArray.forEach((group, index) => {
     const idsDisplay =
       group.ids.length >= 2
         ? `${group.ids.length} items`
         : group.ids.join(", ");
+
+    // Calculate plan quantity: (recipeQuantity / poQuantity) * batchQuantity
+    const ingredientCode = group.ingredientCode;
+    const batchCode = group.batchCode;
+
+    // Extract ingredient code (remove item name if present)
+    const ingredientCodeOnly = ingredientCode
+      ? ingredientCode.split(" - ")[0].trim()
+      : "";
+
+    const batch = batches.find((b) => b.BatchNumber === batchCode);
+    const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
+    const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly] || 0;
+    const planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
+
     html += `<tr style="border-bottom: 1px solid #eee;">
       <td style="padding: 12px; text-align: center; font-weight: bold;">${idsDisplay}</td>
       <td style="padding: 12px; text-align: center;">${group.batchCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${group.ingredientCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${group.lot || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${group.unitOfMeasurement || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${planQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${formatDate(group.latestDatetime) || "-"}</td>
       <td style="padding: 12px; text-align: center;">
@@ -328,10 +326,42 @@ async function fetchMaterialsWithPagination() {
     // Get batch IDs
     if (batches.length === 0) {
       document.getElementById("materialsTableBody").innerHTML =
-        '<tr><td colspan="7" style="padding: 20px; text-align: center; color: #999;">Không có batch nào để lấy dữ liệu vật liệu</td></tr>';
+        '<tr><td colspan="8" style="padding: 20px; text-align: center; color: #999;">Không có batch nào để lấy dữ liệu vật liệu</td></tr>';
       document.getElementById("materialsPaginationControls").style.display =
         "none";
       return;
+    }
+
+    // Fetch ingredients data for recipe totals if not already loaded
+    if (Object.keys(ingredientsTotalsByUOM).length === 0) {
+      const queryParams = new URLSearchParams({
+        productionOrderNumber: order.ProductionOrderNumber,
+      });
+
+      const response = await fetch(
+        `${API_ROUTE}/api/production-order-detail/ingredients-by-product?${queryParams.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const ingredientsData = data.data || [];
+
+        // Calculate totals grouped by IngredientCode
+        ingredientsData.forEach((item) => {
+          const ingredientCode = item.IngredientCode;
+          if (!ingredientsTotalsByUOM[ingredientCode]) {
+            ingredientsTotalsByUOM[ingredientCode] = 0;
+          }
+          ingredientsTotalsByUOM[ingredientCode] +=
+            parseFloat(item.Quantity) || 0;
+        });
+      }
     }
 
     // Only fetch from API if we don't have data yet
@@ -359,7 +389,7 @@ async function fetchMaterialsWithPagination() {
         );
       } else {
         document.getElementById("materialsTableBody").innerHTML =
-          '<tr><td colspan="7" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
+          '<tr><td colspan="8" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
         document.getElementById("materialsPaginationControls").style.display =
           "none";
         return;
@@ -431,7 +461,7 @@ async function fetchMaterialsWithPagination() {
   } catch (error) {
     console.error("Error loading materials:", error);
     document.getElementById("materialsTableBody").innerHTML =
-      '<tr><td colspan="7" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
+      '<tr><td colspan="8" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
     document.getElementById("materialsPaginationControls").style.display =
       "none";
   }
@@ -554,12 +584,32 @@ function showMaterialListModal(group) {
 
   // Build table rows for individual items
   let html = "";
+
+  // Calculate plan quantity for the group (same as in renderMaterialsTable)
+  const poQuantity = parseFloat(order.Quantity) || 1;
+  const ingredientCode = group.ingredientCode;
+  const batchCode = group.batchCode;
+
+  // Extract ingredient code (remove item name if present)
+  const ingredientCodeOnly = ingredientCode
+    ? ingredientCode.split(" - ")[0].trim()
+    : "";
+
+  const batch = batches.find((b) => b.BatchNumber === batchCode);
+  const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
+  const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly] || 0;
+  const groupPlanQuantity = (recipeQuantity / poQuantity) * batchQuantity;
+
+  // Distribute plan quantity equally among items in the group
+  const planQuantityPerItem = groupPlanQuantity / group.items.length;
+
   group.items.forEach((material, index) => {
     html += `<tr style="border-bottom: 1px solid #eee;">
       <td style="padding: 12px; text-align: center; font-weight: bold;">${material.id || "-"}</td>
       <td style="padding: 12px; text-align: center;">${material.batchCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${material.ingredientCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${material.lot || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${planQuantityPerItem.toFixed(2)} ${material.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${material.quantity || 0} ${material.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${formatDate(material.datetime) || "-"}</td>
       <td style="padding: 12px; text-align: center;">
@@ -714,128 +764,6 @@ async function fetchIngredients() {
     document.getElementById("ingredientsPaginationControls").style.display =
       "none";
   }
-}
-
-// Fetch and display materials for recipe tab with plan quantity calculation
-async function fetchRecipeMaterials() {
-  try {
-    // Check if we have batches
-    if (batches.length === 0) {
-      document.getElementById("recipesTableBody").innerHTML =
-        '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #999;">Không có batch nào</td></tr>';
-      return;
-    }
-
-    // Fetch ingredients data for recipe totals if not already loaded
-    if (Object.keys(ingredientsTotalsByUOM).length === 0) {
-      const queryParams = new URLSearchParams({
-        productionOrderNumber: order.ProductionOrderNumber,
-      });
-
-      const response = await fetch(
-        `${API_ROUTE}/api/production-order-detail/ingredients-by-product?${queryParams.toString()}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const ingredientsData = data.data || [];
-
-        // Calculate totals grouped by IngredientCode
-        ingredientsData.forEach((item) => {
-          const ingredientCode = item.IngredientCode;
-          if (!ingredientsTotalsByUOM[ingredientCode]) {
-            ingredientsTotalsByUOM[ingredientCode] = 0;
-          }
-          ingredientsTotalsByUOM[ingredientCode] +=
-            parseFloat(item.Quantity) || 0;
-        });
-      }
-    }
-
-    // Fetch all materials
-    if (allMaterials.length === 0) {
-      const queryParams = new URLSearchParams({
-        productionOrderNumber: order.ProductionOrderNumber,
-        limit: 999999,
-      });
-
-      const response = await fetch(
-        `${API_ROUTE}/api/production-order-detail/material-consumptions?${queryParams.toString()}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        allMaterials = data.data.map(
-          (item) => new MESMaterialConsumption(item),
-        );
-      }
-    }
-
-    // Display materials with plan quantity calculation
-    displayRecipeMaterialsTable(allMaterials);
-  } catch (error) {
-    console.error("Error loading recipe materials:", error);
-    document.getElementById("recipesTableBody").innerHTML =
-      '<tr><td colspan="5" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
-  }
-}
-
-// Display recipe materials table with plan quantity calculation
-function displayRecipeMaterialsTable(materialsArray) {
-  const tbody = document.getElementById("recipesTableBody");
-
-  if (!tbody) return;
-
-  if (materialsArray.length === 0) {
-    tbody.innerHTML =
-      '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #999;">Không có dữ liệu vật liệu</td></tr>';
-    return;
-  }
-
-  // Get PO Quantity for calculation
-  const poQuantity = parseFloat(order.Quantity) || 1;
-
-  // Build table HTML
-  let html = "";
-  materialsArray.forEach((material) => {
-    const ingredientCode = material.ingredientCode;
-    const batchCode = material.batchCode;
-
-    // Find batch quantity
-    const batch = batches.find((b) => b.BatchNumber === batchCode);
-    const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
-
-    // Get recipe quantity from ingredientsTotalsByUOM
-    const recipeQuantity = ingredientsTotalsByUOM[ingredientCode] || 0;
-
-    // Calculate plan quantity: (recipeQuantity / poQuantity) * batchQuantity
-    const planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
-
-    // Actual quantity from material
-    const actualQuantity = parseFloat(material.quantity) || 0;
-
-    html += `<tr style="border-bottom: 1px solid #eee;">
-      <td style="padding: 12px; text-align: center; font-weight: bold;">${material.id || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${batchCode || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${ingredientCode || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${actualQuantity.toFixed(2)} ${material.unitOfMeasurement || ""}</td>
-      <td style="padding: 12px; text-align: center;">${planQuantity.toFixed(2)} ${material.unitOfMeasurement || ""}</td>
-    </tr>`;
-  });
-
-  tbody.innerHTML = html;
 }
 
 // Render batch code radio buttons for ingredients
