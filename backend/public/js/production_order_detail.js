@@ -229,13 +229,9 @@ function groupMaterials(materialsArray) {
 }
 
 // Display batches table with rowspan for batch code
-function displayMaterialsTable(materialsArray) {
-  // Store original materials for filtering
-  window.allMaterials = materialsArray;
-
-  // Group materials before rendering
-  const groupedMaterials = groupMaterials(materialsArray);
-  renderMaterialsTable(groupedMaterials);
+function displayMaterialsTable(groupedMaterialsArray) {
+  // Data is already grouped, just render it
+  renderMaterialsTable(groupedMaterialsArray);
 }
 
 // Render materials table
@@ -447,19 +443,22 @@ async function fetchMaterialsWithPagination() {
       );
     }
 
-    // Calculate pagination for filtered data
-    materialsTotalCount = filteredMaterials.length;
+    // Group materials BEFORE pagination
+    const groupedMaterials = groupMaterials(filteredMaterials);
+
+    // Calculate pagination for GROUPED data
+    materialsTotalCount = groupedMaterials.length;
     materialsTotalPages = Math.ceil(materialsTotalCount / materialsPerPage);
 
-    // Get current page data
+    // Get current page data from GROUPED materials
     const startIndex = (materialsCurrentPage - 1) * materialsPerPage;
     const endIndex = startIndex + materialsPerPage;
-    materials = filteredMaterials.slice(startIndex, endIndex);
+    const paginatedGroupedMaterials = groupedMaterials.slice(startIndex, endIndex);
 
     // Always render batch code radio buttons (even when no data)
     renderBatchCodeRadioButtons(batches);
 
-    displayMaterialsTable(materials);
+    displayMaterialsTable(paginatedGroupedMaterials);
     updateMaterialsPaginationControls(
       materialsCurrentPage,
       materialsTotalPages,
