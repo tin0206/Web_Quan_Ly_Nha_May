@@ -270,14 +270,21 @@ function renderMaterialsTable(groupedMaterialsArray) {
     const batch = batches.find((b) => b.BatchNumber === batchCode);
     const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
     const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly] || 0;
-    const planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
+    let planQuantity = recipeQuantity;
+    if (batchQuantity !== 0) {
+      planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
+      planQuantity = planQuantity.toFixed(2);
+    }
+    if (recipeQuantity === 0) {
+      planQuantity = "N/A";
+    }
 
     html += `<tr style="border-bottom: 1px solid #eee;">
       <td style="padding: 12px; text-align: center; font-weight: bold;">${idsDisplay}</td>
       <td style="padding: 12px; text-align: center;">${group.batchCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${group.ingredientCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${group.lot || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${planQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}</td>
+      <td style="padding: 12px; text-align: center;">${planQuantity} ${group.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${formatDate(group.latestDatetime) || "-"}</td>
       <td style="padding: 12px; text-align: center;">

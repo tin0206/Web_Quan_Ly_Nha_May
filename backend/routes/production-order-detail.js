@@ -339,19 +339,30 @@ router.get("/:id", async (req, res) => {
 
     const hasMESData = mesDataResult.recordset[0].count > 0;
 
-    // Get current batch and total batches for progress calculation
-    const batchDataResult = await getPool()
+    // Get CurrentBatch from MESMaterialConsumption (MAX BatchCode)
+    const currentBatchResult = await getPool()
+      .request()
+      .input("ProductionOrderNumber", sql.NVarChar, order.ProductionOrderNumber)
+      .query(`
+        SELECT 
+          MAX(BatchCode) as maxBatchCode
+        FROM MESMaterialConsumption
+        WHERE ProductionOrderNumber = @ProductionOrderNumber
+      `);
+
+    const currentBatch = currentBatchResult.recordset[0]?.maxBatchCode || 0;
+
+    // Get TotalBatches from Batches table
+    const totalBatchResult = await getPool()
       .request()
       .input("ProductionOrderId", sql.Int, productionOrderId).query(`
         SELECT 
-          MAX(BatchNumber) as maxBatchNumber,
           COUNT(*) as totalBatches
         FROM Batches
         WHERE ProductionOrderId = @ProductionOrderId
       `);
 
-    const currentBatch = batchDataResult.recordset[0]?.maxBatchNumber || 0;
-    const totalBatches = batchDataResult.recordset[0]?.totalBatches || 0;
+    const totalBatches = totalBatchResult.recordset[0]?.totalBatches || 0;
 
     // Update status dynamically and calculate progress like in modal view
     const dataWithUpdatedStatus = {

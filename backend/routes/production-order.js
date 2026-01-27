@@ -68,38 +68,61 @@ router.get("/", async (req, res) => {
       );
 
     // Get batch info ONLY for the paginated orders (not all)
-    const productionOrderIds = result.recordset.map((o) => o.ProductionOrderId);
-    let batchMaps = { batchNumbers: new Map(), totalBatches: new Map() };
-
-    if (productionOrderIds.length > 0) {
-      const placeholders = productionOrderIds
-        .map((_, i) => `@id${i}`)
-        .join(",");
-
-      const batchRequest = getPool().request();
-      productionOrderIds.forEach((id, i) => {
-        batchRequest.input(`id${i}`, sql.Int, id);
-      });
-
-      const batchResult = await batchRequest.query(`
-        SELECT 
-          ProductionOrderId,
-          MAX(BatchNumber) as maxBatchNumber,
-          COUNT(*) as totalBatches
-        FROM Batches
-        WHERE ProductionOrderId IN (${placeholders})
-        GROUP BY ProductionOrderId
-      `);
-
-      batchResult.recordset.forEach((row) => {
-        batchMaps.batchNumbers.set(row.ProductionOrderId, row.maxBatchNumber);
-        batchMaps.totalBatches.set(row.ProductionOrderId, row.totalBatches);
-      });
-    }
-
     const productionOrderNumbers = result.recordset.map(
       (o) => o.ProductionOrderNumber,
     );
+    const productionOrderIds = result.recordset.map((o) => o.ProductionOrderId);
+    let batchMaps = { batchNumbers: new Map(), totalBatches: new Map() };
+
+    if (productionOrderNumbers.length > 0) {
+      // Get CurrentBatch from MESMaterialConsumption (MAX BatchCode)
+      const poPlaceholders = productionOrderNumbers
+        .map((_, i) => `@po${i}`)
+        .join(",");
+
+      const currentBatchRequest = getPool().request();
+      productionOrderNumbers.forEach((num, i) => {
+        currentBatchRequest.input(`po${i}`, sql.NVarChar, num);
+      });
+
+      const currentBatchResult = await currentBatchRequest.query(`
+        SELECT 
+          ProductionOrderNumber,
+          MAX(BatchCode) as maxBatchCode
+        FROM MESMaterialConsumption
+        WHERE ProductionOrderNumber IN (${poPlaceholders})
+        GROUP BY ProductionOrderNumber
+      `);
+
+      currentBatchResult.recordset.forEach((row) => {
+        batchMaps.batchNumbers.set(row.ProductionOrderNumber, row.maxBatchCode);
+      });
+    }
+
+    // Get TotalBatches from Batches table
+    if (productionOrderIds.length > 0) {
+      const idPlaceholders = productionOrderIds
+        .map((_, i) => `@id${i}`)
+        .join(",");
+
+      const totalBatchRequest = getPool().request();
+      productionOrderIds.forEach((id, i) => {
+        totalBatchRequest.input(`id${i}`, sql.Int, id);
+      });
+
+      const totalBatchResult = await totalBatchRequest.query(`
+        SELECT 
+          ProductionOrderId,
+          COUNT(*) as totalBatches
+        FROM Batches
+        WHERE ProductionOrderId IN (${idPlaceholders})
+        GROUP BY ProductionOrderId
+      `);
+
+      totalBatchResult.recordset.forEach((row) => {
+        batchMaps.totalBatches.set(row.ProductionOrderId, row.totalBatches);
+      });
+    }
     const runningOrderNumbers = new Set();
 
     if (productionOrderNumbers.length > 0) {
@@ -125,7 +148,8 @@ router.get("/", async (req, res) => {
     const dataWithUpdatedStatus = result.recordset.map((order) => ({
       ...order,
       Status: runningOrderNumbers.has(order.ProductionOrderNumber) ? 1 : 0,
-      CurrentBatch: batchMaps.batchNumbers.get(order.ProductionOrderId) || null,
+      CurrentBatch:
+        batchMaps.batchNumbers.get(order.ProductionOrderNumber) || 0,
       TotalBatches: batchMaps.totalBatches.get(order.ProductionOrderId) || 0,
     }));
 
@@ -225,38 +249,61 @@ router.get("/search", async (req, res) => {
     );
 
     // Get batch info ONLY for the paginated orders (not all)
-    const productionOrderIds = result.recordset.map((o) => o.ProductionOrderId);
-    let batchMaps = { batchNumbers: new Map(), totalBatches: new Map() };
-
-    if (productionOrderIds.length > 0) {
-      const placeholders = productionOrderIds
-        .map((_, i) => `@id${i}`)
-        .join(",");
-
-      const batchRequest = getPool().request();
-      productionOrderIds.forEach((id, i) => {
-        batchRequest.input(`id${i}`, sql.Int, id);
-      });
-
-      const batchResult = await batchRequest.query(`
-        SELECT 
-          ProductionOrderId,
-          MAX(BatchNumber) as maxBatchNumber,
-          COUNT(*) as totalBatches
-        FROM Batches
-        WHERE ProductionOrderId IN (${placeholders})
-        GROUP BY ProductionOrderId
-      `);
-
-      batchResult.recordset.forEach((row) => {
-        batchMaps.batchNumbers.set(row.ProductionOrderId, row.maxBatchNumber);
-        batchMaps.totalBatches.set(row.ProductionOrderId, row.totalBatches);
-      });
-    }
-
     const productionOrderNumbers = result.recordset.map(
       (o) => o.ProductionOrderNumber,
     );
+    const productionOrderIds = result.recordset.map((o) => o.ProductionOrderId);
+    let batchMaps = { batchNumbers: new Map(), totalBatches: new Map() };
+
+    if (productionOrderNumbers.length > 0) {
+      // Get CurrentBatch from MESMaterialConsumption (MAX BatchCode)
+      const poPlaceholders = productionOrderNumbers
+        .map((_, i) => `@po${i}`)
+        .join(",");
+
+      const currentBatchRequest = getPool().request();
+      productionOrderNumbers.forEach((num, i) => {
+        currentBatchRequest.input(`po${i}`, sql.NVarChar, num);
+      });
+
+      const currentBatchResult = await currentBatchRequest.query(`
+        SELECT 
+          ProductionOrderNumber,
+          MAX(BatchCode) as maxBatchCode
+        FROM MESMaterialConsumption
+        WHERE ProductionOrderNumber IN (${poPlaceholders})
+        GROUP BY ProductionOrderNumber
+      `);
+
+      currentBatchResult.recordset.forEach((row) => {
+        batchMaps.batchNumbers.set(row.ProductionOrderNumber, row.maxBatchCode);
+      });
+    }
+
+    // Get TotalBatches from Batches table
+    if (productionOrderIds.length > 0) {
+      const idPlaceholders = productionOrderIds
+        .map((_, i) => `@id${i}`)
+        .join(",");
+
+      const totalBatchRequest = getPool().request();
+      productionOrderIds.forEach((id, i) => {
+        totalBatchRequest.input(`id${i}`, sql.Int, id);
+      });
+
+      const totalBatchResult = await totalBatchRequest.query(`
+        SELECT 
+          ProductionOrderId,
+          COUNT(*) as totalBatches
+        FROM Batches
+        WHERE ProductionOrderId IN (${idPlaceholders})
+        GROUP BY ProductionOrderId
+      `);
+
+      totalBatchResult.recordset.forEach((row) => {
+        batchMaps.totalBatches.set(row.ProductionOrderId, row.totalBatches);
+      });
+    }
     const runningOrderNumbers = new Set();
 
     if (productionOrderNumbers.length > 0) {
@@ -282,7 +329,8 @@ router.get("/search", async (req, res) => {
     const dataWithUpdatedStatus = result.recordset.map((order) => ({
       ...order,
       Status: runningOrderNumbers.has(order.ProductionOrderNumber) ? 1 : 0,
-      CurrentBatch: batchMaps.batchNumbers.get(order.ProductionOrderId) || null,
+      CurrentBatch:
+        batchMaps.batchNumbers.get(order.ProductionOrderNumber) || 0,
       TotalBatches: batchMaps.totalBatches.get(order.ProductionOrderId) || 0,
     }));
 

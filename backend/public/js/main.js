@@ -32,12 +32,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   sourceCodeSpan.textContent = PLANTCODE;
   destinationCodeSpan.textContent = LINE;
 
-  if (dateFromInput) {
-    dateFromInput.value = yesterday.toISOString().split("T")[0];
-  }
-  if (dateToInput) {
-    dateToInput.value = tomorrow.toISOString().split("T")[0];
-  }
+  // if (dateFromInput) {
+  //   dateFromInput.value = yesterday.toISOString().split("T")[0];
+  // }
+  // if (dateToInput) {
+  //   dateToInput.value = tomorrow.toISOString().split("T")[0];
+  // }
 
   await fetchStats();
   await fetchProductionOrders(1);
@@ -80,6 +80,7 @@ function initializeEventListeners() {
                 <th style="text-align: center">Dây chuyền</th>
                 <th>Công thức</th>
                 <th>Lô SX</th>
+                <th>Process Area</th>
                 <th style="text-align: center">Ngày Bắt Đầu / Số Lượng</th>
                 <th style="text-align: center">Batch hiện tại</th>
                 <th style="text-align: center">Tiến độ</th>
@@ -300,9 +301,16 @@ function renderGridView() {
             </div>
 
             <div class="grid-section">
+              <div class="grid-section-label">Process Area</div>
+              <div class="grid-section-value">${order.ProcessArea || "N/A"}</div>
+            </div>
+
+            <div class="grid-section">
               <div class="grid-section-label">Batch hiện tại</div>
               <div class="grid-section-value">${
-                order.CurrentBatch || "0 / 0"
+                order.CurrentBatch !== null && order.CurrentBatch !== undefined
+                  ? order.CurrentBatch
+                  : "N/A"
               }</div>
             </div>
 
@@ -382,6 +390,7 @@ function renderProductionTable() {
       </td>
       <td>${order.RecipeCode}</td>
       <td>${order.LotNumber || "N/A"}</td>
+      <td style="text-align: center">${order.ProcessArea || "N/A"}</td>
       <td style="text-align: center">
         <div style="display: flex; align-items: center; justify-content: center;">
           ${formatDate(order.PlannedStart) || "N/A"}
@@ -389,7 +398,7 @@ function renderProductionTable() {
         ${order.Quantity || 0} ${order.UnitOfMeasurement || ""}
       </td>
       <td style="text-align: center">
-        ${order.CurrentBatch || "N/A"}
+        ${order.CurrentBatch !== null && order.CurrentBatch !== undefined ? order.CurrentBatch : "N/A"}
       </td>
       <td>
         ${renderProgressBar(
