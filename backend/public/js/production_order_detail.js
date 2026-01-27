@@ -318,8 +318,6 @@ function renderMaterialsTable(
     </tr>`;
   });
 
-  console.log(batches);
-
   // Add unconsumed ingredients at the end (with different styling)
   unconsumedIngredients.forEach((ingredient) => {
     const ingredientCodeDisplay = ingredient.ItemName
