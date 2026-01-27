@@ -179,7 +179,7 @@ body {
 }
 
 #stopped-icon {
-  background-color: #feeceb;
+  background-color: #e4f1fb;
 }
 
 .stat-header i {
@@ -443,8 +443,8 @@ body {
   gap: 4px;
 }
 
-.status-error {
-  background-color: #d32f2f;
+.status-pending {
+  background-color: #389cf7;
   color: white;
 }
 

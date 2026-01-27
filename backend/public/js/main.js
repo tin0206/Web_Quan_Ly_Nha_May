@@ -32,12 +32,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   sourceCodeSpan.textContent = PLANTCODE;
   destinationCodeSpan.textContent = LINE;
 
-  if (dateFromInput) {
-    dateFromInput.value = yesterday.toISOString().split("T")[0];
-  }
-  if (dateToInput) {
-    dateToInput.value = tomorrow.toISOString().split("T")[0];
-  }
+  // if (dateFromInput) {
+  //   dateFromInput.value = yesterday.toISOString().split("T")[0];
+  // }
+  // if (dateToInput) {
+  //   dateToInput.value = tomorrow.toISOString().split("T")[0];
+  // }
 
   await fetchStats();
   await fetchProductionOrders(1);
@@ -126,7 +126,7 @@ function initializeEventListeners() {
 // Get status icon based on status type
 function getStatusIcon(statusType) {
   const iconMap = {
-    error: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white" style="flex-shrink: 0;">
+    pending: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white" style="flex-shrink: 0;">
       <path
         d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2z"
       />
@@ -149,7 +149,7 @@ function getStatusType(status) {
   if (typeof status === "number") {
     switch (status) {
       case 0:
-        return "error"; // Failed/Error
+        return "pending"; // Failed/Error
       case 1:
         return "warning"; // Running/In Progress
       case 2:
@@ -163,8 +163,12 @@ function getStatusType(status) {
   const text = String(status).toLowerCase();
   if (text.includes("completed") || text.includes("hoàn thành"))
     return "success";
-  if (text.includes("failed") || text.includes("error") || text.includes("lỗi"))
-    return "error";
+  if (
+    text.includes("failed") ||
+    text.includes("pending") ||
+    text.includes("lỗi")
+  )
+    return "pending";
   return "warning";
 }
 
@@ -228,7 +232,7 @@ function renderProgressBar(currentBatch, totalBatches, progressStatus) {
       : progressStatus === "stop"
         ? "linear-gradient(90deg, #bdbdbd 0%, #9e9e9e 100%)"
         : progressStatus === "cancelled"
-          ? "linear-gradient(90deg, #ef5350 0%, #d32f2f 100%)"
+          ? "linear-gradient(90deg, #389cf7 0%, #389cf9 100%)"
           : progressStatus === "completing"
             ? "linear-gradient(90deg, #26a69a 0%, #009688 100%)"
             : "linear-gradient(90deg, #bdbdbd 0%, #9e9e9e 100%)"; // pending
