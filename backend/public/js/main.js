@@ -82,7 +82,6 @@ function initializeEventListeners() {
                 <th>Lô SX</th>
                 <th>Process Area</th>
                 <th style="text-align: center">Ngày Bắt Đầu / Số Lượng</th>
-                <th style="text-align: center">Batch hiện tại</th>
                 <th style="text-align: center">Tiến độ</th>
                 <th style="text-align: center">Trạng Thái</th>
                 <th style="text-align: center">Thao Tác</th>
@@ -400,9 +399,6 @@ function renderProductionTable() {
           ${formatDate(order.PlannedStart) || "N/A"}
         </div>
         ${order.Quantity || 0} ${order.UnitOfMeasurement || ""}
-      </td>
-      <td style="text-align: center">
-        ${order.CurrentBatch !== null && order.CurrentBatch !== undefined ? order.CurrentBatch : "N/A"}
       </td>
       <td>
         ${renderProgressBar(

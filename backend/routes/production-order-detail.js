@@ -317,7 +317,12 @@ router.get("/:id", async (req, res) => {
       .request()
       .input("ProductionOrderId", sql.Int, productionOrderId)
       .query(
-        "SELECT * FROM ProductionOrders WHERE ProductionOrderId = @ProductionOrderId",
+        `SELECT 
+          po.*,
+          pm.ItemName
+        FROM ProductionOrders po
+        LEFT JOIN ProductMasters pm ON po.ProductCode = pm.ItemCode
+        WHERE po.ProductionOrderId = @ProductionOrderId`,
       );
 
     if (result.recordset.length === 0) {
@@ -367,6 +372,9 @@ router.get("/:id", async (req, res) => {
     // Update status dynamically and calculate progress like in modal view
     const dataWithUpdatedStatus = {
       ...order,
+      ProductCode: order.ItemName
+        ? `${order.ProductCode} - ${order.ItemName}`
+        : order.ProductCode,
       Status: hasMESData ? 1 : 0,
       CurrentBatch: currentBatch,
       TotalBatches: totalBatches,

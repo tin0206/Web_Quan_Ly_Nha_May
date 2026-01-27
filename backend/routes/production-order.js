@@ -60,11 +60,17 @@ router.get("/", async (req, res) => {
 
     const totalPages = totalRecords > 0 ? Math.ceil(totalRecords / limit) : 0;
 
-    // Get paginated data
+    // Get paginated data with ProductMasters join
     const result = await getPool()
       .request()
       .query(
-        `SELECT * FROM ProductionOrders ORDER BY ProductionOrderId DESC OFFSET ${skip} ROWS FETCH NEXT ${limit} ROWS ONLY`,
+        `SELECT 
+          po.*,
+          pm.ItemName
+        FROM ProductionOrders po
+        LEFT JOIN ProductMasters pm ON po.ProductCode = pm.ItemCode
+        ORDER BY po.ProductionOrderId DESC 
+        OFFSET ${skip} ROWS FETCH NEXT ${limit} ROWS ONLY`,
       );
 
     // Get batch info ONLY for the paginated orders (not all)
@@ -147,6 +153,9 @@ router.get("/", async (req, res) => {
     // Update status based on whether the order exists in MESMaterialConsumption
     const dataWithUpdatedStatus = result.recordset.map((order) => ({
       ...order,
+      ProductCode: order.ItemName
+        ? `${order.ProductCode} - ${order.ItemName}`
+        : order.ProductCode,
       Status: runningOrderNumbers.has(order.ProductionOrderNumber) ? 1 : 0,
       CurrentBatch:
         batchMaps.batchNumbers.get(order.ProductionOrderNumber) || 0,
@@ -245,7 +254,14 @@ router.get("/search", async (req, res) => {
     }
 
     const result = await paginatedRequest.query(
-      `SELECT * FROM ProductionOrders ${whereClause} ORDER BY ProductionOrderId DESC OFFSET ${skip} ROWS FETCH NEXT ${limit} ROWS ONLY`,
+      `SELECT 
+        po.*,
+        pm.ItemName
+      FROM ProductionOrders po
+      LEFT JOIN ProductMasters pm ON po.ProductCode = pm.ItemCode
+      ${whereClause} 
+      ORDER BY po.ProductionOrderId DESC 
+      OFFSET ${skip} ROWS FETCH NEXT ${limit} ROWS ONLY`,
     );
 
     // Get batch info ONLY for the paginated orders (not all)
@@ -328,6 +344,9 @@ router.get("/search", async (req, res) => {
     // Update status based on whether the order exists in MESMaterialConsumption
     const dataWithUpdatedStatus = result.recordset.map((order) => ({
       ...order,
+      ProductCode: order.ItemName
+        ? `${order.ProductCode} - ${order.ItemName}`
+        : order.ProductCode,
       Status: runningOrderNumbers.has(order.ProductionOrderNumber) ? 1 : 0,
       CurrentBatch:
         batchMaps.batchNumbers.get(order.ProductionOrderNumber) || 0,
