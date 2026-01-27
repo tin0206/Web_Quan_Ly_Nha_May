@@ -184,6 +184,7 @@ let allMaterials = []; // Store all materials for client-side filtering
 let selectedMaterialsBatchCode = ""; // Store selected batch for materials tab
 let selectedIngredientsBatchCode = ""; // Store selected batch for ingredients tab
 let ingredientsTotalsByUOM = {}; // Store totals grouped by UnitOfMeasurement
+let materialFilterType = "all"; // Filter type: "all", "consumed", "unconsumed"
 
 // Group materials by batch number, ingredient code, lot, and unit of measurement
 function groupMaterials(materialsArray) {
@@ -229,16 +230,25 @@ function groupMaterials(materialsArray) {
 }
 
 // Display batches table with rowspan for batch code
-function displayMaterialsTable(groupedMaterialsArray) {
+function displayMaterialsTable(
+  groupedMaterialsArray,
+  unconsumedIngredients = [],
+) {
   // Data is already grouped, just render it
-  renderMaterialsTable(groupedMaterialsArray);
+  renderMaterialsTable(groupedMaterialsArray, unconsumedIngredients);
 }
 
 // Render materials table
-function renderMaterialsTable(groupedMaterialsArray) {
+function renderMaterialsTable(
+  groupedMaterialsArray,
+  unconsumedIngredients = [],
+) {
   const tbody = document.getElementById("materialsTableBody");
 
-  if (groupedMaterialsArray.length === 0) {
+  if (
+    groupedMaterialsArray.length === 0 &&
+    unconsumedIngredients.length === 0
+  ) {
     tbody.innerHTML =
       '<tr><td colspan="8" style="padding: 20px; text-align: center; color: #999;">Không có dữ liệu vật liệu nào</td></tr>';
     return;
@@ -304,6 +314,28 @@ function renderMaterialsTable(groupedMaterialsArray) {
             <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
           </svg>
         </button>
+      </td>
+    </tr>`;
+  });
+
+  console.log(batches);
+
+  // Add unconsumed ingredients at the end (with different styling)
+  unconsumedIngredients.forEach((ingredient) => {
+    const ingredientCodeDisplay = ingredient.ItemName
+      ? `${ingredient.IngredientCode} - ${ingredient.ItemName}`
+      : ingredient.IngredientCode;
+
+    html += `<tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 12px; text-align: center; font-weight: bold; color: #999;">-</td>
+      <td style="padding: 12px; text-align: center; color: #999;">-</td>
+      <td style="padding: 12px; text-align: center; color: #666;">${ingredientCodeDisplay}</td>
+      <td style="padding: 12px; text-align: center; color: #999;">-</td>
+      <td style="padding: 12px; text-align: center; color: #666;">${ingredient.Quantity} ${ingredient.UnitOfMeasurement || ""}</td>
+      <td style="padding: 12px; text-align: center; color: #999;">N/A ${ingredient.UnitOfMeasurement || ""}</td>
+      <td style="padding: 12px; text-align: center; color: #999;">-</td>
+      <td style="padding: 12px; text-align: center; color: #999;">
+        <span style="font-size: 12px; font-style: italic;">Chưa dùng</span>
       </td>
     </tr>`;
   });
@@ -467,10 +499,57 @@ async function fetchMaterialsWithPagination() {
       endIndex,
     );
 
+    // Find unconsumed ingredients (ingredients in recipe but not in materials)
+    let unconsumedIngredients = [];
+    if (Object.keys(ingredientsTotalsByUOM).length > 0) {
+      // Get all consumed ingredient codes from materials
+      const consumedIngredientCodes = new Set(
+        allMaterials
+          .map((m) => {
+            const code = m.ingredientCode
+              ? m.ingredientCode.split(" - ")[0].trim()
+              : "";
+            return code;
+          })
+          .filter((code) => code),
+      );
+
+      // Find ingredients that haven't been consumed
+      // Fetch from ingredientsTotalsByUOM keys
+      const ingredientsData = Object.keys(ingredientsTotalsByUOM).map(
+        (ingredientCode) => {
+          return {
+            IngredientCode: ingredientCode,
+            Quantity: ingredientsTotalsByUOM[ingredientCode],
+            UnitOfMeasurement: "kg", // Default, will be updated if we have the data
+            ItemName: null,
+          };
+        },
+      );
+
+      unconsumedIngredients = ingredientsData.filter(
+        (ing) => !consumedIngredientCodes.has(ing.IngredientCode),
+      );
+    }
+
+    // Apply material filter type
+    let finalGroupedMaterials = paginatedGroupedMaterials;
+    let finalUnconsumedIngredients = unconsumedIngredients;
+
+    if (materialFilterType === "consumed") {
+      // Show only consumed materials
+      finalUnconsumedIngredients = [];
+    } else if (materialFilterType === "unconsumed") {
+      // Show only unconsumed ingredients
+      finalGroupedMaterials = [];
+    }
+    // If "all", show both (default)
+
     // Always render batch code radio buttons (even when no data)
     renderBatchCodeRadioButtons(batches);
+    renderMaterialFilterTypeButtons();
 
-    displayMaterialsTable(paginatedGroupedMaterials);
+    displayMaterialsTable(finalGroupedMaterials, finalUnconsumedIngredients);
     updateMaterialsPaginationControls(
       materialsCurrentPage,
       materialsTotalPages,
@@ -1192,6 +1271,81 @@ async function displayBatchesTable(batchesArray) {
   updatePaginationControls(currentPage, totalPages);
 }
 
+// Render material filter type radio buttons
+function renderMaterialFilterTypeButtons() {
+  const container = document.getElementById("filterMaterialTypeOptions");
+  if (!container) return;
+
+  const filterOptions = [
+    { value: "all", label: "Tất cả" },
+    { value: "consumed", label: "Đã tiêu thụ" },
+    { value: "unconsumed", label: "Chưa tiêu thụ" },
+  ];
+
+  let html = filterOptions
+    .map(
+      (option) => `
+    <label style="
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 12px;
+      cursor: pointer;
+      background: ${materialFilterType === option.value ? "#007bff" : "white"};
+      color: ${materialFilterType === option.value ? "white" : "inherit"};
+      border: 1px solid ${materialFilterType === option.value ? "#0056b3" : "#ddd"};
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: ${materialFilterType === option.value ? "500" : "normal"};
+      transition: all 0.2s;
+    " onmouseover="if (this.querySelector('input[type=radio]').checked) { this.style.background='#0056b3'; } else { this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'; }" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='white'; this.style.color='inherit'; this.style.borderColor='#ddd'; this.style.fontWeight='normal'; } else { this.style.background='#007bff'; this.style.borderColor='#0056b3'; } this.style.boxShadow='none';">
+      <input
+        type="radio"
+        name="filterMaterialType"
+        value="${option.value}"
+        ${materialFilterType === option.value ? "checked" : ""}
+        style="margin-right: 8px; cursor: pointer; width: 16px;"
+      />
+      <span>${option.label}</span>
+    </label>
+  `,
+    )
+    .join("");
+
+  container.innerHTML = html;
+
+  // Add event listeners
+  const radios = document.querySelectorAll('input[name="filterMaterialType"]');
+  radios.forEach((radio) => {
+    radio.addEventListener("change", function () {
+      materialFilterType = this.value;
+      updateMaterialFilterTypeStyles();
+      filterMaterials();
+    });
+  });
+
+  updateMaterialFilterTypeStyles();
+}
+
+// Update material filter type radio button styles
+function updateMaterialFilterTypeStyles() {
+  const labels = document.querySelectorAll("#filterMaterialTypeOptions label");
+  labels.forEach((label) => {
+    const radio = label.querySelector('input[type="radio"]');
+    if (radio && radio.checked) {
+      label.style.background = "#007bff";
+      label.style.color = "white";
+      label.style.borderColor = "#0056b3";
+      label.style.fontWeight = "500";
+    } else {
+      label.style.background = "white";
+      label.style.color = "inherit";
+      label.style.borderColor = "#ddd";
+      label.style.fontWeight = "normal";
+    }
+  });
+}
+
 // Render batch code radio buttons
 function renderBatchCodeRadioButtons(batchesArray) {
   const container = document.getElementById("filterBatchCodeOptions");
@@ -1518,6 +1672,15 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       if (filterLotInput) filterLotInput.value = "";
       if (filterQuantityInput) filterQuantityInput.value = "";
+
+      // Reset material filter type
+      materialFilterType = "all";
+      const allMaterialRadio = document.querySelector(
+        'input[name="filterMaterialType"][value="all"]',
+      );
+      if (allMaterialRadio) allMaterialRadio.checked = true;
+      updateMaterialFilterTypeStyles();
+
       materialsCurrentPage = 1; // Reset to first page
       fetchMaterialsWithPagination();
     });
