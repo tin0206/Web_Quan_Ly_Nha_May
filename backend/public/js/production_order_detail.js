@@ -190,8 +190,8 @@ function groupMaterials(materialsArray) {
   const groupMap = new Map();
 
   materialsArray.forEach((material) => {
-    // Create a unique key based on batch, ingredient, lot, and unit
-    const key = `${material.batchCode || ""}_${material.ingredientCode || ""}_${material.lot || ""}_${material.unitOfMeasurement || ""}`;
+    // Create a unique key based on ingredient, lot, and unit
+    const key = `${material.ingredientCode || ""}_${material.lot || ""}_${material.unitOfMeasurement || ""}`;
 
     if (groupMap.has(key)) {
       const group = groupMap.get(key);
@@ -254,6 +254,21 @@ function renderMaterialsTable(groupedMaterialsArray) {
         ? `${group.ids.length} items`
         : group.ids.join(", ");
 
+    // Get unique batch codes from group items
+    const uniqueBatchCodes = [
+      ...new Set(
+        group.items.map((item) => item.batchCode).filter((code) => code),
+      ),
+    ];
+    let batchCodeDisplay;
+    if (uniqueBatchCodes.length === 0) {
+      batchCodeDisplay = "-";
+    } else if (uniqueBatchCodes.length <= 3) {
+      batchCodeDisplay = uniqueBatchCodes.join(", ");
+    } else {
+      batchCodeDisplay = uniqueBatchCodes.slice(0, 3).join(", ") + ", ...";
+    }
+
     // Calculate plan quantity: (recipeQuantity / poQuantity) * batchQuantity
     const ingredientCode = group.ingredientCode;
     const batchCode = group.batchCode;
@@ -277,7 +292,7 @@ function renderMaterialsTable(groupedMaterialsArray) {
 
     html += `<tr style="border-bottom: 1px solid #eee;">
       <td style="padding: 12px; text-align: center; font-weight: bold;">${idsDisplay}</td>
-      <td style="padding: 12px; text-align: center;">${group.batchCode || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${batchCodeDisplay}</td>
       <td style="padding: 12px; text-align: center;">${group.ingredientCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${group.lot || "-"}</td>
       <td style="padding: 12px; text-align: center;">${planQuantity} ${group.unitOfMeasurement || ""}</td>
@@ -315,12 +330,6 @@ function renderMaterialsTable(groupedMaterialsArray) {
 async function filterMaterials() {
   materialsCurrentPage = 1; // Reset to first page when filtering
   await fetchMaterialsWithPagination();
-}
-
-// Filter ingredients and fetch from server with pagination
-async function filterIngredients() {
-  ingredientsCurrentPage = 1; // Reset to first page when filtering
-  await fetchIngredients();
 }
 
 // Fetch materials with client-side filtering and pagination
@@ -453,7 +462,10 @@ async function fetchMaterialsWithPagination() {
     // Get current page data from GROUPED materials
     const startIndex = (materialsCurrentPage - 1) * materialsPerPage;
     const endIndex = startIndex + materialsPerPage;
-    const paginatedGroupedMaterials = groupedMaterials.slice(startIndex, endIndex);
+    const paginatedGroupedMaterials = groupedMaterials.slice(
+      startIndex,
+      endIndex,
+    );
 
     // Always render batch code radio buttons (even when no data)
     renderBatchCodeRadioButtons(batches);
@@ -581,7 +593,6 @@ function showMaterialListModal(group) {
   document.getElementById("listModalTitle").innerHTML = `
     <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">Danh sách Materials</div>
     <div style="font-size: 14px; color: #666;">
-      <span style="margin-right: 20px;"><strong>Batch:</strong> ${group.batchCode || "-"}</span>
       <span style="margin-right: 20px;"><strong>Ingredient:</strong> ${group.ingredientCode || "-"}</span>
       <span style="margin-right: 20px;"><strong>Lot:</strong> ${group.lot || "-"}</span>
       <span><strong>Total Quantity:</strong> ${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}</span>
@@ -591,23 +602,23 @@ function showMaterialListModal(group) {
   // Build table rows for individual items
   let html = "";
 
-  // Calculate plan quantity for the group (same as in renderMaterialsTable)
-  const poQuantity = parseFloat(order.Quantity) || 1;
   const ingredientCode = group.ingredientCode;
-  const batchCode = group.batchCode;
+  const poQuantity = parseFloat(order.Quantity) || 1;
+  function getPlanQuantityPerItem(batchCode) {
+    const batch = batches.find((b) => b.BatchNumber === batchCode);
+    const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
+    const recipeQuantity = ingredientsTotalsByUOM[ingredientCode] || 0;
 
-  // Extract ingredient code (remove item name if present)
-  const ingredientCodeOnly = ingredientCode
-    ? ingredientCode.split(" - ")[0].trim()
-    : "";
-
-  const batch = batches.find((b) => b.BatchNumber === batchCode);
-  const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
-  const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly] || 0;
-  const groupPlanQuantity = (recipeQuantity / poQuantity) * batchQuantity;
-
-  // Distribute plan quantity equally among items in the group
-  const planQuantityPerItem = groupPlanQuantity / group.items.length;
+    let planQuantity = recipeQuantity;
+    if (batchQuantity !== 0) {
+      planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
+      planQuantity = planQuantity.toFixed(2);
+    }
+    if (recipeQuantity === 0) {
+      planQuantity = "N/A";
+    }
+    return planQuantity;
+  }
 
   group.items.forEach((material, index) => {
     html += `<tr style="border-bottom: 1px solid #eee;">
@@ -615,7 +626,7 @@ function showMaterialListModal(group) {
       <td style="padding: 12px; text-align: center;">${material.batchCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${material.ingredientCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${material.lot || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${planQuantityPerItem.toFixed(2)} ${material.unitOfMeasurement || ""}</td>
+      <td style="padding: 12px; text-align: center;">${getPlanQuantityPerItem(material.batchCode)} ${material.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${material.quantity || 0} ${material.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${formatDate(material.datetime) || "-"}</td>
       <td style="padding: 12px; text-align: center;">
@@ -1149,12 +1160,9 @@ async function displayBatchesTable(batchesArray) {
               <td style="padding: 12px; text-align: center;">${batch.BatchId}</td>
               <td style="padding: 12px; text-align: center;">${batch.BatchNumber}</td>
               <td style="padding: 12px; text-align: center;">${batch.Quantity} ${batch.UnitOfMeasurement}</td>
-              <td style="padding: 12px; text-align: center; display: flex; gap: 10px; justify-content: center;">
+              <td style="padding: 12px; text-align: center;">
                 <button class="viewMaterialsBtn" data-batch-code="${batch.BatchNumber}" style="background: #007bff; color: white; border: none; cursor: pointer; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-weight: 500; transition: background 0.2s;" title="View Materials">
                   View Materials
-                </button>
-                <button class="viewIngredientsBtn" data-batch-code="${batch.BatchNumber}" style="background: #28a745; color: white; border: none; cursor: pointer; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-weight: 500; transition: background 0.2s;" title="View Ingredients">
-                  View Ingredients
                 </button>
               </td>
             </tr>
@@ -1177,26 +1185,6 @@ async function displayBatchesTable(batchesArray) {
     });
     btn.addEventListener("mouseout", function () {
       this.style.background = "#007bff";
-    });
-  });
-
-  // Add event listeners to View Ingredients buttons
-  const viewIngredientsButtons = document.querySelectorAll(
-    ".viewIngredientsBtn",
-  );
-  viewIngredientsButtons.forEach((btn) => {
-    btn.addEventListener("click", async function () {
-      const batchCode = this.getAttribute("data-batch-code");
-      // Set selected batch code BEFORE switching tabs
-      selectedIngredientsBatchCode = batchCode;
-      // Switch to ingredients tab (this will call fetchIngredients and render radio buttons)
-      activateTab("tab-recipes");
-    });
-    btn.addEventListener("mouseover", function () {
-      this.style.background = "#218838";
-    });
-    btn.addEventListener("mouseout", function () {
-      this.style.background = "#28a745";
     });
   });
 
