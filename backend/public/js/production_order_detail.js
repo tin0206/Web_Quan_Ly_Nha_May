@@ -316,7 +316,7 @@ function renderMaterialsTable(
     unconsumedIngredients.length === 0
   ) {
     tbody.innerHTML =
-      '<tr><td colspan="10" style="padding: 20px; text-align: center; color: #999;">Không có dữ liệu vật liệu nào</td></tr>';
+      '<tr><td colspan="9" style="padding: 20px; text-align: center; color: #999;">Không có dữ liệu vật liệu nào</td></tr>';
     return;
   }
 
@@ -366,12 +366,6 @@ function renderMaterialsTable(
       planQuantity = "N/A";
     }
 
-    // Determine batch quantity display
-    let batchQuantityDisplay = "-";
-    if (group.items.length === 1 && batch) {
-      batchQuantityDisplay = `${batch.Quantity} ${batch.UnitOfMeasurement || "-"}`;
-    }
-
     // Determine status display - show "-" if multiple items
     let statusDisplay = "-";
     if (group.items.length === 1) {
@@ -387,7 +381,6 @@ function renderMaterialsTable(
       <td style="padding: 12px; text-align: center;">${batchCodeDisplay}</td>
       <td style="padding: 12px; text-align: center;">${group.ingredientCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${group.lot || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${batchQuantityDisplay}</td>
       <td style="padding: 12px; text-align: center;">${planQuantity} ${group.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${formatDateTime(group.latestDatetime) || "-"}</td>
@@ -464,7 +457,6 @@ function renderMaterialsTable(
       <td style="padding: 12px; text-align: center; font-weight: bold;">${itemCountDisplay}</td>
       <td style="padding: 12px; text-align: center;">${batchCodesDisplay}</td>
       <td style="padding: 12px; text-align: center;">${ingredientCodeDisplay}</td>
-      <td style="padding: 12px; text-align: center;">-</td>
       <td style="padding: 12px; text-align: center;">-</td>
       <td style="padding: 12px; text-align: center;">${totalPlanQuantity.toFixed(2)} ${ingredient.UnitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">N/A ${ingredient.UnitOfMeasurement || ""}</td>
@@ -845,15 +837,8 @@ function showMaterialModal(material) {
     material.ingredientCode || "-";
   document.getElementById("modalLot").textContent = material.lot || "-";
 
-  // Calculate Batch Quantity
-  const batch = batches.find((b) => b.BatchNumber === material.batchCode);
-  const batchQuantityDisplay = batch
-    ? `${batch.Quantity} ${batch.UnitOfMeasurement || ""}`
-    : "-";
-  document.getElementById("modalBatchQuantity").textContent =
-    batchQuantityDisplay;
-
   // Calculate Plan Quantity
+  const batch = batches.find((b) => b.BatchNumber === material.batchCode);
   const ingredientCode = material.ingredientCode;
   const ingredientCodeOnly = ingredientCode
     ? ingredientCode.split(" - ")[0].trim()
@@ -953,12 +938,6 @@ function showMaterialListModal(group) {
   }
 
   group.items.forEach((material, index) => {
-    // Get batch quantity for this material
-    const batch = batches.find((b) => b.BatchNumber === material.batchCode);
-    const batchQuantityDisplay = batch
-      ? `${batch.Quantity || "-"} ${batch.UnitOfMeasurement}`
-      : "-";
-
     // Determine status display with color
     const statusDisplay = material.respone
       ? material.respone === "Success"
@@ -971,7 +950,6 @@ function showMaterialListModal(group) {
       <td style="padding: 12px; text-align: center;">${material.batchCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${material.ingredientCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${material.lot || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${batchQuantityDisplay}</td>
       <td style="padding: 12px; text-align: center;">${getPlanQuantityPerItem(material.batchCode)} ${material.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${material.quantity || 0} ${material.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${formatDateTime(material.datetime) || "-"}</td>
