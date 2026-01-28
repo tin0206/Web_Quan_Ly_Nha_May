@@ -301,7 +301,7 @@ function renderMaterialsTable(
 
   // Build table HTML for grouped materials
   let html = "";
-  const poQuantity = parseFloat(order.Quantity) || 1;
+  const poQuantity = parseFloat(order.ProductQuantity) || 1;
 
   groupedMaterialsArray.forEach((group, index) => {
     const idsDisplay =
@@ -335,7 +335,6 @@ function renderMaterialsTable(
 
     const batch = batches.find((b) => b.BatchNumber === batchCode);
     const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
-    console.log("Batch Quantity for", batchCode, ":", batchQuantity);
     const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly] || 0;
     let planQuantity = recipeQuantity;
     if (batchQuantity !== 0) {
@@ -861,9 +860,8 @@ function showMaterialListModal(group) {
   const ingredientCodeOnly = ingredientCode
     ? ingredientCode.split(" - ")[0].trim()
     : "";
-  const poQuantity = parseFloat(order.Quantity) || 1;
+  const poQuantity = parseFloat(order.ProductQuantity) || 1;
   function getPlanQuantityPerItem(batchCode) {
-    console.log("Calculating plan quantity for batch:", batchCode);
     const batch = batches.find((b) => b.BatchNumber === batchCode);
     const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
     const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly] || 0;
@@ -968,7 +966,7 @@ function showUnconsumedIngredientModal(ingredient, selectedBatchCode = "") {
 
   // Build table rows for each batch
   let html = "";
-  const poQuantity = parseFloat(order.Quantity) || 1;
+  const poQuantity = parseFloat(order.ProductQuantity) || 1;
 
   filteredBatches.forEach((batch) => {
     const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;

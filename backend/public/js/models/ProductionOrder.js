@@ -21,6 +21,7 @@ export class ProductionOrder {
     TotalBatches,
     Progress = 0,
     ProgressStatus = "running",
+    ProductQuantity,
   }) {
     this.ProductionOrderId = ProductionOrderId;
     this.ProductionLine = ProductionLine;
@@ -43,5 +44,6 @@ export class ProductionOrder {
     this.TotalBatches = TotalBatches;
     this.Progress = Progress;
     this.ProgressStatus = ProgressStatus;
+    this.ProductQuantity = ProductQuantity;
   }
 }

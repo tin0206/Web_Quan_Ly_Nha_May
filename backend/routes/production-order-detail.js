@@ -367,9 +367,11 @@ router.get("/:id", async (req, res) => {
       .query(
         `SELECT 
           po.*,
-          pm.ItemName
+          pm.ItemName,
+          ing.Quantity as ProductQuantity
         FROM ProductionOrders po
         LEFT JOIN ProductMasters pm ON po.ProductCode = pm.ItemCode
+        LEFT JOIN Ingredients ing ON po.ProductCode = ing.IngredientCode
         WHERE po.ProductionOrderId = @ProductionOrderId`,
       );
 
@@ -426,6 +428,7 @@ router.get("/:id", async (req, res) => {
       Status: hasMESData ? 1 : 0,
       CurrentBatch: currentBatch,
       TotalBatches: totalBatches,
+      ProductQuantity: order.ProductQuantity || null,
     };
 
     res.json({
