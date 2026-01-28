@@ -188,6 +188,7 @@ router.get("/search", async (req, res) => {
     const searchQuery = req.query.searchQuery || "";
     const dateFrom = req.query.dateFrom || "";
     const dateTo = req.query.dateTo || "";
+    const processAreas = req.query.processAreas || "";
 
     const skip = (page - 1) * limit;
 
@@ -217,6 +218,22 @@ router.get("/search", async (req, res) => {
       whereConditions.push(
         `CAST(PlannedStart AS DATE) <= CAST(@dateTo AS DATE)`,
       );
+    }
+
+    if (processAreas && processAreas.trim() !== "") {
+      const processAreasArray = processAreas
+        .split(",")
+        .map((pa) => pa.trim())
+        .filter((pa) => pa);
+      if (processAreasArray.length > 0) {
+        const processAreaPlaceholders = processAreasArray
+          .map((_, i) => `@processArea${i}`)
+          .join(",");
+        processAreasArray.forEach((pa, i) => {
+          baseRequest.input(`processArea${i}`, sql.NVarChar, pa);
+        });
+        whereConditions.push(`ProcessArea IN (${processAreaPlaceholders})`);
+      }
     }
 
     const whereClause =
@@ -251,6 +268,17 @@ router.get("/search", async (req, res) => {
     }
     if (dateTo) {
       paginatedRequest.input("dateTo", sql.DateTime2, new Date(dateTo));
+    }
+    if (processAreas && processAreas.trim() !== "") {
+      const processAreasArray = processAreas
+        .split(",")
+        .map((pa) => pa.trim())
+        .filter((pa) => pa);
+      if (processAreasArray.length > 0) {
+        processAreasArray.forEach((pa, i) => {
+          paginatedRequest.input(`processArea${i}`, sql.NVarChar, pa);
+        });
+      }
     }
 
     const result = await paginatedRequest.query(

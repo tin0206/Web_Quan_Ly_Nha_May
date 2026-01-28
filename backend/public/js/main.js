@@ -8,6 +8,7 @@ let totalRecords = 0;
 let totalPages = 1;
 let statsData = {};
 const pageSize = 20;
+let allProcessAreas = []; // Store all unique process areas for filter dropdown
 
 const sourceCodeSpan = document.getElementById("material-source-code");
 const destinationCodeSpan = document.getElementById(
@@ -45,6 +46,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   renderProductionTable();
   initializeEventListeners();
   initializeSearch();
+  initializeProcessAreaDropdown();
   initializeModalHandlers();
 });
 
@@ -490,6 +492,13 @@ function initializeSearch() {
       if (dateFromInput) dateFromInput.value = "";
       if (dateToInput) dateToInput.value = "";
 
+      // Clear process area checkboxes
+      const checkboxes = document.querySelectorAll(".process-area-checkbox");
+      checkboxes.forEach((cb) => (cb.checked = false));
+      const selectAll = document.getElementById("processAreaSelectAll");
+      if (selectAll) selectAll.checked = false;
+      updateProcessAreaSelectedText();
+
       // Reset to page 1 and fetch
       currentPage = 1;
       await fetchProductionOrders(currentPage);
@@ -567,15 +576,177 @@ window.searchFactory = {
   animateStats,
 };
 
+// Populate process areas dropdown from stored list
+function populateProcessAreas() {
+  const optionsContainer = document.getElementById("processAreaOptions");
+  if (!optionsContainer) return;
+
+  // Use stored allProcessAreas instead of current productionOrders
+  // This ensures dropdown options don't change when filtering
+  const sortedAreas = [...allProcessAreas].sort();
+
+  // Clear existing options
+  optionsContainer.innerHTML = "";
+
+  // Add checkbox options
+  sortedAreas.forEach((area) => {
+    const label = document.createElement("label");
+    label.style.cssText =
+      "display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; border-radius: 4px;";
+    label.onmouseover = function () {
+      this.style.background = "#f5f5f5";
+    };
+    label.onmouseout = function () {
+      this.style.background = "transparent";
+    };
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "process-area-checkbox";
+    checkbox.value = area;
+    checkbox.style.cursor = "pointer";
+    checkbox.onchange = handleProcessAreaCheckboxChange;
+
+    const span = document.createElement("span");
+    span.textContent = area;
+
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    optionsContainer.appendChild(label);
+  });
+
+  // Initialize select all functionality
+  initializeProcessAreaSelectAll();
+}
+
+// Initialize custom multi-select dropdown
+function initializeProcessAreaDropdown() {
+  const input = document.getElementById("processAreaInput");
+  const dropdown = document.getElementById("processAreaDropdown");
+
+  if (!input || !dropdown) return;
+
+  // Toggle dropdown on click
+  input.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isVisible = dropdown.style.display === "block";
+    dropdown.style.display = isVisible ? "none" : "block";
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".custom-multiselect")) {
+      dropdown.style.display = "none";
+    }
+  });
+
+  // Prevent dropdown from closing when clicking inside
+  dropdown.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+}
+
+// Handle checkbox change for process areas
+async function handleProcessAreaCheckboxChange() {
+  updateProcessAreaSelectedText();
+  updateSelectAllState();
+
+  // Reset to page 1 and fetch from API
+  currentPage = 1;
+  await fetchProductionOrders(currentPage);
+
+  // Check current view and render accordingly
+  const activeViewBtn = document.querySelector(".view-btn.active");
+  if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+    renderGridView();
+  } else {
+    renderProductionTable();
+  }
+  updatePaginationControls();
+}
+
+// Update selected text display
+function updateProcessAreaSelectedText() {
+  const checkboxes = document.querySelectorAll(".process-area-checkbox");
+  const selectedText = document.getElementById("processAreaSelectedText");
+  if (!selectedText) return;
+
+  const selected = Array.from(checkboxes)
+    .filter((cb) => cb.checked)
+    .map((cb) => cb.value);
+
+  if (selected.length === 0) {
+    selectedText.textContent = "Select process areas...";
+    selectedText.style.color = "#999";
+  } else if (selected.length <= 2) {
+    selectedText.textContent = selected.join(", ");
+    selectedText.style.color = "#333";
+  } else {
+    selectedText.textContent = `${selected.length} selected`;
+    selectedText.style.color = "#333";
+  }
+}
+
+// Initialize select all functionality
+function initializeProcessAreaSelectAll() {
+  const selectAllCheckbox = document.getElementById("processAreaSelectAll");
+  if (!selectAllCheckbox) return;
+
+  selectAllCheckbox.addEventListener("change", async function () {
+    const checkboxes = document.querySelectorAll(".process-area-checkbox");
+    checkboxes.forEach((cb) => {
+      cb.checked = this.checked;
+    });
+    updateProcessAreaSelectedText();
+
+    // Reset to page 1 and fetch from API
+    currentPage = 1;
+    await fetchProductionOrders(currentPage);
+
+    // Check current view and render accordingly
+    const activeViewBtn = document.querySelector(".view-btn.active");
+    if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+      renderGridView();
+    } else {
+      renderProductionTable();
+    }
+    updatePaginationControls();
+  });
+}
+
+// Update select all state based on individual checkboxes
+function updateSelectAllState() {
+  const selectAllCheckbox = document.getElementById("processAreaSelectAll");
+  const checkboxes = document.querySelectorAll(".process-area-checkbox");
+
+  if (!selectAllCheckbox || checkboxes.length === 0) return;
+
+  const allChecked = Array.from(checkboxes).every((cb) => cb.checked);
+  const someChecked = Array.from(checkboxes).some((cb) => cb.checked);
+
+  selectAllCheckbox.checked = allChecked;
+  selectAllCheckbox.indeterminate = someChecked && !allChecked;
+}
+
+// Get selected process areas
+function getSelectedProcessAreas() {
+  const checkboxes = document.querySelectorAll(
+    ".process-area-checkbox:checked",
+  );
+  return Array.from(checkboxes).map((cb) => cb.value);
+}
+
 async function fetchProductionOrders(page = 1) {
   try {
     // Get filter values
     const searchQuery = document.getElementById("searchInput")?.value || "";
     const dateFrom = document.getElementById("dateFrom")?.value || "";
     const dateTo = document.getElementById("dateTo")?.value || "";
+    const selectedProcessAreas = getSelectedProcessAreas();
 
     // Determine which endpoint to use based on filters
-    const hasFilters = searchQuery || dateFrom || dateTo;
+    const hasFilters =
+      searchQuery || dateFrom || dateTo || selectedProcessAreas.length > 0;
     const endpoint = hasFilters
       ? "/api/production-orders/search"
       : "/api/production-orders";
@@ -596,6 +767,9 @@ async function fetchProductionOrders(page = 1) {
       if (searchQuery) params.append("searchQuery", searchQuery);
       if (dateFrom) params.append("dateFrom", dateFrom);
       if (dateTo) params.append("dateTo", dateTo);
+      if (selectedProcessAreas.length > 0) {
+        params.append("processAreas", selectedProcessAreas.join(","));
+      }
     }
 
     const response = await fetch(
@@ -614,6 +788,19 @@ async function fetchProductionOrders(page = 1) {
       totalRecords = data.total;
       totalPages = data.totalPages || Math.ceil(totalRecords / pageSize);
       currentPage = data.page;
+
+      // Store all unique process areas on first load (no filters)
+      if (page === 1 && !hasFilters && allProcessAreas.length === 0) {
+        const processAreasSet = new Set();
+        productionOrders.forEach((order) => {
+          if (order.ProcessArea && order.ProcessArea.trim() !== "") {
+            processAreasSet.add(order.ProcessArea);
+          }
+        });
+        allProcessAreas = Array.from(processAreasSet);
+        populateProcessAreas();
+      }
+
       updatePaginationControls();
     } else {
       console.error("Failed to fetch production orders:", response.status);
@@ -661,7 +848,6 @@ function updatePaginationControls() {
     pageInfo.textContent = `Trang ${currentPage} / ${totalPages} (Tổng: ${totalRecords} bản ghi)`;
   }
 }
-
 // Go to previous page
 async function prevPage() {
   if (currentPage > 1) {
