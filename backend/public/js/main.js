@@ -40,13 +40,67 @@ document.addEventListener("DOMContentLoaded", async function () {
   //   dateToInput.value = tomorrow.toISOString().split("T")[0];
   // }
 
-  await fetchStats();
-  await fetchProductionOrders(1);
-  updateStats();
-  renderProductionTable();
+  // Restore state if returning from detail page
+  const savedState = sessionStorage.getItem("poListState");
+  if (savedState) {
+    try {
+      const state = JSON.parse(savedState);
+      // Restore filters
+      if (state.searchQuery && document.getElementById("searchInput")) {
+        document.getElementById("searchInput").value = state.searchQuery;
+      }
+      if (state.dateFrom && dateFromInput) {
+        dateFromInput.value = state.dateFrom;
+      }
+      if (state.dateTo && dateToInput) {
+        dateToInput.value = state.dateTo;
+      }
+
+      // Clear the saved state after restoring
+      sessionStorage.removeItem("poListState");
+
+      await fetchStats();
+      await fetchProductionOrders(state.currentPage || 1);
+      updateStats();
+
+      // Initialize dropdown first to create checkboxes
+      initializeProcessAreaDropdown();
+
+      // Restore process area selections after dropdown is initialized
+      if (state.selectedProcessAreas && state.selectedProcessAreas.length > 0) {
+        setTimeout(() => {
+          state.selectedProcessAreas.forEach((area) => {
+            const checkbox = document.querySelector(
+              `.process-area-checkbox[value="${area}"]`,
+            );
+            if (checkbox) checkbox.checked = true;
+          });
+          updateProcessAreaSelectedText();
+          updateSelectAllState();
+        }, 100);
+      }
+
+      // Render view after state is restored
+      renderProductionTable();
+    } catch (e) {
+      console.error("Error restoring state:", e);
+      sessionStorage.removeItem("poListState");
+      await fetchStats();
+      await fetchProductionOrders(1);
+      updateStats();
+      renderProductionTable();
+      initializeProcessAreaDropdown();
+    }
+  } else {
+    await fetchStats();
+    await fetchProductionOrders(1);
+    updateStats();
+    renderProductionTable();
+    initializeProcessAreaDropdown();
+  }
+
   initializeEventListeners();
   initializeSearch();
-  initializeProcessAreaDropdown();
   initializeModalHandlers();
 });
 
@@ -258,7 +312,7 @@ function renderGridView() {
           (order) => `
         <div class="grid-card">
           <div class="grid-card-top">
-            <a href="/production-order/${order.ProductionOrderId}" class="area-badge-link" target="_blank" title="Xem chi tiết Batch">
+            <a href="/production-order/${order.ProductionOrderId}" class="area-badge-link" title="Xem chi tiết Batch" onclick="saveCurrentState()">
               <h3 style="color: #5b4ce8;" title="${order.ProductionOrderNumber || ""}">${getTruncatedName(
                 order.ProductionOrderNumber || "",
                 30,
@@ -373,6 +427,18 @@ function renderGridView() {
   });
 }
 
+// Save current state before navigating to detail page
+function saveCurrentState() {
+  const state = {
+    currentPage: currentPage,
+    searchQuery: document.getElementById("searchInput")?.value || "",
+    dateFrom: document.getElementById("dateFrom")?.value || "",
+    dateTo: document.getElementById("dateTo")?.value || "",
+    selectedProcessAreas: getSelectedProcessAreas(),
+  };
+  sessionStorage.setItem("poListState", JSON.stringify(state));
+}
+
 // Render production table from data
 function renderProductionTable() {
   const tbody = document.querySelector(".data-table tbody");
@@ -383,7 +449,7 @@ function renderProductionTable() {
       (order) => `
     <tr>
       <td>
-        <a href="/production-order/${order.ProductionOrderId}" class="area-badge-link" target="_blank" title="Xem chi tiết Batch">
+        <a href="/production-order/${order.ProductionOrderId}" class="area-badge-link" title="Xem chi tiết Batch" onclick="saveCurrentState()">
           <div class="area-badge">
             <div>${order.ProductionOrderNumber}</div>
           </div>
@@ -883,6 +949,7 @@ async function nextPage() {
 // Expose to global scope for onclick handlers
 window.prevPage = prevPage;
 window.nextPage = nextPage;
+window.saveCurrentState = saveCurrentState;
 
 // Modal functions
 function openModal(modalId) {
