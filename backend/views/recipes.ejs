@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/css/po_recipes_style.css" />
+    <script type="module" src="/js/production_recipes.js" defer></script>
+    <title>Quản Lý Công Thức - Factory Management</title>
+  </head>
+  <body>
+    <!-- Main Container -->
+    <div class="main-container">
+      <!-- Header Section -->
+      <div class="header-section">
+        <div class="header-top">
+          <button class="back-btn" onclick="history.back()">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <div class="header-title">
+            <div class="header-top-left">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="#6259ee"
+              >
+                <path
+                  d="M15 2a1 1 0 0 1 0 2v4.826l3.932 10.814l.034 .077a1.7 1.7 0 0 1 -.002 1.193l-.07 .162a1.7 1.7 0 0 1 -1.213 .911l-.181 .017h-11l-.181 -.017a1.7 1.7 0 0 1 -1.285 -2.266l.039 -.09l3.927 -10.804v-4.823a1 1 0 1 1 0 -2h6zm-2 2h-2v4h2v-4z"
+                />
+              </svg>
+              <div class="header-text">
+                <h1>Công thức</h1>
+                <p>
+                  Quản lý công đoạn cho <%= process.env.PLANTCODE %> <%=
+                  process.env.LINE %>
+                </p>
+              </div>
+            </div>
+            <div class="badge-cs1"><%= process.env.LINE %></div>
+          </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-header">
+              <span>Tổng số Công thức</span>
+              <div class="stat-icon" id="total-icon">
+                <i class="fa-solid fa-flask" style="color: #4e4ad4"></i>
+              </div>
+            </div>
+            <div class="stat-number" id="totalRecipes">2</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <span>Công thức đang Hoạt động</span>
+              <div class="stat-icon" id="active-icon">
+                <i class="fa-solid fa-circle-check" style="color: #47b54d"></i>
+              </div>
+            </div>
+            <div class="stat-number" id="activeRecipes">2</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <span>Tổng Phiên bản</span>
+              <div class="stat-icon" id="version-icon">
+                <i class="fa-solid fa-clock" style="color: #1c96ff"></i>
+              </div>
+            </div>
+            <div class="stat-number" id="totalVersions">2</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <span>Bản Nháp</span>
+              <div class="stat-icon" id="draft-icon">
+                <i class="fa-solid fa-file-pen" style="color: #fe9d1e"></i>
+              </div>
+            </div>
+            <div class="stat-number" id="draftRecipes">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search and Filter Section -->
+      <div class="search-section">
+        <div class="search-bar">
+          <i class="fa-solid fa-search"></i>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Tìm kiếm Mã công thức, Tên sản phẩm..."
+          />
+        </div>
+        <div class="view-controls">
+          <button class="view-btn active" id="gridViewBtn">
+            <i class="fa-solid fa-grip"></i>
+          </button>
+          <button class="view-btn" id="tableViewBtn">
+            <i class="fa-solid fa-list"></i>
+          </button>
+          <select class="filter-dropdown" id="statusFilter">
+            <option value="">Tất cả Trạng thái</option>
+            <option value="active">Hoạt động</option>
+            <option value="draft">Bản nháp</option>
+            <option value="inactive">Ngừng hoạt động</option>
+          </select>
+          <button class="refresh-btn">
+            <i class="fa-solid fa-rotate-right"></i>
+            Làm mới
+          </button>
+        </div>
+      </div>
+
+      <!-- Grid View -->
+      <div class="grid-view" id="gridView">
+        <div class="recipe-card">
+          <div class="recipe-card-header">
+            <div class="recipe-title-section">
+              <h3 class="recipe-code">99SS00015-MHP</h3>
+              <span class="version-badge">
+                <i class="fa-solid fa-code-branch"></i>
+                1 Phiên bản
+              </span>
+            </div>
+            <span class="status-badge status-success">
+              <i class="fa-solid fa-circle-check"></i>
+              Hoạt động
+            </span>
+          </div>
+
+          <div class="recipe-product">
+            <div class="product-label">SẢN PHẨM</div>
+            <div class="product-info">
+              <i class="fa-solid fa-box"></i>
+              <div class="product-details">
+                <div class="product-code">99SS00015</div>
+                <div class="product-name">
+                  BTP seasoning mi Kokomii 65 Palm relaunch
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="recipe-footer">
+            <div class="recipe-meta">
+              <div class="meta-item">
+                <i class="fa-solid fa-circle-dot"></i>
+                Phiên bản mới nhất: <strong>401.00</strong>
+              </div>
+              <div class="meta-item">
+                <i class="fa-regular fa-clock"></i>
+                Cập nhật: <strong>17:27</strong>
+              </div>
+            </div>
+            <div class="recipe-actions">
+              <button class="detail-btn">
+                <i class="fa-regular fa-eye"></i>
+                Chi tiết
+              </button>
+              <button class="icon-btn">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              <button class="icon-btn delete-btn">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="recipe-card">
+          <div class="recipe-card-header">
+            <div class="recipe-title-section">
+              <h3 class="recipe-code">L04-MES</h3>
+              <span class="version-badge">
+                <i class="fa-solid fa-code-branch"></i>
+                1 Phiên bản
+              </span>
+            </div>
+            <span class="status-badge status-success">
+              <i class="fa-solid fa-circle-check"></i>
+              Hoạt động
+            </span>
+          </div>
+
+          <div class="recipe-product">
+            <div class="product-label">SẢN PHẨM</div>
+            <div class="product-info">
+              <i class="fa-solid fa-box"></i>
+              <div class="product-details">
+                <div class="product-code">L04-MES</div>
+                <div class="product-name">L04-MES</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="recipe-footer">
+            <div class="recipe-meta">
+              <div class="meta-item">
+                <i class="fa-solid fa-circle-dot"></i>
+                Phiên bản mới nhất: <strong>N/A</strong>
+              </div>
+              <div class="meta-item">
+                <i class="fa-regular fa-clock"></i>
+                Cập nhật: <strong>Sun, 16:29</strong>
+              </div>
+            </div>
+            <div class="recipe-actions">
+              <button class="detail-btn">
+                <i class="fa-regular fa-eye"></i>
+                Chi tiết
+              </button>
+              <button class="icon-btn">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              <button class="icon-btn delete-btn">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table View -->
+      <div class="table-section" id="tableView" style="display: none">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Mã Công Thức</th>
+              <th>Phiên Bản</th>
+              <th>Mã Sản Phẩm</th>
+              <th>Tên Sản Phẩm</th>
+              <th style="text-align: center">Trạng Thái</th>
+              <th style="text-align: center">Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody id="recipeTableBody">
+            <!-- Rows will be rendered by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-section">
+        <div class="pagination-info">Showing 1 to 2 of 2 Công thức</div>
+        <div class="pagination-controls">
+          <button class="page-btn" disabled>1</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

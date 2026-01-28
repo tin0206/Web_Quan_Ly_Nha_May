@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/css/main_style.css" />
+    <title>Quản Lý Sản Phẩm - Factory Management</title>
+  </head>
+  <body>
+    <!-- Top Navigation Bar -->
+    <div class="topBar">
+      <div class="nav-left">
+        <i class="fa-solid fa-home"></i>
+        <span>DashBoard</span>
+      </div>
+      <div class="nav-breadcrumb">
+        <span>Sản Phẩm</span>
+        <span class="separator">></span>
+        <span id="material-source-code"><%= process.env.PLANTCODE %></span>
+        <span class="separator">></span>
+        <span id="material-destination-code"><%= process.env.LINE %></span>
+      </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+      <!-- Header Section -->
+      <div class="header-section">
+        <div class="header-top">
+          <button class="back-btn" onclick="history.back()">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <div class="header-title">
+            <div class="header-top-left">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="#6259ee"
+              >
+                <path
+                  d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"
+                />
+              </svg>
+              <div class="header-text">
+                <h1>Quản lý Sản phẩm</h1>
+                <p>Danh sách các sản phẩm trong hệ thống</p>
+              </div>
+            </div>
+            <div class="badge-cs1"><%= process.env.LINE %></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content Section -->
+      <div class="search-section">
+        <div class="search-bar">
+          <i class="fa-solid fa-search"></i>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Tìm kiếm Mã sản phẩm, Tên sản phẩm..."
+          />
+        </div>
+        <div class="view-controls">
+          <button class="refresh-btn">
+            <i class="fa-solid fa-rotate-right"></i>
+            Làm mới
+          </button>
+        </div>
+      </div>
+
+      <!-- Table Section -->
+      <div class="table-section">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Mã Sản Phẩm</th>
+              <th>Tên Sản Phẩm</th>
+              <th>Đơn Vị</th>
+              <th style="text-align: center">Loại</th>
+              <th style="text-align: center">Trạng Thái</th>
+              <th style="text-align: center">Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody id="productTableBody">
+            <!-- Rows will be rendered by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+</html>

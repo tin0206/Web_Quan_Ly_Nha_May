@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/css/main_style.css" />
+    <script>
+      const PLANTCODE = "<%= process.env.PLANTCODE %>";
+      const LINE = "<%= process.env.LINE %>";
+    </script>
+    <script type="module" src="/js/production_orders.js" defer></script>
+    <title>Quản Lý Nhà Máy - Factory Management</title>
+  </head>
+  <body>
+    <!-- Top Navigation Bar -->
+    <div class="topBar">
+      <div class="nav-left">
+        <i class="fa-solid fa-home"></i>
+        <span>DashBoard</span>
+      </div>
+      <div class="nav-breadcrumb">
+        <span>Lệnh Sản xuất</span>
+        <span class="separator">></span>
+        <span id="material-source-code">MIP</span>
+        <span class="separator">></span>
+        <span id="material-destination-code">CS1</span>
+      </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+      <!-- Header Section -->
+      <div class="header-section">
+        <div class="header-top">
+          <button class="back-btn">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <div class="header-title">
+            <div class="header-top-left">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="#6259ee"
+              >
+                <path
+                  d="M11.132 2.504l-4 7a1 1 0 0 0 .868 1.496h8a1 1 0 0 0 .868 -1.496l-4 -7a1 1 0 0 0 -1.736 0z"
+                />
+                <path
+                  d="M17 13a4 4 0 1 1 -3.995 4.2l-.005 -.2l.005 -.2a4 4 0 0 1 3.995 -3.8z"
+                />
+                <path
+                  d="M9 13h-4a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h4a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2z"
+                />
+              </svg>
+              <div class="header-text">
+                <h1>Giám sát lệnh sản xuất</h1>
+                <p>Tổng quan thời gian thực về các đơn hàng sản xuất</p>
+              </div>
+            </div>
+            <div class="badge-cs1"><%= process.env.LINE %></div>
+          </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-header">
+              <span>Tổng Lệnh SX (PO)</span>
+              <div class="stat-icon">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="#2a5fc0"
+                >
+                  <path
+                    d="M11.132 2.504l-4 7a1 1 0 0 0 .868 1.496h8a1 1 0 0 0 .868 -1.496l-4 -7a1 1 0 0 0 -1.736 0z"
+                  />
+                  <path
+                    d="M17 13a4 4 0 1 1 -3.995 4.2l-.005 -.2l.005 -.2a4 4 0 0 1 3.995 -3.8z"
+                  />
+                  <path
+                    d="M9 13h-4a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h4a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2z"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div class="stat-number" id="kvsx-stat">6</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-header">
+              <span>Đang chạy</span>
+              <div class="stat-icon" id="progress-icon">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="#fe9d1e"
+                >
+                  <path
+                    d="M6 4v16a1 1 0 0 0 1.524 .852l13 -8a1 1 0 0 0 0 -1.704l-13 -8a1 1 0 0 0 -1.524 .852z"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div class="stat-number" id="total-po-stat">7</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-header">
+              <span>Hoàn thành</span>
+              <div class="stat-icon" id="completed-icon">
+                <i class="fa-solid fa-circle-check" style="color: #47b54d"></i>
+              </div>
+            </div>
+            <div class="stat-number" id="in-progress-stat">2</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-header">
+              <span>Đang chờ</span>
+              <div class="stat-icon" id="stopped-icon">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="#2a5fc0"
+                >
+                  <path
+                    d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2z"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div class="stat-number" id="stopped-stat">1</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search and Filter Section -->
+      <div class="search-section">
+        <div class="search-bar">
+          <i class="fa-solid fa-search"></i>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Tìm kiếm Lệnh SX, Mã sản phẩm..."
+          />
+        </div>
+        <div
+          style="
+            padding-left: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+          "
+        >
+          <div style="display: flex; gap: 10px; align-items: center">
+            <label style="font-weight: 500; color: #666">Từ ngày:</label>
+            <input
+              type="date"
+              id="dateFrom"
+              style="
+                padding: 8px 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 14px;
+              "
+            />
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center">
+            <label style="font-weight: 500; color: #666">Đến ngày:</label>
+            <input
+              type="date"
+              id="dateTo"
+              style="
+                padding: 8px 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 14px;
+              "
+            />
+          </div>
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              align-items: center;
+              position: relative;
+            "
+          >
+            <label style="font-weight: 500; color: #666">Process Area:</label>
+            <div
+              class="custom-multiselect"
+              style="position: relative; min-width: 220px"
+            >
+              <div
+                class="multiselect-input"
+                id="processAreaInput"
+                style="
+                  padding: 8px 12px;
+                  border: 1px solid #ddd;
+                  border-radius: 4px;
+                  font-size: 14px;
+                  background: white;
+                  cursor: pointer;
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  min-height: 38px;
+                "
+              >
+                <span id="processAreaSelectedText" style="color: #999"
+                  >Select process areas...</span
+                >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+              <div
+                class="multiselect-dropdown"
+                id="processAreaDropdown"
+                style="
+                  display: none;
+                  position: absolute;
+                  top: 100%;
+                  left: 0;
+                  right: 0;
+                  background: white;
+                  border: 1px solid #ddd;
+                  border-radius: 4px;
+                  margin-top: 4px;
+                  max-height: 250px;
+                  overflow-y: auto;
+                  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                  z-index: 1000;
+                "
+              >
+                <div style="padding: 8px; border-bottom: 1px solid #eee">
+                  <label
+                    style="
+                      display: flex;
+                      align-items: center;
+                      gap: 8px;
+                      cursor: pointer;
+                      font-weight: 500;
+                    "
+                  >
+                    <input
+                      type="checkbox"
+                      id="processAreaSelectAll"
+                      style="cursor: pointer"
+                    />
+                    <span>[Select all]</span>
+                  </label>
+                </div>
+                <div id="processAreaOptions" style="padding: 4px">
+                  <!-- Options will be populated dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="view-controls">
+          <button class="view-btn active" data-view="table" title="Danh sách">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M4 6l16 0" />
+              <path d="M4 12l16 0" />
+              <path d="M4 18l16 0" />
+            </svg>
+          </button>
+          <button class="view-btn" data-view="grid" title="Lưới">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path
+                d="M9 3a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
+              />
+              <path
+                d="M19 3a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
+              />
+              <path
+                d="M9 13a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
+              />
+              <path
+                d="M19 13a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
+              />
+            </svg>
+          </button>
+          <hr style="height: 30px; width: 2px" />
+          <button class="refresh-btn">
+            <i class="fa-solid fa-rotate-right"></i>
+            Làm mới
+          </button>
+        </div>
+      </div>
+
+      <!-- Table Section -->
+      <div class="table-section">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Mã Lệnh SX</th>
+              <th>Sản Phẩm</th>
+              <th style="text-align: center">Dây chuyền</th>
+              <th>Công thức</th>
+              <th>Lô SX</th>
+              <th>Process Area</th>
+              <th style="text-align: center">Ngày Bắt Đầu / Số Lượng</th>
+              <th style="text-align: center">Tiến độ</th>
+              <th style="text-align: center">Trạng Thái</th>
+              <th style="text-align: center">Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody id="orderTableBody">
+            <!-- Rows will be rendered by JavaScript -->
+          </tbody>
+        </table>
+
+        <!-- Pagination Controls -->
+        <div class="pagination-controls">
+          <button id="prevPageBtn" class="pagination-btn" onclick="prevPage()">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <span id="pageInfo" class="page-info">Trang 1 / 1</span>
+          <button id="nextPageBtn" class="pagination-btn" onclick="nextPage()">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Production Order Modal -->
+    <div id="viewModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Chi tiết Lệnh Sản Xuất</h2>
+          <button class="modal-close" data-close="viewModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-grid">
+            <div class="modal-field">
+              <label>Mã Lệnh SX</label>
+              <p id="viewOrderNumber">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Mã Sản Phẩm</label>
+              <p id="viewProductCode">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Dây chuyền</label>
+              <p id="viewProductionLine">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Công thức</label>
+              <p id="viewRecipeCode">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Phiên bản Công thức</label>
+              <p id="viewRecipeVersion">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Lô SX</label>
+              <p id="viewLotNumber">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Số lượng</label>
+              <p id="viewQuantity">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Đơn vị</label>
+              <p id="viewUnitOfMeasurement">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Ngày bắt đầu</label>
+              <p id="viewPlannedStart">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Ngày kết thúc</label>
+              <p id="viewPlannedEnd">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Ca làm</label>
+              <p id="viewShift">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Batch hiện tại</label>
+              <p id="viewCurrentBatch">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Tiến độ</label>
+              <p id="viewProgress">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Trạng thái</label>
+              <p id="viewStatus">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Process Area</label>
+              <p id="viewPlant">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Shop Floor</label>
+              <p id="viewShopfloor">-</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" data-close="viewModal">Đóng</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

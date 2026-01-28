@@ -191,13 +191,13 @@ let selectedMaterialsBatchCode = ""; // Store selected batch for materials tab
 let ingredientsTotalsByUOM = {}; // Store totals grouped by UnitOfMeasurement
 let materialFilterType = "all"; // Filter type: "all", "consumed", "unconsumed"
 
-// Group materials by batch number, ingredient code, lot, and unit of measurement
+// Group materials by ingredient code and unit of measurement (without lot)
 function groupMaterials(materialsArray) {
   const groupMap = new Map();
 
   materialsArray.forEach((material) => {
-    // Create a unique key based on ingredient, lot, and unit
-    const key = `${material.ingredientCode || ""}_${material.lot || ""}_${material.unitOfMeasurement || ""}`;
+    // Create a unique key based on ingredient and unit only (removed lot)
+    const key = `${material.ingredientCode || ""}_${material.unitOfMeasurement || ""}`;
 
     if (groupMap.has(key)) {
       const group = groupMap.get(key);
@@ -207,6 +207,10 @@ function groupMaterials(materialsArray) {
       group.items.push(material);
       // Add ID to ids array
       group.ids.push(material.id);
+      // Track unique lots
+      if (material.lot && !group.lots.has(material.lot)) {
+        group.lots.add(material.lot);
+      }
       // Update latest datetime
       if (
         material.datetime &&
@@ -217,10 +221,16 @@ function groupMaterials(materialsArray) {
       }
     } else {
       // Create new group
+      const lotsSet = new Set();
+      if (material.lot) {
+        lotsSet.add(material.lot);
+      }
+
       groupMap.set(key, {
         batchCode: material.batchCode,
         ingredientCode: material.ingredientCode,
         lot: material.lot,
+        lots: lotsSet, // Track all unique lots
         unitOfMeasurement: material.unitOfMeasurement,
         totalQuantity: parseFloat(material.quantity) || 0,
         items: [material],
@@ -232,7 +242,25 @@ function groupMaterials(materialsArray) {
     }
   });
 
-  return Array.from(groupMap.values());
+  // Convert lots Set to display value
+  const groups = Array.from(groupMap.values()).map((group) => {
+    // If multiple items with different lots, show "-"
+    if (group.items.length > 1 && group.lots.size > 1) {
+      group.lot = "-";
+    } else if (group.lots.size === 1) {
+      // If all items have same lot, use that lot
+      group.lot = Array.from(group.lots)[0];
+    } else if (group.lots.size === 0) {
+      // If no lot at all
+      group.lot = "-";
+    }
+
+    // Remove lots Set before returning
+    delete group.lots;
+    return group;
+  });
+
+  return groups;
 }
 
 // Group unconsumed ingredients by ingredient code and unit of measurement
@@ -337,6 +365,11 @@ function renderMaterialsTable(
     if (recipeQuantity === 0 || batchQuantity === 0) {
       planQuantity = "N/A";
     }
+
+    console.log("planQuantity:", planQuantity);
+    console.log("recipeQuantity:", recipeQuantity);
+    console.log("batchQuantity:", batchQuantity);
+    console.log("poQuantity:", poQuantity);
 
     // Determine batch quantity display
     let batchQuantityDisplay = "-";
@@ -528,6 +561,7 @@ async function fetchMaterialsWithPagination() {
         const data = await response.json();
         const ingredientsData = data.data || [];
 
+        ingredientsTotalsByUOM = {};
         // Calculate totals grouped by IngredientCode
         ingredientsData.forEach((item) => {
           const ingredientCode = item.IngredientCode;
@@ -537,6 +571,8 @@ async function fetchMaterialsWithPagination() {
           ingredientsTotalsByUOM[ingredientCode] +=
             parseFloat(item.Quantity) || 0;
         });
+
+        console.log("ingredientsTotalsByUOM:", ingredientsTotalsByUOM);
       }
     }
 

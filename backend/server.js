@@ -1,6 +1,7 @@
 const express = require("express");
 const productionOrderRoutes = require("./routes/production-order");
 const productionOrderDetailRoutes = require("./routes/production-order-detail");
+const productionRecipesRoutes = require("./routes/production-recipes");
 const sql = require("mssql");
 const cors = require("cors");
 const path = require("path");
@@ -46,7 +47,21 @@ app.listen(PORT, "0.0.0.0", () => {
 });
 
 app.get("/", (req, res) => {
-  res.render("index", { title: "Trang chủ sản phẩm" });
+  res.render("index", { title: "Trang chủ" });
+});
+
+app.get("/production-orders", (req, res) => {
+  res.render("production-orders", { title: "Production Orders" });
+});
+
+// Render recipes page
+app.get("/recipes", (req, res) => {
+  res.render("recipes", { title: "Quản lý Công thức" });
+});
+
+// Render products page
+app.get("/products", (req, res) => {
+  res.render("products", { title: "Quản lý Sản phẩm" });
 });
 
 // Render production order detail page
@@ -56,5 +71,6 @@ app.get("/production-order/:id", (req, res) => {
 
 app.use("/api/production-orders", productionOrderRoutes);
 app.use("/api/production-order-detail", productionOrderDetailRoutes);
+app.use("/api/production-recipes", productionRecipesRoutes);
 
 module.exports = { sql };
