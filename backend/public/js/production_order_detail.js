@@ -366,11 +366,6 @@ function renderMaterialsTable(
       planQuantity = "N/A";
     }
 
-    console.log("planQuantity:", planQuantity);
-    console.log("recipeQuantity:", recipeQuantity);
-    console.log("batchQuantity:", batchQuantity);
-    console.log("poQuantity:", poQuantity);
-
     // Determine batch quantity display
     let batchQuantityDisplay = "-";
     if (group.items.length === 1 && batch) {
@@ -571,8 +566,6 @@ async function fetchMaterialsWithPagination() {
           ingredientsTotalsByUOM[ingredientCode] +=
             parseFloat(item.Quantity) || 0;
         });
-
-        console.log("ingredientsTotalsByUOM:", ingredientsTotalsByUOM);
       }
     }
 

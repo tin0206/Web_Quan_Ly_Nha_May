@@ -368,10 +368,10 @@ router.get("/:id", async (req, res) => {
         `SELECT 
           po.*,
           pm.ItemName,
-          ing.Quantity as ProductQuantity
+          ing.PlanQuantity as ProductQuantity
         FROM ProductionOrders po
         LEFT JOIN ProductMasters pm ON po.ProductCode = pm.ItemCode
-        LEFT JOIN Ingredients ing ON po.ProductCode = ing.IngredientCode
+        LEFT JOIN Products ing ON po.ProductCode = ing.ProductCode
         WHERE po.ProductionOrderId = @ProductionOrderId`,
       );
 

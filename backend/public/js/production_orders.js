@@ -33,12 +33,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   sourceCodeSpan.textContent = PLANTCODE;
   destinationCodeSpan.textContent = LINE;
 
-  // if (dateFromInput) {
-  //   dateFromInput.value = yesterday.toISOString().split("T")[0];
-  // }
-  // if (dateToInput) {
-  //   dateToInput.value = tomorrow.toISOString().split("T")[0];
-  // }
+  if (dateFromInput) {
+    dateFromInput.value = yesterday.toISOString().split("T")[0];
+  }
+  if (dateToInput) {
+    dateToInput.value = tomorrow.toISOString().split("T")[0];
+  }
 
   // Restore state if returning from detail page
   const savedState = sessionStorage.getItem("poListState");
