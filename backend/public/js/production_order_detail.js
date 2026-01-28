@@ -234,6 +234,7 @@ function groupMaterials(materialsArray) {
         items: [material],
         ids: [material.id],
         latestDatetime: material.datetime,
+        respone: material.respone,
         key: key,
       });
     }
@@ -295,7 +296,7 @@ function renderMaterialsTable(
     unconsumedIngredients.length === 0
   ) {
     tbody.innerHTML =
-      '<tr><td colspan="9" style="padding: 20px; text-align: center; color: #999;">Không có dữ liệu vật liệu nào</td></tr>';
+      '<tr><td colspan="10" style="padding: 20px; text-align: center; color: #999;">Không có dữ liệu vật liệu nào</td></tr>';
     return;
   }
 
@@ -351,6 +352,13 @@ function renderMaterialsTable(
       batchQuantityDisplay = `${batch.Quantity} ${batch.UnitOfMeasurement || "-"}`;
     }
 
+    // Determine status display
+    const statusDisplay = group.respone
+      ? group.respone === "Success"
+        ? "Success"
+        : "Failed"
+      : "-";
+
     html += `<tr style="border-bottom: 1px solid #eee;">
       <td style="padding: 12px; text-align: center; font-weight: bold;">${idsDisplay}</td>
       <td style="padding: 12px; text-align: center;">${batchCodeDisplay}</td>
@@ -360,6 +368,7 @@ function renderMaterialsTable(
       <td style="padding: 12px; text-align: center;">${planQuantity} ${group.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${formatDateTime(group.latestDatetime) || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${statusDisplay}</td>
       <td style="padding: 12px; text-align: center;">
         <button class="viewMaterialGroupBtn" data-index="${index}" style="background: none; border: none; cursor: pointer; color: #007bff; padding: 6px; transition: color 0.2s;" title="Xem danh sách">
           <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
@@ -437,6 +446,7 @@ function renderMaterialsTable(
       <td style="padding: 12px; text-align: center;">${totalPlanQuantity.toFixed(2)} ${ingredient.UnitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">N/A ${ingredient.UnitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">-</td>
+      <td style="padding: 12px; text-align: center;">-</td>
       <td style="padding: 12px; text-align: center;">
         <button class="viewUnconsumedGroupBtn" data-index="${unconsumedIndex}" style="background: none; border: none; cursor: pointer; color: #ff9800; padding: 6px; transition: color 0.2s;" title="Xem danh sách">
           <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
@@ -497,7 +507,7 @@ async function fetchMaterialsWithPagination() {
     // Get batch IDs
     if (batches.length === 0) {
       document.getElementById("materialsTableBody").innerHTML =
-        '<tr><td colspan="9" style="padding: 20px; text-align: center; color: #999;">Không có batch nào để lấy dữ liệu vật liệu</td></tr>';
+        '<tr><td colspan="10" style="padding: 20px; text-align: center; color: #999;">Không có batch nào để lấy dữ liệu vật liệu</td></tr>';
       document.getElementById("materialsPaginationControls").style.display =
         "none";
       return;
@@ -560,7 +570,7 @@ async function fetchMaterialsWithPagination() {
         );
       } else {
         document.getElementById("materialsTableBody").innerHTML =
-          '<tr><td colspan="9" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
+          '<tr><td colspan="10" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
         document.getElementById("materialsPaginationControls").style.display =
           "none";
         return;
@@ -740,7 +750,7 @@ async function fetchMaterialsWithPagination() {
   } catch (error) {
     console.error("Error loading materials:", error);
     document.getElementById("materialsTableBody").innerHTML =
-      '<tr><td colspan="9" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
+      '<tr><td colspan="10" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
     document.getElementById("materialsPaginationControls").style.display =
       "none";
   }
@@ -846,6 +856,16 @@ function showMaterialModal(material) {
   document.getElementById("modalQuantity").textContent = actualQuantityDisplay;
   document.getElementById("modalDateTime").textContent =
     formatDate(material.datetime) || "-";
+
+  // Display normalized status with color
+  const statusDisplay = material.respone
+    ? material.respone === "Success"
+      ? "Success"
+      : "Failed"
+    : "-";
+  const statusElement = document.getElementById("modalStatusDisplay");
+  statusElement.textContent = statusDisplay;
+
   document.getElementById("modalCount").textContent = material.count || "-";
   document.getElementById("modalOperatorId").textContent =
     material.operator_ID || "-";
@@ -856,18 +876,11 @@ function showMaterialModal(material) {
 
   // Display request, response, and status1 as raw data
   document.getElementById("modalRequest").textContent = material.request || "-";
-  document.getElementById("modalResponse").textContent =
-    material.respone || "-";
+
+  // Normalize status display
   document.getElementById("modalStatus").textContent = material.status1 || "-";
 
   modal.style.display = "flex";
-
-  // Add click event to close modal when clicking outside
-  modal.onclick = function (event) {
-    if (event.target === modal) {
-      closeMaterialModal();
-    }
-  };
 }
 
 // Show material list modal for grouped materials
@@ -922,6 +935,13 @@ function showMaterialListModal(group) {
       ? `${batch.Quantity || "-"} ${batch.UnitOfMeasurement}`
       : "-";
 
+    // Determine status display with color
+    const statusDisplay = material.respone
+      ? material.respone === "Success"
+        ? "Success"
+        : "Failed"
+      : "-";
+
     html += `<tr style="border-bottom: 1px solid #eee;">
       <td style="padding: 12px; text-align: center; font-weight: bold;">${material.id || "-"}</td>
       <td style="padding: 12px; text-align: center;">${material.batchCode || "-"}</td>
@@ -931,6 +951,7 @@ function showMaterialListModal(group) {
       <td style="padding: 12px; text-align: center;">${getPlanQuantityPerItem(material.batchCode)} ${material.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${material.quantity || 0} ${material.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${formatDateTime(material.datetime) || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${statusDisplay}</td>
       <td style="padding: 12px; text-align: center;">
         <button class="viewMaterialDetailBtn" data-index="${index}" style="background: none; border: none; cursor: pointer; color: #007bff; padding: 6px; transition: color 0.2s;" title="Xem chi tiết">
           <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
