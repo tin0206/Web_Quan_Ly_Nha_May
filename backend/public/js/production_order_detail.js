@@ -85,6 +85,19 @@ function formatDate(dateString) {
   return `${day}/${month}/${year}`;
 }
 
+function formatDateTime(dateString) {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+}
+
 function getStatusText(status) {
   if (typeof status === "number") {
     switch (status) {
@@ -259,15 +272,21 @@ function groupUnconsumedIngredients(ingredientsArray) {
 function displayMaterialsTable(
   groupedMaterialsArray,
   unconsumedIngredients = [],
+  selectedBatchCode = "",
 ) {
   // Data is already grouped, just render it
-  renderMaterialsTable(groupedMaterialsArray, unconsumedIngredients);
+  renderMaterialsTable(
+    groupedMaterialsArray,
+    unconsumedIngredients,
+    selectedBatchCode,
+  );
 }
 
 // Render materials table
 function renderMaterialsTable(
   groupedMaterialsArray,
   unconsumedIngredients = [],
+  selectedBatchCode = "",
 ) {
   const tbody = document.getElementById("materialsTableBody");
 
@@ -316,13 +335,14 @@ function renderMaterialsTable(
 
     const batch = batches.find((b) => b.BatchNumber === batchCode);
     const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
+    console.log("Batch Quantity for", batchCode, ":", batchQuantity);
     const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly] || 0;
     let planQuantity = recipeQuantity;
     if (batchQuantity !== 0) {
       planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
       planQuantity = planQuantity.toFixed(2);
     }
-    if (recipeQuantity === 0) {
+    if (recipeQuantity === 0 || batchQuantity === 0) {
       planQuantity = "N/A";
     }
 
@@ -333,7 +353,7 @@ function renderMaterialsTable(
       <td style="padding: 12px; text-align: center;">${group.lot || "-"}</td>
       <td style="padding: 12px; text-align: center;">${planQuantity} ${group.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}</td>
-      <td style="padding: 12px; text-align: center;">${formatDate(group.latestDatetime) || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${formatDateTime(group.latestDatetime) || "-"}</td>
       <td style="padding: 12px; text-align: center;">
         <button class="viewMaterialGroupBtn" data-index="${index}" style="background: none; border: none; cursor: pointer; color: #007bff; padding: 6px; transition: color 0.2s;" title="Xem danh sách">
           <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
@@ -350,11 +370,30 @@ function renderMaterialsTable(
       ? `${ingredient.IngredientCode} - ${ingredient.ItemName}`
       : ingredient.IngredientCode;
 
-    // Calculate total plan quantity across all batches
-    let totalPlanQuantity = 0;
-    const batchCount = po_default_batches.length;
+    // Filter batches by selected batch code
+    let filteredBatches = po_default_batches;
+    if (selectedBatchCode) {
+      if (selectedBatchCode === "null") {
+        filteredBatches = po_default_batches.filter(
+          (b) =>
+            !b.BatchNumber || b.BatchNumber === "" || b.BatchNumber === null,
+        );
+      } else {
+        filteredBatches = po_default_batches.filter(
+          (b) => b.BatchNumber === selectedBatchCode,
+        );
+      }
+    }
 
-    po_default_batches.forEach((batch) => {
+    // Skip this ingredient if no batches match the filter
+    if (selectedBatchCode && filteredBatches.length === 0) {
+      return; // Skip rendering this unconsumed ingredient
+    }
+
+    // Calculate total plan quantity across filtered batches
+    let totalPlanQuantity = 0;
+
+    filteredBatches.forEach((batch) => {
       const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
       const recipeQuantity = ingredient.Quantity || 0;
       let planQuantity = recipeQuantity;
@@ -365,7 +404,7 @@ function renderMaterialsTable(
     });
 
     // Display batch codes
-    const batchNumbers = po_default_batches.map((b) => b.BatchNumber);
+    const batchNumbers = filteredBatches.map((b) => b.BatchNumber);
     let batchCodesDisplay;
     if (batchNumbers.length === 0) {
       batchCodesDisplay = "-";
@@ -425,7 +464,10 @@ function renderMaterialsTable(
   viewUnconsumedButtons.forEach((btn) => {
     btn.addEventListener("click", function () {
       const index = this.getAttribute("data-index");
-      showUnconsumedIngredientModal(unconsumedIngredients[index]);
+      showUnconsumedIngredientModal(
+        unconsumedIngredients[index],
+        selectedBatchCode,
+      );
     });
     btn.addEventListener("mouseover", function () {
       this.style.color = "#e68900";
@@ -681,6 +723,7 @@ async function fetchMaterialsWithPagination() {
     displayMaterialsTable(
       finalGroupedMaterials,
       materialFilterType === "consumed" ? [] : groupedUnconsumedIngredients,
+      batchCode,
     );
     updateMaterialsPaginationControls(
       materialsCurrentPage,
@@ -814,18 +857,22 @@ function showMaterialListModal(group) {
   let html = "";
 
   const ingredientCode = group.ingredientCode;
+  // Extract ingredient code only (remove item name if present)
+  const ingredientCodeOnly = ingredientCode
+    ? ingredientCode.split(" - ")[0].trim()
+    : "";
   const poQuantity = parseFloat(order.Quantity) || 1;
   function getPlanQuantityPerItem(batchCode) {
+    console.log("Calculating plan quantity for batch:", batchCode);
     const batch = batches.find((b) => b.BatchNumber === batchCode);
     const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
-    const recipeQuantity = ingredientsTotalsByUOM[ingredientCode] || 0;
-
+    const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly] || 0;
     let planQuantity = recipeQuantity;
     if (batchQuantity !== 0) {
       planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
       planQuantity = planQuantity.toFixed(2);
     }
-    if (recipeQuantity === 0) {
+    if (recipeQuantity === 0 || batchQuantity === 0) {
       planQuantity = "N/A";
     }
     return planQuantity;
@@ -839,7 +886,7 @@ function showMaterialListModal(group) {
       <td style="padding: 12px; text-align: center;">${material.lot || "-"}</td>
       <td style="padding: 12px; text-align: center;">${getPlanQuantityPerItem(material.batchCode)} ${material.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${material.quantity || 0} ${material.unitOfMeasurement || ""}</td>
-      <td style="padding: 12px; text-align: center;">${formatDate(material.datetime) || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${formatDateTime(material.datetime) || "-"}</td>
       <td style="padding: 12px; text-align: center;">
         <button class="viewMaterialDetailBtn" data-index="${index}" style="background: none; border: none; cursor: pointer; color: #007bff; padding: 6px; transition: color 0.2s;" title="Xem chi tiết">
           <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
@@ -888,7 +935,7 @@ window.closeMaterialListModal = function () {
 };
 
 // Show unconsumed ingredient modal with batch details
-function showUnconsumedIngredientModal(ingredient) {
+function showUnconsumedIngredientModal(ingredient, selectedBatchCode = "") {
   const modal = document.getElementById("materialListModal");
   const tbody = document.getElementById("materialListTableBody");
 
@@ -905,11 +952,25 @@ function showUnconsumedIngredientModal(ingredient) {
     </div>
   `;
 
+  // Filter batches by selected batch code
+  let filteredBatches = po_default_batches;
+  if (selectedBatchCode) {
+    if (selectedBatchCode === "null") {
+      filteredBatches = po_default_batches.filter(
+        (b) => !b.BatchNumber || b.BatchNumber === "" || b.BatchNumber === null,
+      );
+    } else {
+      filteredBatches = po_default_batches.filter(
+        (b) => b.BatchNumber === selectedBatchCode,
+      );
+    }
+  }
+
   // Build table rows for each batch
   let html = "";
   const poQuantity = parseFloat(order.Quantity) || 1;
 
-  po_default_batches.forEach((batch) => {
+  filteredBatches.forEach((batch) => {
     const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
     const recipeQuantity = ingredient.Quantity || 0;
     let planQuantity = recipeQuantity;
@@ -1344,7 +1405,7 @@ function displayIngredientsTable(
       <td style="padding: 12px; text-align: center;">${ingredient.batchCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${ingredient.ingredientCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${ingredient.quantity || 0} ${ingredient.unitOfMeasurement || ""}</td>
-      <td style="padding: 12px; text-align: center;">${formatDate(ingredient.datetime) || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${formatDateTime(ingredient.datetime) || "-"}</td>
     </tr>`;
   });
 
