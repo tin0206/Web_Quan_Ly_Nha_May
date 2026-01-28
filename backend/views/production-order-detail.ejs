@@ -615,6 +615,16 @@
                       text-align: center;
                     "
                   >
+                    Batch Quantity
+                  </th>
+                  <th
+                    style="
+                      padding: 12px;
+                      text-align: left;
+                      font-weight: bold;
+                      text-align: center;
+                    "
+                  >
                     Plan Quantity
                   </th>
                   <th
@@ -652,7 +662,7 @@
               <tbody id="materialsTableBody">
                 <tr>
                   <td
-                    colspan="8"
+                    colspan="9"
                     style="padding: 20px; text-align: center; color: #999"
                   >
                     Đang tải dữ liệu...
@@ -1127,10 +1137,10 @@
                     display: block;
                     margin-bottom: 5px;
                   "
-                  >Quantity</label
+                  >Batch Quantity</label
                 >
                 <p
-                  id="modalQuantity"
+                  id="modalBatchQuantity"
                   style="
                     margin: 0;
                     padding: 8px;
@@ -1149,10 +1159,32 @@
                     display: block;
                     margin-bottom: 5px;
                   "
-                  >Unit of Measurement</label
+                  >Plan Quantity</label
                 >
                 <p
-                  id="modalUnitOfMeasurement"
+                  id="modalPlanQuantity"
+                  style="
+                    margin: 0;
+                    padding: 8px;
+                    background: #f5f5f5;
+                    border-radius: 4px;
+                  "
+                >
+                  -
+                </p>
+              </div>
+              <div>
+                <label
+                  style="
+                    font-weight: bold;
+                    color: #666;
+                    display: block;
+                    margin-bottom: 5px;
+                  "
+                  >Actual Quantity</label
+                >
+                <p
+                  id="modalQuantity"
                   style="
                     margin: 0;
                     padding: 8px;
@@ -1462,6 +1494,16 @@
                       "
                     >
                       Lot
+                    </th>
+                    <th
+                      style="
+                        padding: 12px;
+                        text-align: center;
+                        font-weight: 600;
+                        color: #333;
+                      "
+                    >
+                      Batch Quantity
                     </th>
                     <th
                       style="

@@ -295,7 +295,7 @@ function renderMaterialsTable(
     unconsumedIngredients.length === 0
   ) {
     tbody.innerHTML =
-      '<tr><td colspan="8" style="padding: 20px; text-align: center; color: #999;">Không có dữ liệu vật liệu nào</td></tr>';
+      '<tr><td colspan="9" style="padding: 20px; text-align: center; color: #999;">Không có dữ liệu vật liệu nào</td></tr>';
     return;
   }
 
@@ -345,11 +345,18 @@ function renderMaterialsTable(
       planQuantity = "N/A";
     }
 
+    // Determine batch quantity display
+    let batchQuantityDisplay = "-";
+    if (group.items.length === 1 && batch) {
+      batchQuantityDisplay = `${batch.Quantity} ${batch.UnitOfMeasurement || "-"}`;
+    }
+
     html += `<tr style="border-bottom: 1px solid #eee;">
       <td style="padding: 12px; text-align: center; font-weight: bold;">${idsDisplay}</td>
       <td style="padding: 12px; text-align: center;">${batchCodeDisplay}</td>
       <td style="padding: 12px; text-align: center;">${group.ingredientCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${group.lot || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${batchQuantityDisplay}</td>
       <td style="padding: 12px; text-align: center;">${planQuantity} ${group.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${formatDateTime(group.latestDatetime) || "-"}</td>
@@ -426,6 +433,7 @@ function renderMaterialsTable(
       <td style="padding: 12px; text-align: center;">${batchCodesDisplay}</td>
       <td style="padding: 12px; text-align: center;">${ingredientCodeDisplay}</td>
       <td style="padding: 12px; text-align: center;">-</td>
+      <td style="padding: 12px; text-align: center;">-</td>
       <td style="padding: 12px; text-align: center;">${totalPlanQuantity.toFixed(2)} ${ingredient.UnitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">N/A ${ingredient.UnitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">-</td>
@@ -489,7 +497,7 @@ async function fetchMaterialsWithPagination() {
     // Get batch IDs
     if (batches.length === 0) {
       document.getElementById("materialsTableBody").innerHTML =
-        '<tr><td colspan="8" style="padding: 20px; text-align: center; color: #999;">Không có batch nào để lấy dữ liệu vật liệu</td></tr>';
+        '<tr><td colspan="9" style="padding: 20px; text-align: center; color: #999;">Không có batch nào để lấy dữ liệu vật liệu</td></tr>';
       document.getElementById("materialsPaginationControls").style.display =
         "none";
       return;
@@ -552,7 +560,7 @@ async function fetchMaterialsWithPagination() {
         );
       } else {
         document.getElementById("materialsTableBody").innerHTML =
-          '<tr><td colspan="8" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
+          '<tr><td colspan="9" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
         document.getElementById("materialsPaginationControls").style.display =
           "none";
         return;
@@ -732,7 +740,7 @@ async function fetchMaterialsWithPagination() {
   } catch (error) {
     console.error("Error loading materials:", error);
     document.getElementById("materialsTableBody").innerHTML =
-      '<tr><td colspan="8" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
+      '<tr><td colspan="9" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
     document.getElementById("materialsPaginationControls").style.display =
       "none";
   }
@@ -802,9 +810,40 @@ function showMaterialModal(material) {
   document.getElementById("modalIngredientCode").textContent =
     material.ingredientCode || "-";
   document.getElementById("modalLot").textContent = material.lot || "-";
-  document.getElementById("modalQuantity").textContent = material.quantity || 0;
-  document.getElementById("modalUnitOfMeasurement").textContent =
-    material.unitOfMeasurement || "-";
+
+  // Calculate Batch Quantity
+  const batch = batches.find((b) => b.BatchNumber === material.batchCode);
+  const batchQuantityDisplay = batch
+    ? `${batch.Quantity} ${batch.UnitOfMeasurement || ""}`
+    : "-";
+  document.getElementById("modalBatchQuantity").textContent =
+    batchQuantityDisplay;
+
+  // Calculate Plan Quantity
+  const ingredientCode = material.ingredientCode;
+  const ingredientCodeOnly = ingredientCode
+    ? ingredientCode.split(" - ")[0].trim()
+    : "";
+  const poQuantity = parseFloat(order.ProductQuantity) || 1;
+  const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
+  const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly] || 0;
+  let planQuantity = recipeQuantity;
+  if (batchQuantity !== 0) {
+    planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
+    planQuantity = planQuantity.toFixed(2);
+  }
+  if (recipeQuantity === 0 || batchQuantity === 0) {
+    planQuantity = "N/A";
+  }
+  const planQuantityDisplay =
+    planQuantity !== "N/A"
+      ? `${planQuantity} ${material.unitOfMeasurement || ""}`
+      : "N/A";
+  document.getElementById("modalPlanQuantity").textContent =
+    planQuantityDisplay;
+
+  const actualQuantityDisplay = `${material.quantity || 0} ${material.unitOfMeasurement || ""}`;
+  document.getElementById("modalQuantity").textContent = actualQuantityDisplay;
   document.getElementById("modalDateTime").textContent =
     formatDate(material.datetime) || "-";
   document.getElementById("modalCount").textContent = material.count || "-";
@@ -877,11 +916,18 @@ function showMaterialListModal(group) {
   }
 
   group.items.forEach((material, index) => {
+    // Get batch quantity for this material
+    const batch = batches.find((b) => b.BatchNumber === material.batchCode);
+    const batchQuantityDisplay = batch
+      ? `${batch.Quantity || "-"} ${batch.UnitOfMeasurement}`
+      : "-";
+
     html += `<tr style="border-bottom: 1px solid #eee;">
       <td style="padding: 12px; text-align: center; font-weight: bold;">${material.id || "-"}</td>
       <td style="padding: 12px; text-align: center;">${material.batchCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${material.ingredientCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${material.lot || "-"}</td>
+      <td style="padding: 12px; text-align: center;">${batchQuantityDisplay}</td>
       <td style="padding: 12px; text-align: center;">${getPlanQuantityPerItem(material.batchCode)} ${material.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${material.quantity || 0} ${material.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${formatDateTime(material.datetime) || "-"}</td>
@@ -976,11 +1022,16 @@ function showUnconsumedIngredientModal(ingredient, selectedBatchCode = "") {
       planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
     }
 
+    const batchQuantityDisplay = batch
+      ? `${batch.Quantity} ${batch.UnitOfMeasurement || ""}`
+      : "-";
+
     html += `<tr style="border-bottom: 1px solid #eee; background-color: #fff9e6;">
       <td style="padding: 12px; text-align: center; font-weight: bold;">-</td>
       <td style="padding: 12px; text-align: center;">${batch.BatchNumber || "-"}</td>
       <td style="padding: 12px; text-align: center;">${ingredientCodeDisplay}</td>
       <td style="padding: 12px; text-align: center;">-</td>
+      <td style="padding: 12px; text-align: center;">${batchQuantityDisplay}</td>
       <td style="padding: 12px; text-align: center;">${planQuantity.toFixed(2)} ${ingredient.UnitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">N/A ${ingredient.UnitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">-</td>
