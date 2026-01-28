@@ -300,6 +300,54 @@ router.get("/batch-codes-with-materials", async (req, res) => {
   }
 });
 
+// Get ProductMasters by ItemCodes
+router.post("/product-masters-by-codes", async (req, res) => {
+  try {
+    const { itemCodes } = req.body;
+
+    if (!itemCodes || !Array.isArray(itemCodes) || itemCodes.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "itemCodes phải là một mảng không rỗng",
+      });
+    }
+
+    const pool = getPool();
+    const request = pool.request();
+
+    // Build parameterized query with IN clause
+    const placeholders = itemCodes
+      .map((_, index) => `@ItemCode${index}`)
+      .join(", ");
+
+    // Add each itemCode as a parameter
+    itemCodes.forEach((code, index) => {
+      request.input(`ItemCode${index}`, sql.NVarChar(255), code);
+    });
+
+    const result = await request.query(`
+      SELECT 
+        ItemCode,
+        ItemName
+      FROM ProductMasters
+      WHERE ItemCode IN (${placeholders})
+        AND ItemName IS NOT NULL
+    `);
+
+    res.json({
+      success: true,
+      message: "Lấy thông tin ProductMasters thành công",
+      data: result.recordset,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy ProductMasters: ", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi: " + error.message,
+    });
+  }
+});
+
 // Get production order detail by ID (MUST be last - catch-all route)
 router.get("/:id", async (req, res) => {
   try {
