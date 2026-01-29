@@ -283,10 +283,22 @@ router.get("/search", async (req, res) => {
     const dateFrom = req.query.dateFrom || "";
     const dateTo = req.query.dateTo || "";
     const processAreas = req.query.processAreas || "";
-
+    const statuses = req.query.statuses || "";
     const skip = (page - 1) * limit;
 
-    // Build WHERE clause
+    // Build statusArray (0: Đang chờ, 1: Đang chạy)
+    let statusArray = [];
+    if (statuses && statuses.trim() !== "") {
+      statuses.split(",").forEach((s) => {
+        if (s.trim() === "Đang chạy") {
+          statusArray.push(1);
+        } else if (s.trim() === "Đang chờ") {
+          statusArray.push(0);
+        }
+      });
+    }
+
+    // Build WHERE clause for CTE
     let whereConditions = [];
     let baseRequest = getPool().request();
 
@@ -330,18 +342,54 @@ router.get("/search", async (req, res) => {
       }
     }
 
-    const whereClause =
-      whereConditions.length > 0
-        ? `WHERE ${whereConditions.join(" AND ")}`
-        : "";
+    // Build status filter for CTE
+    let statusFilter = "";
+    if (statusArray.length > 0) {
+      // Use parameterized query for statusArray
+      const statusParams = statusArray.map((_, i) => `@status${i}`).join(",");
+      statusFilter = `Status IN (${statusParams})`;
+      statusArray.forEach((val, i) => {
+        baseRequest.input(`status${i}`, sql.Int, val);
+      });
+    }
+
+    // Combine all filters for CTE
+    let allFilters = [...whereConditions];
+    if (statusFilter) allFilters.push(statusFilter);
+    const cteWhereClause =
+      allFilters.length > 0 ? `WHERE ${allFilters.join(" AND ")}` : "";
 
     // Only do expensive COUNT on first page
-    // For subsequent pages, frontend should pass cached total from page 1
     let totalRecords = parseInt(req.query.total) || 0;
     if (page === 1 || totalRecords === 0) {
-      const countResult = await baseRequest.query(
-        `SELECT COUNT(*) as total FROM ProductionOrders ${whereClause}`,
-      );
+      const poColumns = [
+        "ProductionOrderId",
+        "ProductionOrderNumber",
+        "ProductCode",
+        "ProductionLine",
+        "RecipeCode",
+        "RecipeVersion",
+        "LotNumber",
+        "ProcessArea",
+        "PlannedStart",
+        "PlannedEnd",
+        "Quantity",
+        "UnitOfMeasurement",
+        "Plant",
+        "Shopfloor",
+        "Shift",
+      ];
+      const poColumnList = poColumns.map((col) => `po.[${col}]`).join(", ");
+      const countCteSql = `WITH POStatus AS (
+        SELECT 
+          ${poColumnList},
+          pm.ItemName,
+          CASE WHEN EXISTS (SELECT 1 FROM MESMaterialConsumption mmc WHERE mmc.ProductionOrderNumber = po.ProductionOrderNumber) THEN 1 ELSE 0 END AS Status
+        FROM ProductionOrders po
+        LEFT JOIN ProductMasters pm ON po.ProductCode = pm.ItemCode
+      )
+      SELECT COUNT(*) as total FROM POStatus ${cteWhereClause}`;
+      const countResult = await baseRequest.query(countCteSql);
       totalRecords = countResult.recordset[0].total;
     }
 
@@ -374,17 +422,44 @@ router.get("/search", async (req, res) => {
         });
       }
     }
+    if (statusArray.length > 0) {
+      statusArray.forEach((val, i) => {
+        paginatedRequest.input(`status${i}`, sql.Int, val);
+      });
+    }
 
-    const result = await paginatedRequest.query(
-      `SELECT 
-        po.*,
-        pm.ItemName
+    // List all columns from ProductionOrders except Status to avoid duplicate column
+    const poColumns = [
+      "ProductionOrderId",
+      "ProductionOrderNumber",
+      "ProductCode",
+      "ProductionLine",
+      "RecipeCode",
+      "RecipeVersion",
+      "LotNumber",
+      "ProcessArea",
+      "PlannedStart",
+      "PlannedEnd",
+      "Quantity",
+      "UnitOfMeasurement",
+      "Plant",
+      "Shopfloor",
+      "Shift",
+    ];
+    const poColumnList = poColumns.map((col) => `po.[${col}]`).join(", ");
+    const cteSql = `WITH POStatus AS (
+      SELECT 
+        ${poColumnList},
+        pm.ItemName,
+        CASE WHEN EXISTS (SELECT 1 FROM MESMaterialConsumption mmc WHERE mmc.ProductionOrderNumber = po.ProductionOrderNumber) THEN 1 ELSE 0 END AS Status
       FROM ProductionOrders po
       LEFT JOIN ProductMasters pm ON po.ProductCode = pm.ItemCode
-      ${whereClause} 
-      ORDER BY po.ProductionOrderId DESC 
-      OFFSET ${skip} ROWS FETCH NEXT ${limit} ROWS ONLY`,
-    );
+    )
+    SELECT * FROM POStatus
+    ${cteWhereClause}
+    ORDER BY ProductionOrderId DESC
+    OFFSET ${skip} ROWS FETCH NEXT ${limit} ROWS ONLY`;
+    const result = await paginatedRequest.query(cteSql);
 
     // Get batch info ONLY for the paginated orders (not all)
     const productionOrderNumbers = result.recordset.map(
@@ -463,7 +538,6 @@ router.get("/search", async (req, res) => {
       });
     }
 
-    // Update status based on whether the order exists in MESMaterialConsumption
     const dataWithUpdatedStatus = result.recordset.map((order) => ({
       ...order,
       ProductCode: order.ItemName

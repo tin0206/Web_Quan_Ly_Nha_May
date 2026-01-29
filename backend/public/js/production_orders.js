@@ -64,6 +64,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       // Initialize dropdown first to create checkboxes
       initializeProcessAreaDropdown();
+      initializeStatusDropdown();
 
       // Restore process area selections after dropdown is initialized
       if (state.selectedProcessAreas && state.selectedProcessAreas.length > 0) {
@@ -94,12 +95,140 @@ document.addEventListener("DOMContentLoaded", async function () {
     await fetchProductionOrders(1);
     renderProductionTable();
     initializeProcessAreaDropdown();
+    initializeStatusDropdown();
   }
 
   initializeEventListeners();
   initializeSearch();
   initializeModalHandlers();
+  populateStatusOptions();
 });
+
+// Populate status filter options
+function populateStatusOptions() {
+  const optionsContainer = document.getElementById("statusOptions");
+  if (!optionsContainer) return;
+
+  // Danh sách trạng thái cố định
+  const statusList = [
+    { value: "Đang chạy", label: "Đang chạy" },
+    { value: "Đang chờ", label: "Đang chờ" },
+    { value: "Hoàn thành", label: "Hoàn thành" },
+  ];
+
+  optionsContainer.innerHTML = "";
+  statusList.forEach((status) => {
+    const label = document.createElement("label");
+    label.style.cssText =
+      "display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; border-radius: 4px;";
+    label.onmouseover = function () {
+      this.style.background = "#f5f5f5";
+    };
+    label.onmouseout = function () {
+      this.style.background = "transparent";
+    };
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "status-checkbox";
+    checkbox.value = status.value;
+    checkbox.style.cursor = "pointer";
+    checkbox.onchange = handleStatusCheckboxChange;
+
+    const span = document.createElement("span");
+    span.textContent = status.label;
+
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    optionsContainer.appendChild(label);
+  });
+
+  // Initialize select all functionality for status after rendering options
+  initializeStatusSelectAll();
+  updateStatusSelectedText();
+  updateStatusSelectAllState();
+}
+// Handle checkbox change for status
+async function handleStatusCheckboxChange() {
+  updateStatusSelectedText();
+  updateStatusSelectAllState();
+
+  // Reset to page 1 and fetch from API
+  currentPage = 1;
+  await fetchStats();
+  await fetchProductionOrders(currentPage);
+
+  // Check current view and render accordingly
+  const activeViewBtn = document.querySelector(".view-btn.active");
+  if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+    renderGridView();
+  } else {
+    renderProductionTable();
+  }
+  updatePaginationControls();
+}
+
+// Update selected text display for status
+function updateStatusSelectedText() {
+  const checkboxes = document.querySelectorAll(".status-checkbox");
+  const selectedText = document.getElementById("statusSelectedText");
+  if (!selectedText) return;
+
+  const selected = Array.from(checkboxes)
+    .filter((cb) => cb.checked)
+    .map((cb) => cb.value);
+
+  if (selected.length === 0) {
+    selectedText.textContent = "Select statuses...";
+    selectedText.style.color = "#999";
+  } else if (selected.length <= 2) {
+    selectedText.textContent = selected.join(", ");
+    selectedText.style.color = "#333";
+  } else {
+    selectedText.textContent = `${selected.length} selected`;
+    selectedText.style.color = "#333";
+  }
+}
+
+// Initialize select all functionality for status
+function initializeStatusSelectAll() {
+  const selectAllCheckbox = document.getElementById("statusSelectAll");
+  if (!selectAllCheckbox) return;
+
+  selectAllCheckbox.addEventListener("change", async function () {
+    const checkboxes = document.querySelectorAll(".status-checkbox");
+    checkboxes.forEach((cb) => {
+      cb.checked = this.checked;
+    });
+    updateStatusSelectedText();
+    updateStatusSelectAllState();
+
+    // Reset to page 1 and fetch from API
+    currentPage = 1;
+    await fetchStats();
+    await fetchProductionOrders(currentPage);
+
+    // Check current view and render accordingly
+    const activeViewBtn = document.querySelector(".view-btn.active");
+    if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+      renderGridView();
+    } else {
+      renderProductionTable();
+    }
+    updatePaginationControls();
+  });
+}
+
+// Update select all state for both process area and status
+function updateStatusSelectAllState() {
+  const selectAllStatusCheckbox = document.getElementById("statusSelectAll");
+  const statusCheckboxes = document.querySelectorAll(".status-checkbox");
+  if (!selectAllStatusCheckbox || statusCheckboxes.length === 0) return;
+  const allChecked = Array.from(statusCheckboxes).every((cb) => cb.checked);
+  const someChecked = Array.from(statusCheckboxes).some((cb) => cb.checked);
+  selectAllStatusCheckbox.checked = allChecked;
+  selectAllStatusCheckbox.indeterminate = someChecked && !allChecked;
+}
 
 // Initialize all event listeners
 function initializeEventListeners() {
@@ -586,9 +715,14 @@ async function fetchStats() {
   const dateFrom = document.getElementById("dateFrom")?.value || "";
   const dateTo = document.getElementById("dateTo")?.value || "";
   const selectedProcessAreas = getSelectedProcessAreas();
+  const selectedStatuses = getSelectedStatuses();
 
   const hasFilters =
-    searchQuery || dateFrom || dateTo || selectedProcessAreas.length > 0;
+    searchQuery ||
+    dateFrom ||
+    dateTo ||
+    selectedProcessAreas.length > 0 ||
+    selectedStatuses.length > 0;
   const endpoint = hasFilters
     ? "/api/production-orders/stats/search"
     : "/api/production-orders/stats";
@@ -602,6 +736,9 @@ async function fetchStats() {
       if (dateTo) params.append("dateTo", dateTo);
       if (selectedProcessAreas.length > 0) {
         params.append("processAreas", selectedProcessAreas.join(","));
+      }
+      if (selectedStatuses.length > 0) {
+        params.append("statuses", selectedStatuses.join(","));
       }
     }
     const url = `${API_ROUTE}${endpoint}?${params.toString()}`;
@@ -732,6 +869,33 @@ function initializeProcessAreaDropdown() {
   });
 }
 
+// Initialize status dropdown
+function initializeStatusDropdown() {
+  const input = document.getElementById("statusInput");
+  const dropdown = document.getElementById("statusDropdown");
+
+  if (!input || !dropdown) return;
+
+  // Toggle dropdown on click
+  input.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isVisible = dropdown.style.display === "block";
+    dropdown.style.display = isVisible ? "none" : "block";
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".custom-multiselect")) {
+      dropdown.style.display = "none";
+    }
+  });
+
+  // Prevent dropdown from closing when clicking inside
+  dropdown.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+}
+
 // Handle checkbox change for process areas
 async function handleProcessAreaCheckboxChange() {
   updateProcessAreaSelectedText();
@@ -804,16 +968,33 @@ function initializeProcessAreaSelectAll() {
 
 // Update select all state based on individual checkboxes
 function updateSelectAllState() {
-  const selectAllCheckbox = document.getElementById("processAreaSelectAll");
-  const checkboxes = document.querySelectorAll(".process-area-checkbox");
+  const selectAllProcessAreaCheckbox = document.getElementById(
+    "processAreaSelectAll",
+  );
+  const processAreaCheckboxes = document.querySelectorAll(
+    ".process-area-checkbox",
+  );
+  const selectAllStatusCheckbox = document.getElementById("statusSelectAll");
+  const statusCheckboxes = document.querySelectorAll(".status-checkbox");
 
-  if (!selectAllCheckbox || checkboxes.length === 0) return;
+  if (selectAllProcessAreaCheckbox || processAreaCcheckboxes.length !== 0) {
+    const allChecked = Array.from(processAreaCheckboxes).every(
+      (cb) => cb.checked,
+    );
+    const someChecked = Array.from(processAreaCheckboxes).some(
+      (cb) => cb.checked,
+    );
 
-  const allChecked = Array.from(checkboxes).every((cb) => cb.checked);
-  const someChecked = Array.from(checkboxes).some((cb) => cb.checked);
+    selectAllProcessAreaCheckbox.checked = allChecked;
+    selectAllProcessAreaCheckbox.indeterminate = someChecked && !allChecked;
+  }
+  if (selectAllStatusCheckbox || statusCheckboxes.length !== 0) {
+    const allChecked = Array.from(statusCheckboxes).every((cb) => cb.checked);
+    const someChecked = Array.from(statusCheckboxes).some((cb) => cb.checked);
 
-  selectAllCheckbox.checked = allChecked;
-  selectAllCheckbox.indeterminate = someChecked && !allChecked;
+    selectAllStatusCheckbox.checked = allChecked;
+    selectAllStatusCheckbox.indeterminate = someChecked && !allChecked;
+  }
 }
 
 // Get selected process areas
@@ -824,6 +1005,12 @@ function getSelectedProcessAreas() {
   return Array.from(checkboxes).map((cb) => cb.value);
 }
 
+// Lấy danh sách status đã chọn
+function getSelectedStatuses() {
+  const checkboxes = document.querySelectorAll(".status-checkbox:checked");
+  return Array.from(checkboxes).map((cb) => cb.value);
+}
+
 async function fetchProductionOrders(page = 1) {
   try {
     // Get filter values
@@ -831,10 +1018,15 @@ async function fetchProductionOrders(page = 1) {
     const dateFrom = document.getElementById("dateFrom")?.value || "";
     const dateTo = document.getElementById("dateTo")?.value || "";
     const selectedProcessAreas = getSelectedProcessAreas();
+    const selectedStatuses = getSelectedStatuses();
 
     // Determine which endpoint to use based on filters
     const hasFilters =
-      searchQuery || dateFrom || dateTo || selectedProcessAreas.length > 0;
+      searchQuery ||
+      dateFrom ||
+      dateTo ||
+      selectedProcessAreas.length > 0 ||
+      selectedStatuses.length > 0;
     const endpoint = hasFilters
       ? "/api/production-orders/search"
       : "/api/production-orders";
@@ -857,6 +1049,9 @@ async function fetchProductionOrders(page = 1) {
       if (dateTo) params.append("dateTo", dateTo);
       if (selectedProcessAreas.length > 0) {
         params.append("processAreas", selectedProcessAreas.join(","));
+      }
+      if (selectedStatuses.length > 0) {
+        params.append("statuses", selectedStatuses.join(","));
       }
     }
 
