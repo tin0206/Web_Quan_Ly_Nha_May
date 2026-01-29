@@ -150,7 +150,7 @@ router.get("/material-consumptions", async (req, res) => {
   try {
     const { productionOrderNumber, page = 1, limit = 20 } = req.query;
 
-    if (!productionOrderNumber || productionOrderNumber.trim() === "") {
+    if (!productionOrderNumber?.trim()) {
       return res.status(400).json({
         success: false,
         message: "productionOrderNumber là bắt buộc",
@@ -158,56 +158,49 @@ router.get("/material-consumptions", async (req, res) => {
     }
 
     const pageNum = Math.max(1, parseInt(page) || 1);
-    const pageLimit = Math.max(1, Math.min(100, parseInt(limit) || 20));
+    const pageLimit = Math.min(100, Math.max(1, parseInt(limit) || 20));
     const offset = (pageNum - 1) * pageLimit;
 
-    const request = getPool().request();
+    const pool = getPool();
+    const request = pool.request();
     request.input("prodOrderNum", sql.NVarChar, productionOrderNumber.trim());
 
-    // Tách query đếm và query dữ liệu để tăng tốc
-    // Đếm tổng số (query đơn giản, nhanh)
-    const countQuery = `
-      SELECT COUNT(*) as totalCount
-      FROM MESMaterialConsumption mc
-      WHERE mc.ProductionOrderNumber = @prodOrderNum
+    const ingredientQuery = `
+      SELECT DISTINCT IngredientCode, ItemName
+      FROM (
+          SELECT 
+              i.IngredientCode,
+              pm.ItemName
+          FROM ProductionOrders po
+          JOIN RecipeDetails rd 
+              ON rd.ProductCode = po.ProductCode 
+              AND rd.Version = po.RecipeVersion
+          JOIN Processes p 
+              ON p.RecipeDetailsId = rd.RecipeDetailsId
+          JOIN Ingredients i 
+              ON i.ProcessId = p.ProcessId
+          LEFT JOIN ProductMasters pm 
+              ON pm.ItemCode = i.IngredientCode
+          WHERE po.ProductionOrderNumber = @prodOrderNum
+
+          UNION
+
+          SELECT 
+              mc.ingredientCode,
+              pm.ItemName
+          FROM MESMaterialConsumption mc
+          LEFT JOIN ProductMasters pm 
+              ON pm.ItemCode = mc.ingredientCode
+          WHERE mc.productionOrderNumber = @prodOrderNum
+      ) x
     `;
 
-    const countResult = await request.query(countQuery);
-    const totalCount = countResult.recordset[0].totalCount;
+    const ingredientResult = await request.query(ingredientQuery);
+    const ingredients = ingredientResult.recordset;
 
-    // Lấy dữ liệu với OFFSET/FETCH (nhanh hơn ROW_NUMBER)
-    const dataQuery = `
-      SELECT 
-        mc.id,
-        mc.productionOrderNumber,
-        mc.batchCode,
-        mc.ingredientCode,
-        COALESCE(pm.ItemName, '') as itemName,
-        mc.lot,
-        mc.quantity,
-        mc.unitOfMeasurement,
-        mc.datetime,
-        mc.operator_ID,
-        mc.supplyMachine,
-        mc.count,
-        mc.request,
-        mc.respone,
-        mc.status1,
-        mc.timestamp
-      FROM MESMaterialConsumption mc WITH (NOLOCK)
-      LEFT JOIN ProductMasters pm WITH (NOLOCK) ON mc.ingredientCode = pm.ItemCode
-      WHERE mc.ProductionOrderNumber = @prodOrderNum
-      ORDER BY mc.batchCode ASC, mc.id DESC
-      OFFSET ${offset} ROWS
-      FETCH NEXT ${pageLimit} ROWS ONLY
-    `;
-
-    const result = await request.query(dataQuery);
-
-    if (result.recordset.length === 0) {
+    if (!ingredients.length) {
       return res.json({
         success: true,
-        message: "Không có dữ liệu",
         page: pageNum,
         limit: pageLimit,
         totalCount: 0,
@@ -216,23 +209,116 @@ router.get("/material-consumptions", async (req, res) => {
       });
     }
 
+    const batchQuery = `
+      SELECT b.BatchNumber AS batchCode
+      FROM Batches b
+      JOIN ProductionOrders po 
+        ON po.ProductionOrderId = b.ProductionOrderId
+      WHERE po.ProductionOrderNumber = @prodOrderNum
+      ORDER BY b.BatchNumber
+      OFFSET ${offset} ROWS
+      FETCH NEXT ${pageLimit} ROWS ONLY
+    `;
+
+    const batchResult = await request.query(batchQuery);
+    const batches = batchResult.recordset.map((b) => b.batchCode);
+
+    if (!batches.length) {
+      return res.json({
+        success: true,
+        page: pageNum,
+        limit: pageLimit,
+        totalCount: 0,
+        totalPages: 0,
+        data: [],
+      });
+    }
+
+    const dataQuery = `
+      SELECT
+          b.batchCode,
+          i.IngredientCode,
+          i.ItemName,
+          mc.id,
+          mc.lot,
+          mc.quantity,
+
+          COALESCE(mc.unitOfMeasurement, ing.UnitOfMeasurement) AS unitOfMeasurement,
+
+          mc.datetime,
+          mc.operator_ID,
+          mc.supplyMachine,
+          mc.count,
+          mc.request,
+          mc.respone,
+          mc.status1,
+          mc.timestamp
+      FROM (
+          SELECT b.BatchNumber AS batchCode
+          FROM Batches b
+          JOIN ProductionOrders po 
+            ON po.ProductionOrderId = b.ProductionOrderId
+          WHERE po.ProductionOrderNumber = @prodOrderNum
+            AND b.BatchNumber IN (${batches.join(",")})
+      ) b
+      CROSS JOIN (
+          SELECT IngredientCode, ItemName
+          FROM (
+              SELECT 
+                  i.IngredientCode,
+                  pm.ItemName
+              FROM ProductionOrders po
+              JOIN RecipeDetails rd 
+                  ON rd.ProductCode = po.ProductCode 
+                  AND rd.Version = po.RecipeVersion
+              JOIN Processes p 
+                  ON p.RecipeDetailsId = rd.RecipeDetailsId
+              JOIN Ingredients i 
+                  ON i.ProcessId = p.ProcessId
+              LEFT JOIN ProductMasters pm 
+                  ON pm.ItemCode = i.IngredientCode
+              WHERE po.ProductionOrderNumber = @prodOrderNum
+
+              UNION
+
+              SELECT 
+                  mc.ingredientCode,
+                  pm.ItemName
+              FROM MESMaterialConsumption mc
+              LEFT JOIN ProductMasters pm 
+                  ON pm.ItemCode = mc.ingredientCode
+              WHERE mc.productionOrderNumber = @prodOrderNum
+          ) t
+      ) i
+      LEFT JOIN MESMaterialConsumption mc
+        ON mc.productionOrderNumber = @prodOrderNum
+      AND mc.batchCode = b.batchCode
+      AND mc.ingredientCode = i.IngredientCode
+
+      LEFT JOIN Ingredients ing
+        ON ing.IngredientCode = i.IngredientCode
+
+      ORDER BY b.batchCode, i.IngredientCode
+    `;
+
+    const dataResult = await request.query(dataQuery);
+
+    const totalCount = batches.length * ingredients.length;
     const totalPages = Math.ceil(totalCount / pageLimit);
 
-    const data = result.recordset.map((row) => ({
+    const data = dataResult.recordset.map((row) => ({
       id: row.id,
-      productionOrderNumber: row.productionOrderNumber,
       batchCode: row.batchCode,
-      ingredientCode:
-        row.itemName && row.itemName !== ""
-          ? `${row.ingredientCode} - ${row.itemName}`
-          : row.ingredientCode,
-      lot: row.lot,
+      ingredientCode: row.ItemName
+        ? `${row.IngredientCode} - ${row.ItemName}`
+        : row.IngredientCode,
+      lot: row.lot || "",
       quantity: row.quantity,
-      unitOfMeasurement: row.unitOfMeasurement,
+      unitOfMeasurement: row.unitOfMeasurement || "",
       datetime: row.datetime,
       operator_ID: row.operator_ID,
       supplyMachine: row.supplyMachine,
-      count: row.count,
+      count: row.count || 0,
       request: row.request,
       respone: row.respone,
       status1: row.status1,
@@ -244,12 +330,12 @@ router.get("/material-consumptions", async (req, res) => {
       message: "Lấy danh sách tiêu hao vật liệu thành công",
       page: pageNum,
       limit: pageLimit,
-      totalCount: totalCount,
-      totalPages: totalPages,
-      data: data,
+      totalCount,
+      totalPages,
+      data,
     });
   } catch (error) {
-    console.error("Lỗi khi lấy danh sách tiêu hao vật liệu: ", error.message);
+    console.error("Lỗi material-consumptions:", error);
     res.status(500).json({
       success: false,
       message: "Lỗi Server: " + error.message,

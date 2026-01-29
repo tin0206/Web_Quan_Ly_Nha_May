@@ -678,7 +678,7 @@ async function fetchMaterialsWithPagination() {
             IngredientCode: ingredientCode,
             Quantity: ingredientsTotalsByUOM[ingredientCode].total,
             UnitOfMeasurement:
-              ingredientsTotalsByUOM[ingredientCode].unit || "kg", // Default to "kg" if unit is not available
+              ingredientsTotalsByUOM[ingredientCode].unit || "kg",
             ItemName: null,
           };
         },
