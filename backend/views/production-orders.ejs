@@ -146,181 +146,194 @@
 
       <!-- Search and Filter Section -->
       <div class="search-section">
-        <div class="search-bar">
-          <i class="fa-solid fa-search"></i>
-          <input
-            type="text"
-            id="searchInput"
-            placeholder="Tìm kiếm Lệnh SX, Mã sản phẩm..."
-          />
-        </div>
-        <div
-          style="
-            padding-left: 20px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-          "
-        >
-          <div style="display: flex; gap: 10px; align-items: center">
-            <label style="font-weight: 500; color: #666">Từ ngày:</label>
+        <div class="first-search-section">
+          <div class="search-bar">
+            <i class="fa-solid fa-search"></i>
             <input
-              type="date"
-              id="dateFrom"
-              style="
-                padding: 8px 12px;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                font-size: 14px;
-              "
-            />
-          </div>
-          <div style="display: flex; gap: 10px; align-items: center">
-            <label style="font-weight: 500; color: #666">Đến ngày:</label>
-            <input
-              type="date"
-              id="dateTo"
-              style="
-                padding: 8px 12px;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                font-size: 14px;
-              "
+              type="text"
+              id="searchInput"
+              placeholder="Tìm kiếm Lệnh SX, Mã sản phẩm..."
             />
           </div>
           <div
             style="
+              padding-left: 20px;
               display: flex;
               gap: 10px;
               align-items: center;
-              position: relative;
             "
           >
-            <label style="font-weight: 500; color: #666">Process Area:</label>
-            <div
-              class="custom-multiselect"
-              style="position: relative; min-width: 220px"
-            >
-              <div
-                class="multiselect-input"
-                id="processAreaInput"
+            <div style="display: flex; gap: 10px; align-items: center">
+              <label style="font-weight: 500; color: #666">Từ ngày:</label>
+              <input
+                type="date"
+                id="dateFrom"
                 style="
                   padding: 8px 12px;
                   border: 1px solid #ddd;
                   border-radius: 4px;
                   font-size: 14px;
-                  background: white;
-                  cursor: pointer;
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  min-height: 38px;
                 "
-              >
-                <span id="processAreaSelectedText" style="color: #999"
-                  >Select process areas...</span
-                >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </div>
-              <div
-                class="multiselect-dropdown"
-                id="processAreaDropdown"
+              />
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center">
+              <label style="font-weight: 500; color: #666">Đến ngày:</label>
+              <input
+                type="date"
+                id="dateTo"
                 style="
-                  display: none;
-                  position: absolute;
-                  top: 100%;
-                  left: 0;
-                  right: 0;
-                  background: white;
+                  padding: 8px 12px;
                   border: 1px solid #ddd;
                   border-radius: 4px;
-                  margin-top: 4px;
-                  max-height: 250px;
-                  overflow-y: auto;
-                  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                  z-index: 1000;
+                  font-size: 14px;
                 "
+              />
+            </div>
+          </div>
+        </div>
+        <div class="second-search-section">
+          <div
+            style="
+              padding-left: 20px;
+              display: flex;
+              gap: 10px;
+              align-items: center;
+            "
+          >
+            <div
+              style="
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                position: relative;
+              "
+            >
+              <label style="font-weight: 500; color: #666">Process Area:</label>
+              <div
+                class="custom-multiselect"
+                style="position: relative; min-width: 220px"
               >
-                <div style="padding: 8px; border-bottom: 1px solid #eee">
-                  <label
-                    style="
-                      display: flex;
-                      align-items: center;
-                      gap: 8px;
-                      cursor: pointer;
-                      font-weight: 500;
-                    "
+                <div
+                  class="multiselect-input"
+                  id="processAreaInput"
+                  style="
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    background: white;
+                    cursor: pointer;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    min-height: 38px;
+                  "
+                >
+                  <span id="processAreaSelectedText" style="color: #999"
+                    >Select process areas...</span
                   >
-                    <input
-                      type="checkbox"
-                      id="processAreaSelectAll"
-                      style="cursor: pointer"
-                    />
-                    <span>[Select all]</span>
-                  </label>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
                 </div>
-                <div id="processAreaOptions" style="padding: 4px">
-                  <!-- Options will be populated dynamically -->
+                <div
+                  class="multiselect-dropdown"
+                  id="processAreaDropdown"
+                  style="
+                    display: none;
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background: white;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    margin-top: 4px;
+                    max-height: 250px;
+                    overflow-y: auto;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    z-index: 1000;
+                  "
+                >
+                  <div style="padding: 8px; border-bottom: 1px solid #eee">
+                    <label
+                      style="
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        cursor: pointer;
+                        font-weight: 500;
+                      "
+                    >
+                      <input
+                        type="checkbox"
+                        id="processAreaSelectAll"
+                        style="cursor: pointer"
+                      />
+                      <span>[Select all]</span>
+                    </label>
+                  </div>
+                  <div id="processAreaOptions" style="padding: 4px">
+                    <!-- Options will be populated dynamically -->
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-        <div class="view-controls">
-          <button class="view-btn active" data-view="table" title="Danh sách">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M4 6l16 0" />
-              <path d="M4 12l16 0" />
-              <path d="M4 18l16 0" />
-            </svg>
-          </button>
-          <button class="view-btn" data-view="grid" title="Lưới">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path
-                d="M9 3a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
-              />
-              <path
-                d="M19 3a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
-              />
-              <path
-                d="M9 13a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
-              />
-              <path
-                d="M19 13a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
-              />
-            </svg>
-          </button>
-          <hr style="height: 30px; width: 2px" />
-          <button class="refresh-btn">
-            <i class="fa-solid fa-rotate-right"></i>
-            Làm mới
-          </button>
+          <div class="view-controls">
+            <button class="view-btn active" data-view="table" title="Danh sách">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M4 6l16 0" />
+                <path d="M4 12l16 0" />
+                <path d="M4 18l16 0" />
+              </svg>
+            </button>
+            <button class="view-btn" data-view="grid" title="Lưới">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M9 3a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
+                />
+                <path
+                  d="M19 3a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
+                />
+                <path
+                  d="M9 13a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
+                />
+                <path
+                  d="M19 13a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
+                />
+              </svg>
+            </button>
+            <hr style="height: 30px; width: 2px" />
+            <button class="refresh-btn">
+              <i class="fa-solid fa-rotate-right"></i>
+              Làm mới
+            </button>
+          </div>
         </div>
       </div>
 
