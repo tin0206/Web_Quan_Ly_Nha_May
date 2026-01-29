@@ -6,6 +6,7 @@ const API_ROUTE = window.location.origin;
 const orderId = window.location.pathname.split("/").pop();
 let po_default_batches = [];
 let batches = [];
+let running_batches = [];
 let order = {};
 
 async function fetchOrderDetail() {
@@ -357,7 +358,7 @@ function renderMaterialsTable(
     const batch = batches.find((b) => b.BatchNumber === batchCode);
     const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
     const recipeQuantity =
-      ingredientsTotalsByUOM[ingredientCodeOnly].total || 0;
+      ingredientsTotalsByUOM[ingredientCodeOnly]?.total || 0;
     let planQuantity = recipeQuantity;
     if (batchQuantity !== 0) {
       planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
@@ -685,9 +686,19 @@ async function fetchMaterialsWithPagination() {
         },
       );
 
-      unconsumedIngredients = ingredientsData.filter(
-        (ing) => !consumedIngredientCodes.has(ing.IngredientCode),
-      );
+      unconsumedIngredients = ingredientsData.filter((ing) => {
+        // Tìm tất cả material có cùng IngredientCode
+        const materialsWithCode = allMaterials.filter((m) => {
+          const code = m.ingredientCode
+            ? m.ingredientCode.split(" - ")[0].trim()
+            : "";
+          return code === ing.IngredientCode;
+        });
+        // Nếu không có material nào cùng code, giữ lại
+        if (materialsWithCode.length === 0) return true;
+        // Nếu có ít nhất một material có id khác null, loại bỏ
+        return !materialsWithCode.some((m) => m.id != null);
+      });
     }
 
     // Apply material filter type
@@ -1108,7 +1119,18 @@ async function displayBatchesTable(batchesArray) {
     return;
   }
 
-  // Render batch code radio buttons
+  const result = await fetch(
+    `${API_ROUTE}/api/production-order-detail/batch-codes-with-materials?productionOrderNumber=${order.ProductionOrderNumber}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  const data = await result.json();
+  running_batches = data.data || [];
   renderBatchCodeRadioButtons(batchesArray);
 
   // Calculate pagination
@@ -1120,20 +1142,30 @@ async function displayBatchesTable(batchesArray) {
   // Display table rows
   const tbody = document.getElementById("batchesTableBody");
   tbody.innerHTML = paginatedBatches
-    .map(
-      (batch) => `
-            <tr style="border-bottom: 1px solid #eee;">
-              <td style="padding: 12px; text-align: center;">${batch.BatchId}</td>
-              <td style="padding: 12px; text-align: center;">${batch.BatchNumber}</td>
-              <td style="padding: 12px; text-align: center;">${batch.Quantity} ${batch.UnitOfMeasurement}</td>
-              <td style="padding: 12px; text-align: center;">
-                <button class="viewMaterialsBtn" data-batch-code="${batch.BatchNumber}" style="background: #007bff; color: white; border: none; cursor: pointer; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-weight: 500; transition: background 0.2s;" title="View Materials">
-                  View Materials
-                </button>
-              </td>
-            </tr>
-          `,
-    )
+    .map((batch) => {
+      let status = "";
+      const isRunning = running_batches.some(
+        (b) => b.batchCode === batch.BatchNumber,
+      );
+      if (isRunning) {
+        status = "Đang chạy";
+      } else {
+        status = "Đang chờ";
+      }
+      return `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px; text-align: center;">${batch.BatchId}</td>
+          <td style="padding: 12px; text-align: center;">${batch.BatchNumber}</td>
+          <td style="padding: 12px; text-align: center;">${batch.Quantity} ${batch.UnitOfMeasurement}</td>
+          <td style="padding: 12px; text-align: center;">${status}</td>
+          <td style="padding: 12px; text-align: center;">
+            <button class="viewMaterialsBtn" data-batch-code="${batch.BatchNumber}" style="background: #007bff; color: white; border: none; cursor: pointer; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-weight: 500; transition: background 0.2s;" title="View Materials">
+              View Materials
+            </button>
+          </td>
+        </tr>
+      `;
+    })
     .join("");
 
   // Add event listeners to View Materials buttons
