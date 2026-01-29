@@ -356,7 +356,8 @@ function renderMaterialsTable(
 
     const batch = batches.find((b) => b.BatchNumber === batchCode);
     const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
-    const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly] || 0;
+    const recipeQuantity =
+      ingredientsTotalsByUOM[ingredientCodeOnly].total || 0;
     let planQuantity = recipeQuantity;
     if (batchQuantity !== 0) {
       planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
@@ -382,7 +383,7 @@ function renderMaterialsTable(
       <td style="padding: 12px; text-align: center;">${group.ingredientCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${group.lot || "-"}</td>
       <td style="padding: 12px; text-align: center;">${planQuantity} ${group.unitOfMeasurement || ""}</td>
-      <td style="padding: 12px; text-align: center;">${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}</td>
+      <td style="padding: 12px; text-align: center;">${group.totalQuantity === 0 ? `N/A ${group.unitOfMeasurement || ""}` : `${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}`}</td>
       <td style="padding: 12px; text-align: center;">${formatDateTime(group.latestDatetime) || "-"}</td>
       <td style="padding: 12px; text-align: center;">${statusDisplay}</td>
       <td style="padding: 12px; text-align: center;">
@@ -849,7 +850,7 @@ function showMaterialModal(material) {
     : "";
   const poQuantity = parseFloat(order.ProductQuantity) || 1;
   const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
-  const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly] || 0;
+  const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly].total || 0;
   let planQuantity = recipeQuantity;
   if (batchQuantity !== 0) {
     planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
@@ -865,7 +866,10 @@ function showMaterialModal(material) {
   document.getElementById("modalPlanQuantity").textContent =
     planQuantityDisplay;
 
-  const actualQuantityDisplay = `${material.quantity || 0} ${material.unitOfMeasurement || ""}`;
+  const actualQuantityDisplay =
+    !material.quantity || material.quantity === 0
+      ? `N/A ${material.unitOfMeasurement || ""}`
+      : `${material.quantity} ${material.unitOfMeasurement || ""}`;
   document.getElementById("modalQuantity").textContent = actualQuantityDisplay;
   document.getElementById("modalDateTime").textContent =
     formatDate(material.datetime) || "-";
@@ -929,7 +933,8 @@ function showMaterialListModal(group) {
   function getPlanQuantityPerItem(batchCode) {
     const batch = batches.find((b) => b.BatchNumber === batchCode);
     const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
-    const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly] || 0;
+    const recipeQuantity =
+      ingredientsTotalsByUOM[ingredientCodeOnly].total || 0;
     let planQuantity = recipeQuantity;
     if (batchQuantity !== 0) {
       planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
@@ -955,7 +960,7 @@ function showMaterialListModal(group) {
       <td style="padding: 12px; text-align: center;">${material.ingredientCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${material.lot || "-"}</td>
       <td style="padding: 12px; text-align: center;">${getPlanQuantityPerItem(material.batchCode)} ${material.unitOfMeasurement || ""}</td>
-      <td style="padding: 12px; text-align: center;">${material.quantity || 0} ${material.unitOfMeasurement || ""}</td>
+      <td style="padding: 12px; text-align: center;">${!material.quantity || material.quantity === 0 ? `N/A ${material.unitOfMeasurement || ""}` : `${material.quantity} ${material.unitOfMeasurement || ""}`}</td>
       <td style="padding: 12px; text-align: center;">${formatDateTime(material.datetime) || "-"}</td>
       <td style="padding: 12px; text-align: center;">${statusDisplay}</td>
       <td style="padding: 12px; text-align: center;">
@@ -1243,7 +1248,7 @@ function renderBatchCodeRadioButtons(batchesArray) {
 
   // Check which batches have materials
   const batchesWithMaterials = new Set(
-    allMaterials.map((m) => m.batchCode).filter((code) => code),
+    allMaterials.filter((m) => m.batchCode && m.id).map((m) => m.batchCode),
   );
 
   // Add legend
@@ -1345,7 +1350,7 @@ function updateBatchCodeRadioStyles() {
 
   // Check which batches have materials
   const batchesWithMaterials = new Set(
-    allMaterials.map((m) => m.batchCode).filter((code) => code),
+    allMaterials.filter((m) => m.batchCode && m.id).map((m) => m.batchCode),
   );
 
   labels.forEach((label, index) => {
