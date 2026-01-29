@@ -41,6 +41,100 @@ router.get("/stats", async (req, res) => {
   }
 });
 
+// API: Get stats with filters (searchQuery, dateFrom, dateTo, processAreas)
+router.get("/stats/search", async (req, res) => {
+  try {
+    const searchQuery = req.query.searchQuery || "";
+    const dateFrom = req.query.dateFrom || "";
+    const dateTo = req.query.dateTo || "";
+    const processAreas = req.query.processAreas || "";
+
+    let whereConditions = [];
+    let baseRequest = getPool().request();
+
+    if (searchQuery && searchQuery.trim() !== "") {
+      baseRequest.input("searchQuery", sql.NVarChar, `%${searchQuery.trim()}%`);
+      whereConditions.push(`(
+        ProductionOrderNumber LIKE @searchQuery OR
+        ProductCode LIKE @searchQuery OR
+        ProductionLine LIKE @searchQuery OR
+        RecipeCode LIKE @searchQuery
+      )`);
+    }
+    if (dateFrom) {
+      baseRequest.input("dateFrom", sql.DateTime2, new Date(dateFrom));
+      whereConditions.push(
+        `CAST(PlannedStart AS DATE) >= CAST(@dateFrom AS DATE)`,
+      );
+    }
+    if (dateTo) {
+      baseRequest.input("dateTo", sql.DateTime2, new Date(dateTo));
+      whereConditions.push(
+        `CAST(PlannedStart AS DATE) <= CAST(@dateTo AS DATE)`,
+      );
+    }
+    if (processAreas && processAreas.trim() !== "") {
+      const processAreasArray = processAreas
+        .split(",")
+        .map((pa) => pa.trim())
+        .filter((pa) => pa);
+      if (processAreasArray.length > 0) {
+        const processAreaPlaceholders = processAreasArray
+          .map((_, i) => `@processArea${i}`)
+          .join(",");
+        processAreasArray.forEach((pa, i) => {
+          baseRequest.input(`processArea${i}`, sql.NVarChar, pa);
+        });
+        whereConditions.push(`ProcessArea IN (${processAreaPlaceholders})`);
+      }
+    }
+    const whereClause =
+      whereConditions.length > 0
+        ? `WHERE ${whereConditions.join(" AND ")}`
+        : "";
+
+    // Helper for WHERE/AND logic
+    function getWhereAndClause(baseWhere, extra) {
+      if (!baseWhere) return `WHERE ${extra}`;
+      return `${baseWhere} AND ${extra}`;
+    }
+
+    // Query stats with filter (fix WHERE/AND logic)
+    const statsResult = await baseRequest.query(`
+      SELECT
+        (SELECT COUNT(*) FROM ProductionOrders ${whereClause}) as total,
+        (SELECT COUNT(*) FROM ProductionOrders ${getWhereAndClause(whereClause, "Status = 2")}) as completed,
+        (
+          SELECT COUNT(DISTINCT po.ProductionOrderId)
+          FROM ProductionOrders po
+          ${whereClause}
+          ${whereClause ? "AND" : "WHERE"} EXISTS (
+            SELECT 1 FROM MESMaterialConsumption mmc 
+            WHERE mmc.ProductionOrderNumber = po.ProductionOrderNumber
+          )
+        ) as inProgress
+    `);
+    const stats = statsResult.recordset[0];
+    const stopped = stats.total - (stats.inProgress || 0);
+    res.json({
+      success: true,
+      message: "Success",
+      stats: {
+        total: stats.total,
+        inProgress: stats.inProgress || 0,
+        completed: stats.completed || 0,
+        stopped: stopped,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Lỗi khi lấy thống kê có filter: ", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi: " + error.message,
+    });
+  }
+});
+
 // Get production orders - Simple endpoint (pagination only)
 router.get("/", async (req, res) => {
   try {

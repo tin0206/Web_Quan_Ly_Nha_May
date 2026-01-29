@@ -1,3 +1,39 @@
+/* Table Recipes Styling */
+.table-section {
+  margin-top: 24px;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.data-table th, .data-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  text-align: left;
+  font-size: 15px;
+}
+.data-table th {
+  background: #f7f7fb;
+  color: #6259ee;
+  font-weight: 600;
+  text-align: left;
+}
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+.data-table tbody tr:hover {
+  background: #f3f6fd;
+}
+.data-table td {
+  color: #333;
+}
+.data-table .detail-btn {
+  margin: 0 auto;
+}
 * {
   margin: 0;
   padding: 0;
@@ -56,6 +92,21 @@ body {
 .back-btn:hover {
   background-color: #f0f0f0;
   color: #333;
+}
+
+.detail-btn {
+  background: #6259ee;
+  color: #fff;
+  border: 1px solid #6259ee;
+  border-radius: 4px;
+  padding: 6px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.detail-btn:hover {
+  color: #6259ee;
 }
 
 .header-title {
@@ -312,50 +363,61 @@ body {
   color: #333;
   margin: 0;
 }
+/* Pagination (match production-orders) */
+.pagination-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 0 0 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  padding: 15px 0 20px 0;
+  margin-bottom: 10px;
+}
+
+.pagination-btn {
+  background: #007aff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.3s ease,
+    opacity 0.3s ease;
+  font-size: 16px;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.pagination-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.page-info {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+  min-width: 120px;
+  text-align: center;
+}
 
 .version-badge {
-  /* Pagination */
-  .pagination-section {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  }
-
-  .pagination-info {
-    font-size: 14px;
-    color: #666;
-  }
-
-  .pagination-controls {
-    display: flex;
-    gap: 8px;
-  }
-
-  .page-btn {
-    width: 36px;
-    height: 36px;
-    border: 1px solid #e8e7f0;
-    background-color: #5546cb;
-    color: white;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-  }
-
-  .page-btn:hover:not(:disabled) {
-    background-color: #4e4ad4;
-  }
-
-  .page-btn:disabled {
-    opacity: 1;
-    cursor: default;
-  }
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -386,7 +448,8 @@ body {
 .product-info {
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
 }
 
 .product-info > i {
@@ -427,6 +490,7 @@ body {
 .meta-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   font-size: 13px;
   color: #666;
@@ -441,6 +505,13 @@ body {
   color: #333;
 }
 
+.meta-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #999;
+}
+
 .recipe-actions {
   display: flex;
   gap: 10px;
@@ -448,25 +519,20 @@ body {
 }
 
 .detail-btn {
-  flex: 1;
-  background-color: #f7f6fb;
-  border: 1px solid #e8e7f0;
+  background: linear-gradient(135deg, #5b4ce8 0%, #4e42d0 100%);
+  color: white;
+  border: none;
   padding: 10px 16px;
   border-radius: 6px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 13px;
   font-weight: 600;
-  color: #5546cb;
+  font-size: 13px;
   transition: all 0.3s ease;
+  flex: 1;
 }
 
 .detail-btn:hover {
-  background-color: #5546cb;
-  color: white;
+  background: linear-gradient(135deg, #4e42d0 0%, #453bb5 100%);
 }
 
 .icon-btn {

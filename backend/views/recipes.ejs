@@ -17,7 +17,7 @@
       <!-- Header Section -->
       <div class="header-section">
         <div class="header-top">
-          <button class="back-btn" onclick="history.back()">
+          <button class="back-btn">
             <i class="fa-solid fa-arrow-left"></i>
           </button>
           <div class="header-title">
@@ -100,11 +100,32 @@
           />
         </div>
         <div class="view-controls">
-          <button class="view-btn active" id="gridViewBtn">
-            <i class="fa-solid fa-grip"></i>
-          </button>
           <button class="view-btn" id="tableViewBtn">
-            <i class="fa-solid fa-list"></i>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="#6259ee"
+            >
+              <rect x="3" y="4" width="18" height="3" rx="1.5" />
+              <rect x="3" y="10.5" width="18" height="3" rx="1.5" />
+              <rect x="3" y="17" width="18" height="3" rx="1.5" />
+            </svg>
+          </button>
+          <button class="view-btn active" id="gridViewBtn">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="#6259ee"
+            >
+              <rect x="3" y="4" width="7" height="7" rx="2" />
+              <rect x="14" y="4" width="7" height="7" rx="2" />
+              <rect x="14" y="13" width="7" height="7" rx="2" />
+              <rect x="3" y="13" width="7" height="7" rx="2" />
+            </svg>
           </button>
           <select class="filter-dropdown" id="statusFilter">
             <option value="">Tất cả Trạng thái</option>
@@ -121,111 +142,7 @@
 
       <!-- Grid View -->
       <div class="grid-view" id="gridView">
-        <div class="recipe-card">
-          <div class="recipe-card-header">
-            <div class="recipe-title-section">
-              <h3 class="recipe-code">99SS00015-MHP</h3>
-              <span class="version-badge">
-                <i class="fa-solid fa-code-branch"></i>
-                1 Phiên bản
-              </span>
-            </div>
-            <span class="status-badge status-success">
-              <i class="fa-solid fa-circle-check"></i>
-              Hoạt động
-            </span>
-          </div>
-
-          <div class="recipe-product">
-            <div class="product-label">SẢN PHẨM</div>
-            <div class="product-info">
-              <i class="fa-solid fa-box"></i>
-              <div class="product-details">
-                <div class="product-code">99SS00015</div>
-                <div class="product-name">
-                  BTP seasoning mi Kokomii 65 Palm relaunch
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="recipe-footer">
-            <div class="recipe-meta">
-              <div class="meta-item">
-                <i class="fa-solid fa-circle-dot"></i>
-                Phiên bản mới nhất: <strong>401.00</strong>
-              </div>
-              <div class="meta-item">
-                <i class="fa-regular fa-clock"></i>
-                Cập nhật: <strong>17:27</strong>
-              </div>
-            </div>
-            <div class="recipe-actions">
-              <button class="detail-btn">
-                <i class="fa-regular fa-eye"></i>
-                Chi tiết
-              </button>
-              <button class="icon-btn">
-                <i class="fa-solid fa-pen"></i>
-              </button>
-              <button class="icon-btn delete-btn">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="recipe-card">
-          <div class="recipe-card-header">
-            <div class="recipe-title-section">
-              <h3 class="recipe-code">L04-MES</h3>
-              <span class="version-badge">
-                <i class="fa-solid fa-code-branch"></i>
-                1 Phiên bản
-              </span>
-            </div>
-            <span class="status-badge status-success">
-              <i class="fa-solid fa-circle-check"></i>
-              Hoạt động
-            </span>
-          </div>
-
-          <div class="recipe-product">
-            <div class="product-label">SẢN PHẨM</div>
-            <div class="product-info">
-              <i class="fa-solid fa-box"></i>
-              <div class="product-details">
-                <div class="product-code">L04-MES</div>
-                <div class="product-name">L04-MES</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="recipe-footer">
-            <div class="recipe-meta">
-              <div class="meta-item">
-                <i class="fa-solid fa-circle-dot"></i>
-                Phiên bản mới nhất: <strong>N/A</strong>
-              </div>
-              <div class="meta-item">
-                <i class="fa-regular fa-clock"></i>
-                Cập nhật: <strong>Sun, 16:29</strong>
-              </div>
-            </div>
-            <div class="recipe-actions">
-              <button class="detail-btn">
-                <i class="fa-regular fa-eye"></i>
-                Chi tiết
-              </button>
-              <button class="icon-btn">
-                <i class="fa-solid fa-pen"></i>
-              </button>
-              <button class="icon-btn delete-btn">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            </div>
-          </div>
-        </div>
+        <!-- JS sẽ render grid-view ở đây -->
       </div>
 
       <!-- Table View -->
@@ -233,25 +150,52 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>Mã Công Thức</th>
-              <th>Phiên Bản</th>
+              <th>ID</th>
               <th>Mã Sản Phẩm</th>
               <th>Tên Sản Phẩm</th>
+              <th>Mã Công Thức</th>
+              <th>Phiên Bản</th>
               <th style="text-align: center">Trạng Thái</th>
+              <th>Cập Nhật</th>
               <th style="text-align: center">Thao Tác</th>
             </tr>
           </thead>
           <tbody id="recipeTableBody">
-            <!-- Rows will be rendered by JavaScript -->
+            <!-- JS sẽ render table-view ở đây -->
           </tbody>
         </table>
       </div>
 
       <!-- Pagination -->
       <div class="pagination-section">
-        <div class="pagination-info">Showing 1 to 2 of 2 Công thức</div>
         <div class="pagination-controls">
-          <button class="page-btn" disabled>1</button>
+          <button id="prevPageBtn" class="pagination-btn" onclick="prevPage()">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <span id="pageInfo" class="page-info">Trang 1 / 1</span>
+          <button id="nextPageBtn" class="pagination-btn" onclick="nextPage()">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
         </div>
       </div>
     </div>

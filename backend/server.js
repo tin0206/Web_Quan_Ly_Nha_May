@@ -1,5 +1,5 @@
 const express = require("express");
-const productionOrderRoutes = require("./routes/production-order");
+const productionOrdersRoutes = require("./routes/production-orders");
 const productionOrderDetailRoutes = require("./routes/production-order-detail");
 const productionRecipesRoutes = require("./routes/production-recipes");
 const sql = require("mssql");
@@ -69,7 +69,7 @@ app.get("/production-order/:id", (req, res) => {
   res.render("production-order-detail", { orderId: req.params.id });
 });
 
-app.use("/api/production-orders", productionOrderRoutes);
+app.use("/api/production-orders", productionOrdersRoutes);
 app.use("/api/production-order-detail", productionOrderDetailRoutes);
 app.use("/api/production-recipes", productionRecipesRoutes);
 

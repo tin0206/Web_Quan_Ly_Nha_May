@@ -33,12 +33,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   sourceCodeSpan.textContent = PLANTCODE;
   destinationCodeSpan.textContent = LINE;
 
-  if (dateFromInput) {
-    dateFromInput.value = yesterday.toISOString().split("T")[0];
-  }
-  if (dateToInput) {
-    dateToInput.value = tomorrow.toISOString().split("T")[0];
-  }
+  // if (dateFromInput && !dateFromInput.value) {
+  //   dateFromInput.value = yesterday.toISOString().split("T")[0];
+  // }
+  // if (dateToInput && !dateToInput.value) {
+  //   dateToInput.value = tomorrow.toISOString().split("T")[0];
+  // }
 
   // Restore state if returning from detail page
   const savedState = sessionStorage.getItem("poListState");
@@ -61,7 +61,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       await fetchStats();
       await fetchProductionOrders(state.currentPage || 1);
-      updateStats();
 
       // Initialize dropdown first to create checkboxes
       initializeProcessAreaDropdown();
@@ -87,14 +86,12 @@ document.addEventListener("DOMContentLoaded", async function () {
       sessionStorage.removeItem("poListState");
       await fetchStats();
       await fetchProductionOrders(1);
-      updateStats();
       renderProductionTable();
       initializeProcessAreaDropdown();
     }
   } else {
     await fetchStats();
     await fetchProductionOrders(1);
-    updateStats();
     renderProductionTable();
     initializeProcessAreaDropdown();
   }
@@ -525,6 +522,7 @@ function initializeSearch() {
   const handleFilterChange = async () => {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(async () => {
+      await fetchStats();
       currentPage = 1; // Reset to first page when filter changes
       await fetchProductionOrders(currentPage);
 
@@ -567,6 +565,7 @@ function initializeSearch() {
 
       // Reset to page 1 and fetch
       currentPage = 1;
+      await fetchStats();
       await fetchProductionOrders(currentPage);
 
       // Check current view and render accordingly
@@ -581,16 +580,37 @@ function initializeSearch() {
   }
 }
 
-// Fetch statistics from dedicated stats endpoint
+// Fetch statistics from dedicated stats endpoint, now supports filters
 async function fetchStats() {
+  const searchQuery = document.getElementById("searchInput")?.value || "";
+  const dateFrom = document.getElementById("dateFrom")?.value || "";
+  const dateTo = document.getElementById("dateTo")?.value || "";
+  const selectedProcessAreas = getSelectedProcessAreas();
+
+  const hasFilters =
+    searchQuery || dateFrom || dateTo || selectedProcessAreas.length > 0;
+  const endpoint = hasFilters
+    ? "/api/production-orders/stats/search"
+    : "/api/production-orders/stats";
+
   try {
-    const response = await fetch(`${API_ROUTE}/api/production-orders/stats`, {
+    // Build query params from filters
+    const params = new URLSearchParams();
+    if (hasFilters) {
+      if (searchQuery) params.append("searchQuery", searchQuery);
+      if (dateFrom) params.append("dateFrom", dateFrom);
+      if (dateTo) params.append("dateTo", dateTo);
+      if (selectedProcessAreas.length > 0) {
+        params.append("processAreas", selectedProcessAreas.join(","));
+      }
+    }
+    const url = `${API_ROUTE}${endpoint}?${params.toString()}`;
+    const response = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
     });
-
     if (response.ok) {
       const data = await response.json();
       statsData = data.stats || {};
@@ -719,6 +739,7 @@ async function handleProcessAreaCheckboxChange() {
 
   // Reset to page 1 and fetch from API
   currentPage = 1;
+  await fetchStats();
   await fetchProductionOrders(currentPage);
 
   // Check current view and render accordingly
@@ -767,6 +788,7 @@ function initializeProcessAreaSelectAll() {
 
     // Reset to page 1 and fetch from API
     currentPage = 1;
+    await fetchStats();
     await fetchProductionOrders(currentPage);
 
     // Check current view and render accordingly
