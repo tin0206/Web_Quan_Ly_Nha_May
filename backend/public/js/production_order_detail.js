@@ -355,17 +355,22 @@ function renderMaterialsTable(
       ? ingredientCode.split(" - ")[0].trim()
       : "";
 
-    const batch = batches.find((b) => b.BatchNumber === batchCode);
-    const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
-    const recipeQuantity =
-      ingredientsTotalsByUOM[ingredientCodeOnly]?.total || 0;
-    let planQuantity = recipeQuantity;
-    if (batchQuantity !== 0) {
-      planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
-      planQuantity = planQuantity.toFixed(2);
-    }
-    if (recipeQuantity === 0 || batchQuantity === 0) {
-      planQuantity = "N/A";
+    let planQuantity;
+    if (group.items.length > 1) {
+      planQuantity = "-";
+    } else {
+      const batch = batches.find((b) => b.BatchNumber === batchCode);
+      const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
+      const recipeQuantity =
+        ingredientsTotalsByUOM[ingredientCodeOnly]?.total || 0;
+      planQuantity = recipeQuantity;
+      if (batchQuantity !== 0) {
+        planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
+        planQuantity = planQuantity.toFixed(2);
+      }
+      if (recipeQuantity === 0 || batchQuantity === 0) {
+        planQuantity = "N/A";
+      }
     }
 
     // Determine status display - show "-" if multiple items
@@ -383,7 +388,7 @@ function renderMaterialsTable(
       <td style="padding: 12px; text-align: center;">${batchCodeDisplay}</td>
       <td style="padding: 12px; text-align: center;">${group.ingredientCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${group.lot || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${planQuantity} ${group.unitOfMeasurement || ""}</td>
+      <td style="padding: 12px; text-align: center;">${planQuantity}${group.items.length > 1 ? "" : ` ${group.unitOfMeasurement || ""}`}</td>
       <td style="padding: 12px; text-align: center;">${group.totalQuantity === 0 ? `N/A ${group.unitOfMeasurement || ""}` : `${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}`}</td>
       <td style="padding: 12px; text-align: center;">${formatDateTime(group.latestDatetime) || "-"}</td>
       <td style="padding: 12px; text-align: center;">${statusDisplay}</td>
@@ -1278,11 +1283,6 @@ function renderBatchCodeRadioButtons(batchesArray) {
     ),
   ];
 
-  // Check which batches have materials
-  const batchesWithMaterials = new Set(
-    allMaterials.filter((m) => m.batchCode && m.id).map((m) => m.batchCode),
-  );
-
   // Add legend
   let html = `
     <div style="display: flex; gap: 15px; margin-bottom: 10px; font-size: 13px; color: #666;">
@@ -1312,7 +1312,7 @@ function renderBatchCodeRadioButtons(batchesArray) {
       border-radius: 4px;
       font-size: 14px;
       font-weight: ${isAllSelected ? "500" : "normal"};
-    " onmouseover="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'; } else { this.style.background='#0056b3'; }" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='white'; this.style.color='inherit'; this.style.borderColor='#ddd'; this.style.fontWeight='normal'; this.style.boxShadow='none'; } else { this.style.background='#007bff'; this.style.borderColor='#0056b3'; }">
+    " onmouseover="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'; } else { this.style.background='#0056b3'; }" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='white'; this.style.color='inherit'; this.style.borderColor='#ddd'; this.style.fontWeight='normal'; this.style.boxShadow='none'; } else { this.style.background='#007bff'; this.style.borderColor='#0056b3'; } this.style.boxShadow='none'">
       <input
         type="radio"
         name="filterBatchCode"
@@ -1327,34 +1327,40 @@ function renderBatchCodeRadioButtons(batchesArray) {
   // Add batch code options - display as numbered buttons
   html += uniqueBatchCodes
     .map((code) => {
-      const hasMaterial = batchesWithMaterials.has(code);
-      const bgColor = hasMaterial ? "#d4edda" : "#fff3cd";
-      const borderColor = hasMaterial ? "#c3e6cb" : "#ffeaa7";
+      const isRunning = running_batches.some((b) => b.batchCode === code);
+      let bgColor, borderColor;
+      if (isRunning) {
+        bgColor = "#d4edda";
+        borderColor = "#c3e6cb";
+      } else {
+        bgColor = "#fff3cd";
+        borderColor = "#ffeaa7";
+      }
 
       return `
-    <label style="
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 6px 10px;
-      cursor: pointer;
-      background: ${bgColor};
-      border: 1px solid ${borderColor};
-      border-radius: 4px;
-      transition: all 0.2s;
-      font-size: 13px;
-      min-width: 50px;
-    " onmouseover="this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='${bgColor}'; this.style.color='inherit'; this.style.borderColor='${borderColor}'; this.style.fontWeight='normal'; } else { this.style.borderColor='#0056b3'; } this.style.boxShadow='none'">
-      <input
-        type="radio"
-        name="filterBatchCode"
-        value="${code}"
-        ${selectedMaterialsBatchCode === code ? "checked" : ""}
-        style="margin-right: 6px; cursor: pointer; width: 16px;"
-      />
-      <span>${code}</span>
-    </label>
-  `;
+        <label style="
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 6px 10px;
+          cursor: pointer;
+          background: ${bgColor};
+          border: 1px solid ${borderColor};
+          border-radius: 4px;
+          transition: all 0.2s;
+          font-size: 13px;
+          min-width: 50px;
+        " onmouseover="this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='${bgColor}'; this.style.color='inherit'; this.style.borderColor='${borderColor}'; this.style.fontWeight='normal'; } else { this.style.borderColor='#0056b3'; } this.style.boxShadow='none'">
+          <input
+            type="radio"
+            name="filterBatchCode"
+            value="${code}"
+            ${selectedMaterialsBatchCode === code ? "checked" : ""}
+            style="margin-right: 6px; cursor: pointer; width: 16px;"
+          />
+          <span>${code}</span>
+        </label>
+      `;
     })
     .join("");
 
