@@ -553,9 +553,12 @@ async function fetchMaterialsWithPagination() {
         ingredientsData.forEach((item) => {
           const ingredientCode = item.IngredientCode;
           if (!ingredientsTotalsByUOM[ingredientCode]) {
-            ingredientsTotalsByUOM[ingredientCode] = 0;
+            ingredientsTotalsByUOM[ingredientCode] = {
+              total: 0,
+              unit: item.UnitOfMeasurement,
+            };
           }
-          ingredientsTotalsByUOM[ingredientCode] +=
+          ingredientsTotalsByUOM[ingredientCode].total +=
             parseFloat(item.Quantity) || 0;
         });
       }
@@ -673,8 +676,9 @@ async function fetchMaterialsWithPagination() {
         (ingredientCode) => {
           return {
             IngredientCode: ingredientCode,
-            Quantity: ingredientsTotalsByUOM[ingredientCode],
-            UnitOfMeasurement: "kg", // Default, will be updated if we have the data
+            Quantity: ingredientsTotalsByUOM[ingredientCode].total,
+            UnitOfMeasurement:
+              ingredientsTotalsByUOM[ingredientCode].unit || "kg", // Default to "kg" if unit is not available
             ItemName: null,
           };
         },
