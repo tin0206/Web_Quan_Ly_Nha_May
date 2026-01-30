@@ -113,7 +113,6 @@ function populateStatusOptions() {
   const statusList = [
     { value: "Đang chạy", label: "Đang chạy" },
     { value: "Đang chờ", label: "Đang chờ" },
-    { value: "Hoàn thành", label: "Hoàn thành" },
   ];
 
   optionsContainer.innerHTML = "";
@@ -263,6 +262,7 @@ function initializeEventListeners() {
                 <th>Công thức</th>
                 <th>Lô SX</th>
                 <th>Process Area</th>
+                <th>Shift</th>
                 <th style="text-align: center">Ngày Bắt Đầu / Số Lượng</th>
                 <th style="text-align: center">Tiến độ</th>
                 <th style="text-align: center">Trạng Thái</th>
@@ -478,11 +478,15 @@ function renderGridView() {
               </div>
             </div>
 
+
             <div class="grid-section">
               <div class="grid-section-label">LÔ SX</div>
-              <div class="grid-section-value">${
-                order.LotNumber || "0 / 0"
-              }</div>
+              <div class="grid-section-value">${order.LotNumber || "0 / 0"}</div>
+            </div>
+
+            <div class="grid-section">
+              <div class="grid-section-label">Ca</div>
+              <div class="grid-section-value">${order.Shift || "-"}</div>
             </div>
 
             <div class="grid-section">
@@ -588,6 +592,7 @@ function renderProductionTable() {
       <td>${order.RecipeCode}</td>
       <td>${order.LotNumber || "N/A"}</td>
       <td style="text-align: center">${order.ProcessArea || "N/A"}</td>
+      <td>${order.Shift || "-"}</td>
       <td style="text-align: center">
         <div style="display: flex; align-items: center; justify-content: center;">
           ${formatDate(order.PlannedStart) || "N/A"}

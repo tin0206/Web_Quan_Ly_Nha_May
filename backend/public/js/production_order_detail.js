@@ -187,6 +187,8 @@ const batchesPerPage = 10;
 const materialsPerPage = 10;
 let materialsTotalPages = 1;
 let materialsTotalCount = 0;
+let materials_planned_batch = [];
+let materials_unplanned_batch = [];
 let allMaterials = []; // Store all materials for client-side filtering
 let selectedMaterialsBatchCode = ""; // Store selected batch for materials tab
 let ingredientsTotalsByUOM = {}; // Store totals grouped by UnitOfMeasurement
@@ -346,31 +348,34 @@ function renderMaterialsTable(
       batchCodeDisplay = uniqueBatchCodes.slice(0, 3).join(", ") + ", ...";
     }
 
-    // Calculate plan quantity: (recipeQuantity / poQuantity) * batchQuantity
+    // Tính tổng planQuantity cho tất cả items trong group
     const ingredientCode = group.ingredientCode;
-    const batchCode = group.batchCode;
-
-    // Extract ingredient code (remove item name if present)
     const ingredientCodeOnly = ingredientCode
       ? ingredientCode.split(" - ")[0].trim()
       : "";
-
-    let planQuantity;
-    if (group.items.length > 1) {
-      planQuantity = "-";
-    } else {
-      const batch = batches.find((b) => b.BatchNumber === batchCode);
+    let totalPlanQuantity = 0;
+    let hasValidPlan = false;
+    group.items.forEach((item) => {
+      const batch = batches.find((b) => b.BatchNumber === item.batchCode);
       const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
       const recipeQuantity =
         ingredientsTotalsByUOM[ingredientCodeOnly]?.total || 0;
-      planQuantity = recipeQuantity;
+      const poQuantity = parseFloat(order.ProductQuantity) || 1;
+      let planQ = recipeQuantity;
       if (batchQuantity !== 0) {
-        planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
-        planQuantity = planQuantity.toFixed(2);
+        planQ = (recipeQuantity / poQuantity) * batchQuantity;
+        planQ = parseFloat(planQ.toFixed(2));
       }
       if (recipeQuantity === 0 || batchQuantity === 0) {
-        planQuantity = "N/A";
+        // Nếu 1 item không đủ dữ liệu, bỏ qua
+        return;
       }
+      hasValidPlan = true;
+      totalPlanQuantity += planQ;
+    });
+    let planQuantityDisplay = "N/A";
+    if (hasValidPlan) {
+      planQuantityDisplay = totalPlanQuantity.toFixed(2);
     }
 
     // Determine status display - show "-" if multiple items
@@ -388,7 +393,7 @@ function renderMaterialsTable(
       <td style="padding: 12px; text-align: center;">${batchCodeDisplay}</td>
       <td style="padding: 12px; text-align: center;">${group.ingredientCode || "-"}</td>
       <td style="padding: 12px; text-align: center;">${group.lot || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${planQuantity}${group.items.length > 1 ? "" : ` ${group.unitOfMeasurement || ""}`}</td>
+      <td style="padding: 12px; text-align: center;">${planQuantityDisplay} ${group.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${group.totalQuantity === 0 ? `N/A ${group.unitOfMeasurement || ""}` : `${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}`}</td>
       <td style="padding: 12px; text-align: center;">${formatDateTime(group.latestDatetime) || "-"}</td>
       <td style="padding: 12px; text-align: center;">${statusDisplay}</td>
@@ -452,13 +457,19 @@ function renderMaterialsTable(
       batchCodesDisplay = batchNumbers.slice(0, 3).join(", ") + ", ...";
     }
 
-    // Display item count
+    // Display item count: if only 1 item, show '-', else show 'N items'
     const itemCountDisplay =
-      batchNumbers.length >= 2
-        ? `${batchNumbers.length} items`
-        : batchNumbers.length === 1
-          ? "1 item"
-          : "-";
+      batchNumbers.length >= 2 ? `${batchNumbers.length} items` : "-";
+
+    // If only 1 batch, show 'Chưa dùng' in view column, else show eye button
+    const viewColHtml =
+      batchNumbers.length === 1
+        ? `<span style="font-size: 12px; font-style: italic; color: #ff9800;">Chưa dùng</span>`
+        : `<button class="viewUnconsumedGroupBtn" data-index="${unconsumedIndex}" style="background: none; border: none; cursor: pointer; color: #ff9800; padding: 6px; transition: color 0.2s;" title="Xem danh sách">
+          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
+          </svg>
+        </button>`;
 
     html += `<tr style="border-bottom: 1px solid #eee; background-color: #fff9e6;">
       <td style="padding: 12px; text-align: center; font-weight: bold;">${itemCountDisplay}</td>
@@ -469,13 +480,7 @@ function renderMaterialsTable(
       <td style="padding: 12px; text-align: center;">N/A ${ingredient.UnitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">-</td>
       <td style="padding: 12px; text-align: center;">-</td>
-      <td style="padding: 12px; text-align: center;">
-        <button class="viewUnconsumedGroupBtn" data-index="${unconsumedIndex}" style="background: none; border: none; cursor: pointer; color: #ff9800; padding: 6px; transition: color 0.2s;" title="Xem danh sách">
-          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
-          </svg>
-        </button>
-      </td>
+      <td style="padding: 12px; text-align: center;">${viewColHtml}</td>
     </tr>`;
   });
 
@@ -591,10 +596,36 @@ async function fetchMaterialsWithPagination() {
 
       if (response.ok) {
         const data = await response.json();
-        allMaterials = data.data.map(
+        materials_planned_batch = data.data.map(
           (item) => new MESMaterialConsumption(item),
         );
-      } else {
+      }
+
+      const response2 = await fetch(
+        `${API_ROUTE}/api/production-order-detail/material-consumptions-exclude-batches?${queryParams.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (response2.ok) {
+        const data2 = await response2.json();
+        materials_unplanned_batch = data2.data.map(
+          (item) => new MESMaterialConsumption(item),
+        );
+      }
+
+      materials_planned_batch.forEach((item) => {
+        allMaterials.push(item);
+      });
+
+      materials_unplanned_batch.forEach((item) => {
+        allMaterials.push(item);
+      });
+      if (allMaterials.length === 0) {
         document.getElementById("materialsTableBody").innerHTML =
           '<tr><td colspan="10" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';
         document.getElementById("materialsPaginationControls").style.display =
@@ -1525,11 +1556,13 @@ function mergeBatchesRemoveDuplicate(arr1, arr2) {
   const map = new Map();
 
   arr1.forEach((batch) => {
-    map.set(batch.BatchNumber, batch);
+    if (batch.BatchNumber) {
+      map.set(batch.BatchNumber, batch);
+    }
   });
 
   arr2.forEach((batch) => {
-    if (!map.has(batch.BatchNumber)) {
+    if (batch.BatchNumber && !map.has(batch.BatchNumber)) {
       map.set(batch.BatchNumber, batch);
     }
   });

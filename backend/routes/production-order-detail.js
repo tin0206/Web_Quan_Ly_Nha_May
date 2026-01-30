@@ -303,27 +303,37 @@ router.get("/material-consumptions", async (req, res) => {
 
     const dataResult = await request.query(dataQuery);
 
+    const data = [];
+    const seen = new Set();
+
+    dataResult.recordset.forEach((row) => {
+      // Tạo key duy nhất cho mỗi bản ghi, ví dụ: id + batchCode + ingredientCode + lot
+      const key = `${row.id || ""}|${row.batchCode || ""}|${row.ingredientCode || ""}|${row.lot || ""}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        data.push({
+          id: row.id,
+          batchCode: row.batchCode,
+          ingredientCode: row.ItemName
+            ? `${row.IngredientCode} - ${row.ItemName}`
+            : row.IngredientCode,
+          lot: row.lot || "",
+          quantity: row.quantity,
+          unitOfMeasurement: row.unitOfMeasurement || "",
+          datetime: row.datetime,
+          operator_ID: row.operator_ID,
+          supplyMachine: row.supplyMachine,
+          count: row.count || 0,
+          request: row.request,
+          respone: row.respone,
+          status1: row.status1,
+          timestamp: row.timestamp,
+        });
+      }
+    });
+
     const totalCount = batches.length * ingredients.length;
     const totalPages = Math.ceil(totalCount / pageLimit);
-
-    const data = dataResult.recordset.map((row) => ({
-      id: row.id,
-      batchCode: row.batchCode,
-      ingredientCode: row.ItemName
-        ? `${row.IngredientCode} - ${row.ItemName}`
-        : row.IngredientCode,
-      lot: row.lot || "",
-      quantity: row.quantity,
-      unitOfMeasurement: row.unitOfMeasurement || "",
-      datetime: row.datetime,
-      operator_ID: row.operator_ID,
-      supplyMachine: row.supplyMachine,
-      count: row.count || 0,
-      request: row.request,
-      respone: row.respone,
-      status1: row.status1,
-      timestamp: row.timestamp,
-    }));
 
     res.json({
       success: true,
@@ -336,6 +346,149 @@ router.get("/material-consumptions", async (req, res) => {
     });
   } catch (error) {
     console.error("Lỗi material-consumptions:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi Server: " + error.message,
+    });
+  }
+});
+
+// Get material consumptions excluding batches that already have materials recorded
+router.get("/material-consumptions-exclude-batches", async (req, res) => {
+  try {
+    const { productionOrderNumber, page = 1, limit = 20 } = req.query;
+
+    if (!productionOrderNumber || productionOrderNumber.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "productionOrderNumber là bắt buộc",
+      });
+    }
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const pageLimit = Math.max(1, Math.min(100, parseInt(limit) || 20));
+    const offset = (pageNum - 1) * pageLimit;
+
+    const request = getPool().request();
+    request.input("prodOrderNum", sql.NVarChar, productionOrderNumber.trim());
+
+    // Query to get all batch codes for the production order
+    const batchCodesQuery = `
+      SELECT b.BatchNumber AS batchCode
+      FROM Batches b
+      JOIN ProductionOrders po 
+        ON po.ProductionOrderId = b.ProductionOrderId
+      WHERE po.ProductionOrderNumber = @prodOrderNum
+    `;
+
+    const batchCodesResult = await request.query(batchCodesQuery);
+    const batchCodes = batchCodesResult.recordset.map((b) => b.batchCode);
+
+    // If there are no batch codes, return an empty result
+    if (!batchCodes.length) {
+      return res.json({
+        success: true,
+        message: "Không có dữ liệu",
+        page: pageNum,
+        limit: pageLimit,
+        totalCount: 0,
+        totalPages: 0,
+        data: [],
+      });
+    }
+
+    // Query to count total materials excluding those with batch codes in the Batches table
+    const countQuery = `
+      SELECT COUNT(*) as totalCount
+      FROM MESMaterialConsumption mc
+      WHERE mc.ProductionOrderNumber = @prodOrderNum
+        AND mc.batchCode NOT IN (${batchCodes.map((_, i) => `@batchCode${i}`).join(", ")})
+    `;
+
+    // Add batch codes as parameters
+    batchCodes.forEach((code, index) => {
+      request.input(`batchCode${index}`, sql.NVarChar, code);
+    });
+
+    const countResult = await request.query(countQuery);
+    const totalCount = countResult.recordset[0].totalCount;
+
+    // Query to fetch materials excluding those with batch codes in the Batches table
+    const dataQuery = `
+      SELECT 
+        mc.id,
+        mc.productionOrderNumber,
+        mc.batchCode,
+        mc.ingredientCode,
+        COALESCE(pm.ItemName, '') as itemName,
+        mc.lot,
+        mc.quantity,
+        mc.unitOfMeasurement,
+        mc.datetime,
+        mc.operator_ID,
+        mc.supplyMachine,
+        mc.count,
+        mc.request,
+        mc.respone,
+        mc.status1,
+        mc.timestamp
+      FROM MESMaterialConsumption mc WITH (NOLOCK)
+      LEFT JOIN ProductMasters pm WITH (NOLOCK) ON mc.ingredientCode = pm.ItemCode
+      WHERE mc.ProductionOrderNumber = @prodOrderNum
+        AND mc.batchCode NOT IN (${batchCodes.map((_, i) => `@batchCode${i}`).join(", ")})
+      ORDER BY mc.batchCode ASC, mc.id DESC
+      OFFSET ${offset} ROWS
+      FETCH NEXT ${pageLimit} ROWS ONLY
+    `;
+
+    const result = await request.query(dataQuery);
+
+    if (result.recordset.length === 0) {
+      return res.json({
+        success: true,
+        message: "Không có dữ liệu",
+        page: pageNum,
+        limit: pageLimit,
+        totalCount: 0,
+        totalPages: 0,
+        data: [],
+      });
+    }
+
+    const totalPages = Math.ceil(totalCount / pageLimit);
+
+    const data = result.recordset.map((row) => ({
+      id: row.id,
+      productionOrderNumber: row.productionOrderNumber,
+      batchCode: row.batchCode,
+      ingredientCode:
+        row.itemName && row.itemName !== ""
+          ? `${row.ingredientCode} - ${row.itemName}`
+          : row.ingredientCode,
+      lot: row.lot,
+      quantity: row.quantity,
+      unitOfMeasurement: row.unitOfMeasurement,
+      datetime: row.datetime,
+      operator_ID: row.operator_ID,
+      supplyMachine: row.supplyMachine,
+      count: row.count,
+      request: row.request,
+      respone: row.respone,
+      status1: row.status1,
+      timestamp: row.timestamp,
+    }));
+
+    res.json({
+      success: true,
+      message: "Lấy danh sách tiêu hao vật liệu thành công",
+      page: pageNum,
+      limit: pageLimit,
+      totalCount: totalCount,
+      totalPages: totalPages,
+      data: data,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy danh sách tiêu hao vật liệu: ", error.message);
     res.status(500).json({
       success: false,
       message: "Lỗi Server: " + error.message,
@@ -454,10 +607,12 @@ router.get("/:id", async (req, res) => {
         `SELECT 
           po.*,
           pm.ItemName,
-          ing.PlanQuantity as ProductQuantity
+          ing.PlanQuantity as ProductQuantity,
+          rd.RecipeName
         FROM ProductionOrders po
         LEFT JOIN ProductMasters pm ON po.ProductCode = pm.ItemCode
         LEFT JOIN Products ing ON po.ProductCode = ing.ProductCode
+        LEFT JOIN RecipeDetails rd ON po.RecipeCode = rd.RecipeCode AND po.RecipeVersion = rd.Version
         WHERE po.ProductionOrderId = @ProductionOrderId`,
       );
 
@@ -506,11 +661,17 @@ router.get("/:id", async (req, res) => {
     const totalBatches = totalBatchResult.recordset[0]?.totalBatches || 0;
 
     // Update status dynamically and calculate progress like in modal view
+
     const dataWithUpdatedStatus = {
       ...order,
       ProductCode: order.ItemName
         ? `${order.ProductCode} - ${order.ItemName}`
         : order.ProductCode,
+      // RecipeCode: RecipeCode - RecipeName if RecipeName exists
+      RecipeCode:
+        order.RecipeName && order.RecipeCode
+          ? `${order.RecipeCode} - ${order.RecipeName}`
+          : order.RecipeCode,
       Status: hasMESData ? 1 : 0,
       CurrentBatch: currentBatch,
       TotalBatches: totalBatches,

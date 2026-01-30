@@ -154,15 +154,17 @@ router.get("/", async (req, res) => {
 
     const totalPages = totalRecords > 0 ? Math.ceil(totalRecords / limit) : 0;
 
-    // Get paginated data with ProductMasters join
+    // Get paginated data with ProductMasters and RecipeDetails join
     const result = await getPool()
       .request()
       .query(
         `SELECT 
           po.*,
-          pm.ItemName
+          pm.ItemName,
+          rd.RecipeName
         FROM ProductionOrders po
         LEFT JOIN ProductMasters pm ON po.ProductCode = pm.ItemCode
+        LEFT JOIN RecipeDetails rd ON po.RecipeCode = rd.RecipeCode AND po.RecipeVersion = rd.Version
         ORDER BY po.ProductionOrderId DESC 
         OFFSET ${skip} ROWS FETCH NEXT ${limit} ROWS ONLY`,
       );
@@ -250,6 +252,10 @@ router.get("/", async (req, res) => {
       ProductCode: order.ItemName
         ? `${order.ProductCode} - ${order.ItemName}`
         : order.ProductCode,
+      RecipeCode:
+        order.RecipeName && order.RecipeCode
+          ? `${order.RecipeCode} - ${order.RecipeName}`
+          : order.RecipeCode,
       Status: runningOrderNumbers.has(order.ProductionOrderNumber) ? 1 : 0,
       CurrentBatch:
         batchMaps.batchNumbers.get(order.ProductionOrderNumber) || 0,
@@ -451,9 +457,11 @@ router.get("/search", async (req, res) => {
       SELECT 
         ${poColumnList},
         pm.ItemName,
+        rd.RecipeName,
         CASE WHEN EXISTS (SELECT 1 FROM MESMaterialConsumption mmc WHERE mmc.ProductionOrderNumber = po.ProductionOrderNumber) THEN 1 ELSE 0 END AS Status
       FROM ProductionOrders po
       LEFT JOIN ProductMasters pm ON po.ProductCode = pm.ItemCode
+      LEFT JOIN RecipeDetails rd ON po.RecipeCode = rd.RecipeCode AND po.RecipeVersion = rd.Version
     )
     SELECT * FROM POStatus
     ${cteWhereClause}
@@ -543,6 +551,10 @@ router.get("/search", async (req, res) => {
       ProductCode: order.ItemName
         ? `${order.ProductCode} - ${order.ItemName}`
         : order.ProductCode,
+      RecipeCode:
+        order.RecipeName && order.RecipeCode
+          ? `${order.RecipeCode} - ${order.RecipeName}`
+          : order.RecipeCode,
       Status: runningOrderNumbers.has(order.ProductionOrderNumber) ? 1 : 0,
       CurrentBatch:
         batchMaps.batchNumbers.get(order.ProductionOrderNumber) || 0,

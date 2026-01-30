@@ -18,7 +18,7 @@ body {
 /* Top Navigation Bar */
 .topBar {
   width: 100%;
-  max-width: 1400px;
+  max-width: 1480px;
   height: 60px;
   display: flex;
   align-items: center;
@@ -54,7 +54,7 @@ body {
 /* Main Container */
 .main-container {
   width: 100%;
-  max-width: 1400px;
+  max-width: 1480px;
   margin: 0 auto;
   padding: 0 20px;
   padding-bottom: 40px;
@@ -392,7 +392,7 @@ body {
   color: #5b4ce8;
   border-radius: 4px;
   font-weight: 600;
-  gap: 6px;
+  gap: 3px;
 }
 
 .area-badge-link {
