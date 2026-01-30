@@ -1009,6 +1009,12 @@ function showMaterialListModal(group) {
   });
 
   modal.style.display = "flex";
+
+  modal.onclick = function (event) {
+    if (event.target === modal) {
+      closeMaterialListModal();
+    }
+  };
 }
 
 // Close material list modal function
