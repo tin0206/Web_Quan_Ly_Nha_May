@@ -199,71 +199,33 @@ function groupMaterials(materialsArray) {
   const groupMap = new Map();
 
   materialsArray.forEach((material) => {
-    // Create a unique key based on ingredient and unit only (removed lot)
     const key = `${material.ingredientCode || ""}_${material.unitOfMeasurement || ""}`;
 
     if (groupMap.has(key)) {
       const group = groupMap.get(key);
-      // Add quantity to total
-      group.totalQuantity += parseFloat(material.quantity) || 0;
-      // Add material to items array
-      group.items.push(material);
-      // Add ID to ids array
-      group.ids.push(material.id);
-      // Track unique lots
-      if (material.lot && !group.lots.has(material.lot)) {
-        group.lots.add(material.lot);
-      }
-      // Update latest datetime
-      if (
-        material.datetime &&
-        (!group.latestDatetime ||
-          new Date(material.datetime) > new Date(group.latestDatetime))
-      ) {
-        group.latestDatetime = material.datetime;
+      // Check if the material is already in the group
+      const isDuplicate = group.items.some(
+        (item) => JSON.stringify(item) === JSON.stringify(material),
+      );
+      if (!isDuplicate) {
+        group.items.push(material);
       }
     } else {
       // Create new group
-      const lotsSet = new Set();
-      if (material.lot) {
-        lotsSet.add(material.lot);
-      }
-
       groupMap.set(key, {
-        batchCode: material.batchCode,
         ingredientCode: material.ingredientCode,
         lot: material.lot,
-        lots: lotsSet, // Track all unique lots
         unitOfMeasurement: material.unitOfMeasurement,
-        totalQuantity: parseFloat(material.quantity) || 0,
+        totalQuantity: 0,
         items: [material],
         ids: [material.id],
         latestDatetime: material.datetime,
         respone: material.respone,
-        key: key,
       });
     }
   });
 
-  // Convert lots Set to display value
-  const groups = Array.from(groupMap.values()).map((group) => {
-    // If multiple items with different lots, show "-"
-    if (group.items.length > 1 && group.lots.size > 1) {
-      group.lot = "-";
-    } else if (group.lots.size === 1) {
-      // If all items have same lot, use that lot
-      group.lot = Array.from(group.lots)[0];
-    } else if (group.lots.size === 0) {
-      // If no lot at all
-      group.lot = "-";
-    }
-
-    // Remove lots Set before returning
-    delete group.lots;
-    return group;
-  });
-
-  return groups;
+  return Array.from(groupMap.values());
 }
 
 // Group unconsumed ingredients by ingredient code and unit of measurement
@@ -327,6 +289,8 @@ function renderMaterialsTable(
   let html = "";
   const poQuantity = parseFloat(order.ProductQuantity) || 1;
 
+  console.log("Before grouping, materials array:");
+  console.log(groupedMaterialsArray);
   groupedMaterialsArray.forEach((group, index) => {
     const idsDisplay =
       group.ids.length >= 2
@@ -407,6 +371,9 @@ function renderMaterialsTable(
     </tr>`;
   });
 
+  console.log("After grouping, materials array:");
+  console.log(groupedMaterialsArray);
+
   // Add unconsumed ingredients at the end (with different styling)
   unconsumedIngredients.forEach((ingredient, unconsumedIndex) => {
     const ingredientCodeDisplay = ingredient.ItemName
@@ -485,6 +452,9 @@ function renderMaterialsTable(
   });
 
   tbody.innerHTML = html;
+
+  console.log("Rendered materials table HTML:");
+  console.log(groupedMaterialsArray);
 
   // Add event listeners to View buttons for consumed materials
   const viewButtons = document.querySelectorAll(".viewMaterialGroupBtn");
