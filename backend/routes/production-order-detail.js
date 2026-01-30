@@ -589,8 +589,7 @@ router.post("/product-masters-by-codes", async (req, res) => {
 // Get production order detail by ID (MUST be last - catch-all route)
 router.get("/:id", async (req, res) => {
   try {
-    const { id } = req.params;
-    const productionOrderId = parseInt(id, 10);
+    const productionOrderId = parseInt(req.params.id, 10);
 
     if (isNaN(productionOrderId)) {
       return res.status(400).json({
@@ -599,23 +598,64 @@ router.get("/:id", async (req, res) => {
       });
     }
 
-    const result = await getPool()
-      .request()
-      .input("ProductionOrderId", sql.Int, productionOrderId)
-      .query(
-        `SELECT 
-          po.*,
-          pm.ItemName,
-          ing.PlanQuantity as ProductQuantity,
-          rd.RecipeName
-        FROM ProductionOrders po
-        LEFT JOIN ProductMasters pm ON po.ProductCode = pm.ItemCode
-        LEFT JOIN Products ing ON po.ProductCode = ing.ProductCode
-        LEFT JOIN RecipeDetails rd ON po.RecipeCode = rd.RecipeCode AND po.RecipeVersion = rd.Version
-        WHERE po.ProductionOrderId = @ProductionOrderId`,
-      );
+    const pool = getPool();
+    const request = pool.request();
+    request.input("ProductionOrderId", sql.Int, productionOrderId);
 
-    if (result.recordset.length === 0) {
+    const query = `
+      SELECT
+        po.*,
+        pm.ItemName,
+        ing.PlanQuantity AS ProductQuantity,
+        rd.RecipeName,
+
+        -- MES info
+        CASE 
+          WHEN COUNT(mc.Id) > 0 THEN 1 ELSE 0 
+        END AS HasMESData,
+        MAX(mc.BatchCode) AS CurrentBatch,
+
+        -- Batch info
+        COUNT(DISTINCT b.BatchNumber) AS TotalBatches
+      FROM ProductionOrders po
+      LEFT JOIN ProductMasters pm 
+        ON po.ProductCode = pm.ItemCode
+      LEFT JOIN Products ing 
+        ON po.ProductCode = ing.ProductCode
+      LEFT JOIN RecipeDetails rd 
+        ON po.RecipeCode = rd.RecipeCode 
+       AND po.RecipeVersion = rd.Version
+      LEFT JOIN MESMaterialConsumption mc
+        ON mc.ProductionOrderNumber = po.ProductionOrderNumber
+      LEFT JOIN Batches b
+        ON b.ProductionOrderId = po.ProductionOrderId
+      WHERE po.ProductionOrderId = @ProductionOrderId
+      GROUP BY
+        po.ProductionOrderId,
+        po.ProductionLine,
+        po.ProductCode,
+        po.ProductionOrderNumber,
+        po.RecipeCode,
+        po.RecipeVersion,
+        po.Shift,
+        po.PlannedStart,
+        po.PlannedEnd,
+        po.Quantity,
+        po.UnitOfMeasurement,
+        po.LotNumber,
+        po.timestamp,
+        po.Plant,
+        po.Shopfloor,
+        po.ProcessArea,
+        po.Status,
+        pm.ItemName,
+        ing.PlanQuantity,
+        rd.RecipeName
+    `;
+
+    const result = await request.query(query);
+
+    if (!result.recordset.length) {
       return res.status(404).json({
         success: false,
         message: "Không tìm thấy đơn hàng",
@@ -624,69 +664,31 @@ router.get("/:id", async (req, res) => {
 
     const order = result.recordset[0];
 
-    // Check if this order has any MESMaterialConsumption data
-    const mesDataResult = await getPool()
-      .request()
-      .input("ProductionOrderNumber", sql.NVarChar, order.ProductionOrderNumber)
-      .query(
-        "SELECT COUNT(*) as count FROM MESMaterialConsumption WHERE ProductionOrderNumber = @ProductionOrderNumber",
-      );
-
-    const hasMESData = mesDataResult.recordset[0].count > 0;
-
-    // Get CurrentBatch from MESMaterialConsumption (MAX BatchCode)
-    const currentBatchResult = await getPool()
-      .request()
-      .input("ProductionOrderNumber", sql.NVarChar, order.ProductionOrderNumber)
-      .query(`
-        SELECT 
-          MAX(BatchCode) as maxBatchCode
-        FROM MESMaterialConsumption
-        WHERE ProductionOrderNumber = @ProductionOrderNumber
-      `);
-
-    const currentBatch = currentBatchResult.recordset[0]?.maxBatchCode || 0;
-
-    // Get TotalBatches from Batches table
-    const totalBatchResult = await getPool()
-      .request()
-      .input("ProductionOrderId", sql.Int, productionOrderId).query(`
-        SELECT 
-          COUNT(*) as totalBatches
-        FROM Batches
-        WHERE ProductionOrderId = @ProductionOrderId
-      `);
-
-    const totalBatches = totalBatchResult.recordset[0]?.totalBatches || 0;
-
-    // Update status dynamically and calculate progress like in modal view
-
-    const dataWithUpdatedStatus = {
+    const data = {
       ...order,
       ProductCode: order.ItemName
         ? `${order.ProductCode} - ${order.ItemName}`
         : order.ProductCode,
-      // RecipeCode: RecipeCode - RecipeName if RecipeName exists
       RecipeCode:
         order.RecipeName && order.RecipeCode
           ? `${order.RecipeCode} - ${order.RecipeName}`
           : order.RecipeCode,
-      Status: hasMESData ? 1 : 0,
-      CurrentBatch: currentBatch,
-      TotalBatches: totalBatches,
+      Status: order.HasMESData,
+      CurrentBatch: order.CurrentBatch || 0,
+      TotalBatches: order.TotalBatches || 0,
       ProductQuantity: order.ProductQuantity || null,
     };
 
     res.json({
       success: true,
       message: "Lấy chi tiết đơn hàng thành công",
-      data: dataWithUpdatedStatus,
+      data,
     });
   } catch (error) {
-    console.error("Lỗi khi lấy chi tiết đơn hàng: ", error.message);
+    console.error("Lỗi khi lấy chi tiết đơn hàng:", error);
     res.status(500).json({
       success: false,
-      message: "Lỗi: " + error.message,
+      message: "Lỗi server",
     });
   }
 });
