@@ -145,38 +145,40 @@ router.get("/ingredients-by-product", async (req, res) => {
 });
 
 // Helper: Get ingredients for a production order
-async function getIngredients(request, productionOrderNumber) {
-  const ingredientQuery = `
-    SELECT DISTINCT IngredientCode, ItemName
+async function getIngredientCount(request) {
+  const result = await request.query(`
+    SELECT COUNT(*) AS total
     FROM (
-        SELECT 
-            i.IngredientCode,
-            pm.ItemName
-        FROM ProductionOrders po
-        JOIN RecipeDetails rd 
-            ON rd.ProductCode = po.ProductCode 
-            AND rd.Version = po.RecipeVersion
-        JOIN Processes p 
-            ON p.RecipeDetailsId = rd.RecipeDetailsId
-        JOIN Ingredients i 
-            ON i.ProcessId = p.ProcessId
-        LEFT JOIN ProductMasters pm 
-            ON pm.ItemCode = i.IngredientCode
-        WHERE po.ProductionOrderNumber = @prodOrderNum
+      SELECT i.IngredientCode
+      FROM ProductionOrders po
+      JOIN RecipeDetails rd 
+        ON rd.ProductCode = po.ProductCode 
+        AND rd.Version = po.RecipeVersion
+      JOIN Processes p 
+        ON p.RecipeDetailsId = rd.RecipeDetailsId
+      JOIN Ingredients i 
+        ON i.ProcessId = p.ProcessId
+      WHERE po.ProductionOrderNumber = @prodOrderNum
 
-        UNION
+      UNION
 
-        SELECT 
-            mc.ingredientCode,
-            pm.ItemName
-        FROM MESMaterialConsumption mc
-        LEFT JOIN ProductMasters pm 
-            ON pm.ItemCode = mc.ingredientCode
-        WHERE mc.productionOrderNumber = @prodOrderNum
-    ) x
-  `;
-  const ingredientResult = await request.query(ingredientQuery);
-  return ingredientResult.recordset;
+      SELECT mc.ingredientCode
+      FROM MESMaterialConsumption mc
+      WHERE mc.productionOrderNumber = @prodOrderNum
+    ) t
+  `);
+  return result.recordset[0].total;
+}
+
+async function getTotalBatchCount(request) {
+  const result = await request.query(`
+    SELECT COUNT(*) AS total
+    FROM Batches b
+    JOIN ProductionOrders po 
+      ON po.ProductionOrderId = b.ProductionOrderId
+    WHERE po.ProductionOrderNumber = @prodOrderNum
+  `);
+  return result.recordset[0].total;
 }
 
 // Helper: Get batches for a production order (with pagination)
@@ -195,127 +197,122 @@ async function getBatches(request, productionOrderNumber, offset, pageLimit) {
   return batchResult.recordset.map((b) => b.batchCode);
 }
 
-// Helper: Get material consumptions data for given batches and ingredients
 async function getMaterialConsumptionsData(
   request,
   productionOrderNumber,
   batches,
-  pageLimit,
 ) {
   if (!batches.length) return [];
+
+  const table = batches.map((b, i) => `(@b${i})`).join(",");
+  batches.forEach((b, i) => {
+    request.input(`b${i}`, sql.NVarChar, b);
+  });
+
   const dataQuery = `
     SELECT
-        b.batchCode,
-        i.IngredientCode,
-        i.ItemName,
-        mc.id,
-        mc.lot,
-        mc.quantity,
-        COALESCE(mc.unitOfMeasurement, ing.UnitOfMeasurement) AS unitOfMeasurement,
-        mc.datetime,
-        mc.operator_ID,
-        mc.supplyMachine,
-        mc.count,
-        mc.request,
-        mc.respone,
-        mc.status1,
-        mc.timestamp
+      b.batchCode,
+      i.IngredientCode,
+      i.ItemName,
+      mc.id,
+      mc.lot,
+      mc.quantity,
+      COALESCE(mc.unitOfMeasurement, ing.UnitOfMeasurement) AS unitOfMeasurement,
+      mc.datetime,
+      mc.operator_ID,
+      mc.supplyMachine,
+      mc.count,
+      mc.request,
+      mc.respone,
+      mc.status1,
+      mc.timestamp
     FROM (
-        SELECT b.BatchNumber AS batchCode
-        FROM Batches b
-        JOIN ProductionOrders po 
-          ON po.ProductionOrderId = b.ProductionOrderId
-        WHERE po.ProductionOrderNumber = @prodOrderNum
-          AND b.BatchNumber IN (${batches.map((b) => `'${b}'`).join(",")})
+      SELECT BatchNumber AS batchCode
+      FROM Batches
+      WHERE BatchNumber IN (${table})
     ) b
     CROSS JOIN (
-        SELECT IngredientCode, ItemName
-        FROM (
-            SELECT 
-                i.IngredientCode,
-                pm.ItemName
-            FROM ProductionOrders po
-            JOIN RecipeDetails rd 
-                ON rd.ProductCode = po.ProductCode 
-                AND rd.Version = po.RecipeVersion
-            JOIN Processes p 
-                ON p.RecipeDetailsId = rd.RecipeDetailsId
-            JOIN Ingredients i 
-                ON i.ProcessId = p.ProcessId
-            LEFT JOIN ProductMasters pm 
-                ON pm.ItemCode = i.IngredientCode
-            WHERE po.ProductionOrderNumber = @prodOrderNum
+      SELECT DISTINCT IngredientCode, ItemName
+      FROM (
+        SELECT i.IngredientCode, pm.ItemName
+        FROM ProductionOrders po
+        JOIN RecipeDetails rd 
+          ON rd.ProductCode = po.ProductCode 
+          AND rd.Version = po.RecipeVersion
+        JOIN Processes p 
+          ON p.RecipeDetailsId = rd.RecipeDetailsId
+        JOIN Ingredients i 
+          ON i.ProcessId = p.ProcessId
+        LEFT JOIN ProductMasters pm 
+          ON pm.ItemCode = i.IngredientCode
+        WHERE po.ProductionOrderNumber = @prodOrderNum
 
-            UNION
+        UNION
 
-            SELECT 
-                mc.ingredientCode,
-                pm.ItemName
-            FROM MESMaterialConsumption mc
-            LEFT JOIN ProductMasters pm 
-                ON pm.ItemCode = mc.ingredientCode
-            WHERE mc.productionOrderNumber = @prodOrderNum
-        ) t
+        SELECT mc.ingredientCode, pm.ItemName
+        FROM MESMaterialConsumption mc
+        LEFT JOIN ProductMasters pm 
+          ON pm.ItemCode = mc.ingredientCode
+        WHERE mc.productionOrderNumber = @prodOrderNum
+      ) x
     ) i
     LEFT JOIN MESMaterialConsumption mc
       ON mc.productionOrderNumber = @prodOrderNum
-    AND mc.batchCode = b.batchCode
-    AND mc.ingredientCode = i.IngredientCode
+     AND mc.batchCode = b.batchCode
+     AND mc.ingredientCode = i.IngredientCode
     LEFT JOIN Ingredients ing
       ON ing.IngredientCode = i.IngredientCode
     ORDER BY b.batchCode, i.IngredientCode
   `;
-  const dataResult = await request.query(dataQuery);
-  // Remove duplicates
-  const data = [];
-  const seen = new Set();
-  dataResult.recordset.forEach((row) => {
-    const key = `${row.id || ""}|${row.batchCode || ""}|${row.ingredientCode || ""}|${row.lot || ""}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      data.push({
-        id: row.id,
-        batchCode: row.batchCode,
-        ingredientCode: row.ItemName
-          ? `${row.IngredientCode} - ${row.ItemName}`
-          : row.IngredientCode,
-        lot: row.lot || "",
-        quantity: row.quantity,
-        unitOfMeasurement: row.unitOfMeasurement || "",
-        datetime: row.datetime,
-        operator_ID: row.operator_ID,
-        supplyMachine: row.supplyMachine,
-        count: row.count || 0,
-        request: row.request,
-        respone: row.respone,
-        status1: row.status1,
-        timestamp: row.timestamp,
-      });
-    }
-  });
-  return data;
+
+  const { recordset } = await request.query(dataQuery);
+
+  return recordset.map((row) => ({
+    id: row.id,
+    batchCode: row.batchCode,
+    ingredientCode: row.ItemName
+      ? `${row.IngredientCode} - ${row.ItemName}`
+      : row.IngredientCode,
+    lot: row.lot || "",
+    quantity: row.quantity,
+    unitOfMeasurement: row.unitOfMeasurement || "",
+    datetime: row.datetime,
+    operator_ID: row.operator_ID,
+    supplyMachine: row.supplyMachine,
+    count: row.count || 0,
+    request: row.request,
+    respone: row.respone,
+    status1: row.status1,
+    timestamp: row.timestamp,
+  }));
 }
 
 // Route: Get material consumptions (refactored)
 router.get("/material-consumptions", async (req, res) => {
   try {
     const { productionOrderNumber, page = 1, limit = 20 } = req.query;
+
     if (!productionOrderNumber?.trim()) {
       return res.status(400).json({
         success: false,
         message: "productionOrderNumber là bắt buộc",
       });
     }
-    const pageNum = Math.max(1, parseInt(page) || 1);
-    const pageLimit = Math.min(100, Math.max(1, parseInt(limit) || 20));
+
+    const pageNum = Math.max(1, Number(page));
+    const pageLimit = Math.min(100, Math.max(1, Number(limit)));
     const offset = (pageNum - 1) * pageLimit;
+
     const pool = getPool();
     const request = pool.request();
     request.input("prodOrderNum", sql.NVarChar, productionOrderNumber.trim());
 
-    // Get ingredients
-    const ingredients = await getIngredients(request, productionOrderNumber);
-    if (!ingredients.length) {
+    const [totalBatches, totalIngredients] = await Promise.all([
+      getTotalBatchCount(request),
+      getIngredientCount(request),
+    ]);
+
+    if (!totalBatches || !totalIngredients) {
       return res.json({
         success: true,
         page: pageNum,
@@ -326,44 +323,30 @@ router.get("/material-consumptions", async (req, res) => {
       });
     }
 
-    // Get batches (paginated)
     const batches = await getBatches(
       request,
       productionOrderNumber,
       offset,
       pageLimit,
     );
-    if (!batches.length) {
-      return res.json({
-        success: true,
-        page: pageNum,
-        limit: pageLimit,
-        totalCount: 0,
-        totalPages: 0,
-        data: [],
-      });
-    }
 
-    // Get material consumptions data
     const data = await getMaterialConsumptionsData(
       request,
       productionOrderNumber,
       batches,
-      pageLimit,
     );
-    const totalCount = batches.length * ingredients.length;
-    const totalPages = Math.ceil(totalCount / pageLimit);
+
     res.json({
       success: true,
       message: "Lấy danh sách tiêu hao vật liệu thành công",
       page: pageNum,
       limit: pageLimit,
-      totalCount,
-      totalPages,
+      totalCount: totalBatches * totalIngredients,
+      totalPages: Math.ceil(totalBatches / pageLimit),
       data,
     });
   } catch (error) {
-    console.error("Lỗi material-consumptions:", error);
+    console.error(error);
     res.status(500).json({
       success: false,
       message: "Lỗi Server: " + error.message,
