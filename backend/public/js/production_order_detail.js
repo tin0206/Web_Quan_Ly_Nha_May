@@ -1009,13 +1009,6 @@ function showMaterialListModal(group) {
   });
 
   modal.style.display = "flex";
-
-  // Add click event to close modal when clicking outside
-  modal.onclick = function (event) {
-    if (event.target === modal) {
-      closeMaterialListModal();
-    }
-  };
 }
 
 // Close material list modal function
