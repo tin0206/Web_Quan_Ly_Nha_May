@@ -33,12 +33,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   sourceCodeSpan.textContent = PLANTCODE;
   destinationCodeSpan.textContent = LINE;
 
-  if (dateFromInput && !dateFromInput.value) {
-    dateFromInput.value = yesterday.toISOString().split("T")[0];
-  }
-  if (dateToInput && !dateToInput.value) {
-    dateToInput.value = tomorrow.toISOString().split("T")[0];
-  }
+  // if (dateFromInput && !dateFromInput.value) {
+  //   dateFromInput.value = yesterday.toISOString().split("T")[0];
+  // }
+  // if (dateToInput && !dateToInput.value) {
+  //   dateToInput.value = tomorrow.toISOString().split("T")[0];
+  // }
 
   // Restore state if returning from detail page
   const savedState = sessionStorage.getItem("poListState");
@@ -1073,7 +1073,7 @@ async function fetchProductionOrders(page = 1) {
       currentPage = data.page;
 
       // Store all unique process areas on first load (no filters)
-      if (page === 1 && !hasFilters && allProcessAreas.length === 0) {
+      if (page === 1 && allProcessAreas.length === 0) {
         const processAreasSet = new Set();
         productionOrders.forEach((order) => {
           if (order.ProcessArea && order.ProcessArea.trim() !== "") {

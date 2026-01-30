@@ -1145,6 +1145,7 @@ async function displayBatchesTable(batchesArray) {
   const paginatedBatches = batchesArray.slice(startIndex, endIndex);
 
   // Display table rows
+  let bgColor;
   const tbody = document.getElementById("batchesTableBody");
   tbody.innerHTML = paginatedBatches
     .map((batch) => {
@@ -1154,11 +1155,13 @@ async function displayBatchesTable(batchesArray) {
       );
       if (isRunning) {
         status = "Đang chạy";
+        bgColor = "#d4edda";
       } else {
         status = "Đang chờ";
+        bgColor = "#fff3cd";
       }
       return `
-        <tr style="border-bottom: 1px solid #eee;">
+        <tr style="border-bottom: 1px solid #eee; background-color: ${bgColor};">
           <td style="padding: 12px; text-align: center;">${batch.BatchId}</td>
           <td style="padding: 12px; text-align: center;">${batch.BatchNumber}</td>
           <td style="padding: 12px; text-align: center;">${batch.Quantity} ${batch.UnitOfMeasurement}</td>
