@@ -200,7 +200,6 @@ function groupMaterials(materialsArray) {
 
   materialsArray.forEach((material) => {
     const key = `${material.ingredientCode || ""}_${material.unitOfMeasurement || ""}`;
-
     if (groupMap.has(key)) {
       const group = groupMap.get(key);
       // Check if the material is already in the group
@@ -208,6 +207,7 @@ function groupMaterials(materialsArray) {
         (item) => JSON.stringify(item) === JSON.stringify(material),
       );
       if (!isDuplicate) {
+        group.totalQuantity += parseFloat(material.quantity) || 0;
         group.items.push(material);
       }
     } else {
@@ -216,7 +216,7 @@ function groupMaterials(materialsArray) {
         ingredientCode: material.ingredientCode,
         lot: material.lot,
         unitOfMeasurement: material.unitOfMeasurement,
-        totalQuantity: 0,
+        totalQuantity: parseFloat(material.quantity) || 0,
         items: [material],
         ids: [material.id],
         latestDatetime: material.datetime,
@@ -289,13 +289,11 @@ function renderMaterialsTable(
   let html = "";
   const poQuantity = parseFloat(order.ProductQuantity) || 1;
 
-  console.log("Before grouping, materials array:");
-  console.log(groupedMaterialsArray);
   groupedMaterialsArray.forEach((group, index) => {
     const idsDisplay =
-      group.ids.length >= 2
-        ? `${group.ids.length} items`
-        : group.ids.join(", ");
+      group.items.length >= 2
+        ? `${group.items.length} items`
+        : group.items.map((item) => item.id).join(", ");
 
     // Get unique batch codes from group items
     const uniqueBatchCodes = [
@@ -370,9 +368,6 @@ function renderMaterialsTable(
       </td>
     </tr>`;
   });
-
-  console.log("After grouping, materials array:");
-  console.log(groupedMaterialsArray);
 
   // Add unconsumed ingredients at the end (with different styling)
   unconsumedIngredients.forEach((ingredient, unconsumedIndex) => {
@@ -452,9 +447,6 @@ function renderMaterialsTable(
   });
 
   tbody.innerHTML = html;
-
-  console.log("Rendered materials table HTML:");
-  console.log(groupedMaterialsArray);
 
   // Add event listeners to View buttons for consumed materials
   const viewButtons = document.querySelectorAll(".viewMaterialGroupBtn");
@@ -927,6 +919,10 @@ function showMaterialListModal(group) {
 
   const modal = document.getElementById("materialListModal");
   const tbody = document.getElementById("materialListTableBody");
+  let groupTotalQuantity = 0;
+  group.items.forEach((item) => {
+    groupTotalQuantity += parseFloat(item.quantity) || 0;
+  });
 
   // Update modal header with group info
   document.getElementById("listModalTitle").innerHTML = `
@@ -934,7 +930,7 @@ function showMaterialListModal(group) {
     <div style="font-size: 14px; color: #666;">
       <span style="margin-right: 20px;"><strong>Ingredient:</strong> ${group.ingredientCode || "-"}</span>
       <span style="margin-right: 20px;"><strong>Lot:</strong> ${group.lot || "-"}</span>
-      <span><strong>Total Quantity:</strong> ${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}</span>
+      <span><strong>Total Quantity:</strong> ${groupTotalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}</span>
     </div>
   `;
 
@@ -950,6 +946,9 @@ function showMaterialListModal(group) {
   function getPlanQuantityPerItem(batchCode) {
     const batch = batches.find((b) => b.BatchNumber === batchCode);
     const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
+    if (ingredientsTotalsByUOM[ingredientCodeOnly] === undefined) {
+      return "N/A";
+    }
     const recipeQuantity =
       ingredientsTotalsByUOM[ingredientCodeOnly].total || 0;
     let planQuantity = recipeQuantity;
