@@ -1066,17 +1066,29 @@ function showUnconsumedIngredientModal(ingredient, selectedBatchCode = "") {
     ? `${ingredient.IngredientCode} - ${ingredient.ItemName}`
     : ingredient.IngredientCode;
 
+  let totalPlanQuantity = 0;
+  const poQuantity = parseFloat(order.ProductQuantity) || 1;
+  let filteredBatches = po_default_batches;
+  filteredBatches.forEach((batch) => {
+    const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
+    const recipeQuantity = ingredient.Quantity || 0;
+    let planQuantity = recipeQuantity;
+    if (batchQuantity !== 0 && poQuantity !== 0) {
+      planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
+    }
+    totalPlanQuantity += planQuantity;
+  });
+
   // Update modal header with ingredient info
   document.getElementById("listModalTitle").innerHTML = `
     <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #ff9800;">Danh sách Batches (Chưa tiêu thụ)</div>
     <div style="font-size: 14px; color: #666;">
       <span style="margin-right: 20px;"><strong>Ingredient:</strong> ${ingredientCodeDisplay}</span>
-      <span><strong>Total Quantity:</strong> ${ingredient.Quantity.toFixed(2)} ${ingredient.UnitOfMeasurement || ""}</span>
+      <span><strong>Total Quantity:</strong> ${totalPlanQuantity.toFixed(2)} ${ingredient.UnitOfMeasurement || ""}</span>
     </div>
   `;
 
   // Filter batches by selected batch code
-  let filteredBatches = po_default_batches;
   if (selectedBatchCode) {
     if (selectedBatchCode === "null") {
       filteredBatches = po_default_batches.filter(
@@ -1091,7 +1103,6 @@ function showUnconsumedIngredientModal(ingredient, selectedBatchCode = "") {
 
   // Build table rows for each batch
   let html = "";
-  const poQuantity = parseFloat(order.ProductQuantity) || 1;
 
   filteredBatches.forEach((batch) => {
     const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
@@ -1101,17 +1112,13 @@ function showUnconsumedIngredientModal(ingredient, selectedBatchCode = "") {
       planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
     }
 
-    const batchQuantityDisplay = batch
-      ? `${batch.Quantity} ${batch.UnitOfMeasurement || ""}`
-      : "-";
-
     html += `<tr style="border-bottom: 1px solid #eee; background-color: #fff9e6;">
       <td style="padding: 12px; text-align: center; font-weight: bold;">-</td>
       <td style="padding: 12px; text-align: center;">${batch.BatchNumber || "-"}</td>
       <td style="padding: 12px; text-align: center;">${ingredientCodeDisplay}</td>
       <td style="padding: 12px; text-align: center;">-</td>
-      <td style="padding: 12px; text-align: center;">${batchQuantityDisplay}</td>
       <td style="padding: 12px; text-align: center;">${planQuantity.toFixed(2)} ${ingredient.UnitOfMeasurement || ""}</td>
+      <td style="padding: 12px; text-align: center;">${"N/A"} ${ingredient.UnitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">N/A ${ingredient.UnitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">-</td>
       <td style="padding: 12px; text-align: center;">

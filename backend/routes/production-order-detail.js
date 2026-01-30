@@ -94,7 +94,6 @@ router.get("/ingredients-by-product", async (req, res) => {
 
     const query = `
       SELECT
-        i.ProcessId,
         i.IngredientCode,
         i.Quantity,
         i.UnitOfMeasurement,
@@ -104,7 +103,7 @@ router.get("/ingredients-by-product", async (req, res) => {
       FROM ProductionOrders po
       JOIN RecipeDetails rd 
         ON rd.ProductCode = po.ProductCode 
-        AND rd.Version = po.RecipeVersion
+      AND rd.Version = po.RecipeVersion
       JOIN Processes p 
         ON p.RecipeDetailsId = rd.RecipeDetailsId
       JOIN Ingredients i 
