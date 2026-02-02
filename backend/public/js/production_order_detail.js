@@ -209,6 +209,7 @@ function groupMaterials(materialsArray) {
       if (!isDuplicate) {
         group.totalQuantity += parseFloat(material.quantity) || 0;
         group.items.push(material);
+        group.ids.push(material.id);
       }
     } else {
       // Create new group
@@ -416,10 +417,13 @@ async function fetchMaterialsWithPagination() {
       const response = await fetch(
         `${API_ROUTE}/api/production-order-detail/material-consumptions?${queryParams.toString()}`,
         {
-          method: "GET",
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            batches: batches.map((b) => b.BatchNumber),
+          }),
         },
       );
 
@@ -518,10 +522,26 @@ async function fetchMaterialsWithPagination() {
     const startIndex = (materialsCurrentPage - 1) * materialsPerPage;
     const endIndex = startIndex + materialsPerPage;
     let finalGroupedMaterials = groupedMaterials;
+
     if (materialFilterType === "consumed") {
-      finalGroupedMaterials = groupedMaterials.filter(
-        (group) => group.ids[0] !== null && group.ids.length > 0,
-      );
+      finalGroupedMaterials = groupedMaterials
+        .filter((group) => {
+          if (group.ids.length == 0) return false;
+          let hasValidId = false;
+          for (let i = 0; i < group.ids.length; i++) {
+            if (group.ids[i] !== null) {
+              hasValidId = true;
+              break;
+            }
+          }
+
+          return hasValidId;
+        })
+        .map((group) => ({
+          ...group,
+          ids: group.ids.filter((id) => id !== null),
+          items: group.items.filter((item) => item.id !== null),
+        }));
     } else if (materialFilterType === "unconsumed") {
       finalGroupedMaterials = groupedMaterials.filter(
         (group) => group.ids[0] === null || group.ids.length === 0,
@@ -609,11 +629,11 @@ function showMaterialModal(material) {
   const modal = document.getElementById("materialModal");
   document.getElementById("modalId").textContent = material.id || "-";
   document.getElementById("modalProductionOrderNumber").textContent =
-    material.productionOrderNumber || "-";
+    order.ProductionOrderNumber || "-";
   document.getElementById("modalBatchCode").textContent =
     material.batchCode || "-";
   document.getElementById("modalIngredientCode").textContent =
-    material.ingredientCode || "-";
+    material.ingredientCode;
   document.getElementById("modalLot").textContent = material.lot || "-";
 
   // Calculate Plan Quantity
@@ -624,7 +644,9 @@ function showMaterialModal(material) {
     : "";
   const poQuantity = parseFloat(order.ProductQuantity) || 1;
   const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
-  const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly].total || 0;
+  const recipeQuantity = ingredientsTotalsByUOM[ingredientCodeOnly]
+    ? ingredientsTotalsByUOM[ingredientCodeOnly].total
+    : 0;
   let planQuantity = recipeQuantity;
   if (batchQuantity !== 0) {
     planQuantity = (recipeQuantity / poQuantity) * batchQuantity;
@@ -1031,6 +1053,10 @@ function renderBatchCodeRadioButtons(batchesArray) {
         bgColor = "#fff3cd";
         borderColor = "#ffeaa7";
       }
+      if (code === "null") {
+        bgColor = "#d4edda";
+        borderColor = "#c3e6cb";
+      }
 
       return `
         <label style="
@@ -1109,11 +1135,24 @@ function updateBatchCodeRadioStyles() {
       }
 
       const batchCode = radio.value;
+      // Sửa đoạn này:
+      let isRunning = false;
+      if (batchCode === "null") {
+        isRunning = running_batches.some((b) => b.batchCode === null);
+      } else {
+        isRunning = running_batches.some((b) => b.batchCode === batchCode);
+      }
+
       const hasMaterial = batchesWithMaterials.has(batchCode);
 
-      label.style.background = hasMaterial ? "#d4edda" : "#fff3cd";
+      if (isRunning) {
+        label.style.background = "#d4edda";
+        label.style.borderColor = "#c3e6cb";
+      } else {
+        label.style.background = hasMaterial ? "#d4edda" : "#fff3cd";
+        label.style.borderColor = hasMaterial ? "#c3e6cb" : "#ffeaa7";
+      }
       label.style.color = "inherit";
-      label.style.borderColor = hasMaterial ? "#c3e6cb" : "#ffeaa7";
       label.style.fontWeight = "normal";
     }
   });
@@ -1222,9 +1261,16 @@ function mergeBatchesRemoveDuplicate(arr1, arr2) {
     }
   });
 
+  let foundNull = false;
+
   arr2.forEach((batch) => {
     if (batch.BatchNumber && !map.has(batch.BatchNumber)) {
       map.set(batch.BatchNumber, batch);
+    } else if (batch.BatchNumber === null) {
+      if (!foundNull) {
+        foundNull = true;
+        map.set(batch.BatchNumber, batch);
+      }
     }
   });
 
@@ -1271,8 +1317,6 @@ async function fetchBatches() {
             UnitOfMeasurement: "",
           }),
       );
-
-      po_default_batches = batches;
 
       batches = mergeBatchesRemoveDuplicate(batches, batchCodesWithMaterials);
     }

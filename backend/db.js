@@ -3,8 +3,13 @@ const sql = require("mssql");
 let pool;
 
 async function connectDB(config) {
-  pool = await sql.connect(config);
-  console.log("✅ SQL Server IGSMasanDB connected");
+  try {
+    pool = await sql.connect(config);
+    console.log("✅ SQL Server IGSMasanDB connected");
+  } catch (err) {
+    console.error("❌ SQL Server connection failed:", err.message);
+    throw err;
+  }
 }
 
 function getPool() {

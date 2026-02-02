@@ -181,22 +181,6 @@ async function getTotalBatchCount(request) {
   return result.recordset[0].total;
 }
 
-// Helper: Get batches for a production order (with pagination)
-async function getBatches(request, productionOrderNumber, offset, pageLimit) {
-  const batchQuery = `
-    SELECT b.BatchNumber AS batchCode
-    FROM Batches b
-    JOIN ProductionOrders po 
-      ON po.ProductionOrderId = b.ProductionOrderId
-    WHERE po.ProductionOrderNumber = @prodOrderNum
-    ORDER BY b.BatchNumber
-    OFFSET ${offset} ROWS
-    FETCH NEXT ${pageLimit} ROWS ONLY
-  `;
-  const batchResult = await request.query(batchQuery);
-  return batchResult.recordset.map((b) => b.batchCode);
-}
-
 async function getMaterialConsumptionsData(
   request,
   productionOrderNumber,
@@ -267,7 +251,7 @@ async function getMaterialConsumptionsData(
 
   const { recordset } = await request.query(dataQuery);
 
-  return recordset.map((row) => ({
+  const mappedRecordset = recordset.map((row) => ({
     id: row.id,
     batchCode: row.batchCode,
     ingredientCode: row.ItemName
@@ -285,12 +269,61 @@ async function getMaterialConsumptionsData(
     status1: row.status1,
     timestamp: row.timestamp,
   }));
+
+  const nullBatchQuery = `
+    SELECT
+      mc.id,
+      mc.batchCode,
+      mc.ingredientCode AS IngredientCode,
+      pm.ItemName,
+      mc.lot,
+      mc.quantity,
+      mc.unitOfMeasurement,
+      mc.datetime,
+      mc.operator_ID,
+      mc.supplyMachine,
+      mc.count,
+      mc.request,
+      mc.respone,
+      mc.status1,
+      mc.timestamp
+    FROM MESMaterialConsumption mc
+    LEFT JOIN ProductMasters pm
+      ON pm.ItemCode = mc.ingredientCode
+    WHERE mc.productionOrderNumber = @prodOrderNum
+      AND mc.batchCode IS NULL
+  `;
+
+  const { recordset: nullBatchRows } = await request.query(nullBatchQuery);
+
+  const nullBatchData = nullBatchRows.map((row) => ({
+    id: row.id,
+    batchCode: null,
+    ingredientCode: row.ItemName
+      ? `${row.IngredientCode} - ${row.ItemName}`
+      : row.IngredientCode,
+    lot: row.lot || "",
+    quantity: row.quantity,
+    unitOfMeasurement: row.unitOfMeasurement || "",
+    datetime: row.datetime,
+    operator_ID: row.operator_ID,
+    supplyMachine: row.supplyMachine,
+    count: row.count || 0,
+    request: row.request,
+    respone: row.respone,
+    status1: row.status1,
+    timestamp: row.timestamp,
+  }));
+
+  const finalData = [...mappedRecordset, ...nullBatchData];
+  return finalData;
 }
 
 // Route: Get material consumptions (refactored)
-router.get("/material-consumptions", async (req, res) => {
+router.post("/material-consumptions", async (req, res) => {
   try {
     const { productionOrderNumber, page = 1, limit = 20 } = req.query;
+    const { batches } = req.body;
 
     if (!productionOrderNumber?.trim()) {
       return res.status(400).json({
@@ -301,7 +334,6 @@ router.get("/material-consumptions", async (req, res) => {
 
     const pageNum = Math.max(1, Number(page));
     const pageLimit = Math.min(100, Math.max(1, Number(limit)));
-    const offset = (pageNum - 1) * pageLimit;
 
     const pool = getPool();
     const request = pool.request();
@@ -322,13 +354,6 @@ router.get("/material-consumptions", async (req, res) => {
         data: [],
       });
     }
-
-    const batches = await getBatches(
-      request,
-      productionOrderNumber,
-      offset,
-      pageLimit,
-    );
 
     const data = await getMaterialConsumptionsData(
       request,
