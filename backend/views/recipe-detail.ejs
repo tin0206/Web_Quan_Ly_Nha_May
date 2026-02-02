@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chi tiết Công thức #<%= recipeId %></title>
+    <link rel="stylesheet" href="/css/main_style.css" />
+    <link rel="stylesheet" href="/css/recipe_detail_style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <script type="module" src="/js/production_recipe_detail.js" defer></script>
+  </head>
+  <body>
+    <div class="main-container">
+      <div class="header-container">
+        <a class="back-btn" href="/recipes">
+          <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div class="header-text">
+          <h1>Recipe Detail</h1>
+          <p>
+            ID:
+            <strong><%= recipeId %></strong>
+          </p>
+        </div>
+      </div>
+      <div>
+        <div id="recipeDetails" style="display: block">
+          <div
+            style="
+              background: #fff;
+              border-radius: 8px;
+              padding: 30px;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+              margin: 0 auto;
+            "
+          >
+            <div
+              style="
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr 1fr;
+                gap: 20px;
+                text-align: left;
+              "
+            >
+              <div>
+                <label style="font-weight: bold; color: #666">ID</label>
+                <p style="margin: 5px 0; font-size: 16px" id="detailRecipeId">
+                  -
+                </p>
+              </div>
+              <div>
+                <label style="font-weight: bold; color: #666"
+                  >Mã Sản Phẩm</label
+                >
+                <p
+                  style="margin: 5px 0; font-size: 16px"
+                  id="detailRecipeProductCode"
+                >
+                  -
+                </p>
+              </div>
+              <div>
+                <label style="font-weight: bold; color: #666"
+                  >Tên Sản Phẩm</label
+                >
+                <p
+                  style="margin: 5px 0; font-size: 16px"
+                  id="detailProductionName"
+                >
+                  -
+                </p>
+              </div>
+              <div>
+                <label style="font-weight: bold; color: #666"
+                  >Mã Công Thức</label
+                >
+                <p style="margin: 5px 0; font-size: 16px" id="detailRecipeCode">
+                  -
+                </p>
+              </div>
+              <div>
+                <label style="font-weight: bold; color: #666">Phiên Bản</label>
+                <p
+                  style="margin: 5px 0; font-size: 16px"
+                  id="detailRecipeVersion"
+                >
+                  -
+                </p>
+              </div>
+              <div>
+                <label style="font-weight: bold; color: #666">Trạng Thái</label>
+                <p
+                  style="margin: 5px 0; font-size: 16px"
+                  id="detailRecipeStatus"
+                >
+                  -
+                </p>
+              </div>
+              <div>
+                <label style="font-weight: bold; color: #666">Cập Nhật</label>
+                <p
+                  style="margin: 5px 0; font-size: 16px"
+                  id="detailRecipeLastUpdated"
+                >
+                  -
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="RecipeProcesses" class="main-container"></div>
+      </div>
+    </div>
+  </body>
+</html>

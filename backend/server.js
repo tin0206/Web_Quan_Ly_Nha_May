@@ -2,6 +2,7 @@ const express = require("express");
 const productionOrdersRoutes = require("./routes/production-orders");
 const productionOrderDetailRoutes = require("./routes/production-order-detail");
 const productionRecipesRoutes = require("./routes/production-recipes");
+const productionRecipeDetailRoutes = require("./routes/production-recipe-detail");
 const sql = require("mssql");
 const cors = require("cors");
 const path = require("path");
@@ -69,8 +70,13 @@ app.get("/production-order/:id", (req, res) => {
   res.render("production-order-detail", { orderId: req.params.id });
 });
 
+app.get("/recipe-detail/:id", (req, res) => {
+  res.render("recipe-detail", { recipeId: req.params.id });
+});
+
 app.use("/api/production-orders", productionOrdersRoutes);
 app.use("/api/production-order-detail", productionOrderDetailRoutes);
 app.use("/api/production-recipes", productionRecipesRoutes);
+app.use("/api/production-recipe-detail", productionRecipeDetailRoutes);
 
 module.exports = { sql };

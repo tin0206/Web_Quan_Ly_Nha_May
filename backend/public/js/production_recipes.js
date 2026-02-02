@@ -51,7 +51,7 @@ function renderRecipeGrid(recipes) {
   gridView.innerHTML = "";
   if (!recipes.length) {
     gridView.innerHTML =
-      '<div style="padding:2rem;text-align:center;color:#888">Không có công thức nào</div>';
+      '<div></div><div style="padding:2rem;text-align:center;color:#888">Không có công thức nào</div><div></div>';
     return;
   }
   recipes.forEach((recipe, idx) => {
@@ -61,6 +61,7 @@ function renderRecipeGrid(recipes) {
       <div class="recipe-card-header">
         <div class="recipe-title-section">
           <h3 class="recipe-code">${recipe.RecipeCode || ""}</h3>
+          <h4 class="recipe-name">${recipe.RecipeName || ""}</h4>
           <span class="version-badge">
             <i class="fa-solid fa-code-branch"></i>
             Phiên bản:  ${recipe.Version ? recipe.Version : ""}
@@ -104,7 +105,7 @@ function renderRecipeGrid(recipes) {
       </div>
     `;
     card.querySelector(".detail-btn").addEventListener("click", function () {
-      if (window.showRecipeModal) window.showRecipeModal(recipe);
+      window.location.href = `/recipe-detail/${recipe.RecipeDetailsId}`;
     });
     gridView.appendChild(card);
   });
@@ -124,7 +125,7 @@ function renderRecipeTable(recipes) {
       <td>${recipe.RecipeDetailsId || ""}</td>
       <td>${recipe.ProductCode || ""}</td>
       <td>${recipe.ProductName || ""}</td>
-      <td>${recipe.RecipeCode || ""}</td>
+      <td style="max-width: 300px;">${recipe.RecipeCode || ""} - ${recipe.RecipeName || ""}</td>
       <td>${recipe.Version || ""}</td>
       <td style="text-align:center">
         <span class="status-badge status-${recipe.RecipeStatus === "Active" ? "success" : recipe.RecipeStatus === "Draft" ? "draft" : "inactive"}">
@@ -141,9 +142,7 @@ function renderRecipeTable(recipes) {
       </td>
     `;
     tr.querySelector(".detail-btn").addEventListener("click", function () {
-      if (window.showRecipeModal) {
-        window.showRecipeModal(recipe);
-      }
+      window.location.href = `/recipe-detail/${recipe.RecipeDetailsId}`;
     });
     tableBody.appendChild(tr);
   });
@@ -230,7 +229,15 @@ function ensureRecipeModal() {
   });
 }
 
-function showRecipeModal(recipe) {
+async function showRecipeModal(recipe) {
+  const response = await fetch(
+    `${API_ROUTE}/api/production-recipes/${recipe.RecipeDetailsId}`,
+  );
+  if (response.ok) {
+    const data = await response.json();
+    console.log("Recipe details fetched:", data);
+  }
+
   ensureRecipeModal();
   const modal = document.getElementById("recipeDetailModal");
   const content = document.getElementById("modalRecipeContent");
@@ -238,6 +245,7 @@ function showRecipeModal(recipe) {
   content.innerHTML = `
     <div class='modal-row'><span class='modal-label'>ID:</span><span class='modal-value'>${recipe.RecipeDetailsId || ""}</span></div>
     <div class='modal-row'><span class='modal-label'>Mã Công Thức:</span><span class='modal-value'>${recipe.RecipeCode || ""}</span></div>
+    <div class='modal-row'><span class='modal-label'>Tên Công Thức:</span><span class='modal-value'>${recipe.RecipeName || ""}</span></div>
     <div class='modal-row'><span class='modal-label'>Phiên Bản:</span><span class='modal-value'>${recipe.Version || ""}</span></div>
     <div class='modal-row'><span class='modal-label'>Mã Sản Phẩm:</span><span class='modal-value'>${recipe.ProductCode || ""}</span></div>
     <div class='modal-row'><span class='modal-label'>Tên Sản Phẩm:</span><span class='modal-value'>${recipe.ProductName || ""}</span></div>
