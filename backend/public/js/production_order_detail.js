@@ -916,6 +916,9 @@ function showMaterialModal(material) {
   // Display request, response, and status1 as raw data
   document.getElementById("modalRequest").textContent = material.request || "-";
 
+  document.getElementById("modalResponse").textContent =
+    material.respone || "-";
+
   // Normalize status display
   document.getElementById("modalStatus").textContent = material.status1 || "-";
 
