@@ -337,6 +337,7 @@ router.post("/material-consumptions", async (req, res) => {
 
     const pool = getPool();
     const request = pool.request();
+    request.timeout = 120000;
     request.input("prodOrderNum", sql.NVarChar, productionOrderNumber.trim());
 
     const [totalBatches, totalIngredients] = await Promise.all([
