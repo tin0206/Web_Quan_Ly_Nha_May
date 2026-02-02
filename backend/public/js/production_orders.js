@@ -9,6 +9,7 @@ let totalPages = 1;
 let statsData = {};
 const pageSize = 20;
 let allProcessAreas = []; // Store all unique process areas for filter dropdown
+let allShifts = []; // Store all unique shifts for filter dropdown
 
 const sourceCodeSpan = document.getElementById("material-source-code");
 const destinationCodeSpan = document.getElementById(
@@ -65,6 +66,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       // Initialize dropdown first to create checkboxes
       initializeProcessAreaDropdown();
       initializeStatusDropdown();
+      initializeShiftDropdown();
 
       // Restore process area selections after dropdown is initialized
       if (state.selectedProcessAreas && state.selectedProcessAreas.length > 0) {
@@ -89,6 +91,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       await fetchProductionOrders(1);
       renderProductionTable();
       initializeProcessAreaDropdown();
+      initializeShiftDropdown();
     }
   } else {
     await fetchStats();
@@ -96,6 +99,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     renderProductionTable();
     initializeProcessAreaDropdown();
     initializeStatusDropdown();
+    initializeShiftDropdown();
   }
 
   initializeEventListeners();
@@ -721,13 +725,15 @@ async function fetchStats() {
   const dateTo = document.getElementById("dateTo")?.value || "";
   const selectedProcessAreas = getSelectedProcessAreas();
   const selectedStatuses = getSelectedStatuses();
+  const selectedShifts = getSelectedShifts();
 
   const hasFilters =
     searchQuery ||
     dateFrom ||
     dateTo ||
     selectedProcessAreas.length > 0 ||
-    selectedStatuses.length > 0;
+    selectedStatuses.length > 0 ||
+    selectedShifts.length > 0;
   const endpoint = hasFilters
     ? "/api/production-orders/stats/search"
     : "/api/production-orders/stats";
@@ -744,6 +750,9 @@ async function fetchStats() {
       }
       if (selectedStatuses.length > 0) {
         params.append("statuses", selectedStatuses.join(","));
+      }
+      if (selectedShifts.length > 0) {
+        params.append("shifts", selectedShifts.join(","));
       }
     }
     const url = `${API_ROUTE}${endpoint}?${params.toString()}`;
@@ -847,10 +856,78 @@ function populateProcessAreas() {
   initializeProcessAreaSelectAll();
 }
 
+function populateShifts() {
+  const optionsContainer = document.getElementById("shiftOptions");
+  if (!optionsContainer) return;
+
+  optionsContainer.innerHTML = "";
+  const sortedShifts = [...allShifts].sort();
+
+  if (sortedShifts.length === 0) {
+    optionsContainer.innerHTML =
+      '<span style="color: #888;">Không có ca nào để chọn</span>';
+    return;
+  }
+
+  sortedShifts.forEach((shift) => {
+    const label = document.createElement("label");
+    label.style.cssText =
+      "display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; border-radius: 4px;";
+    label.onmouseover = function () {
+      this.style.background = "#f5f5f5";
+    };
+    label.onmouseout = function () {
+      this.style.background = "transparent";
+    };
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "shift-checkbox";
+    checkbox.value = shift;
+    checkbox.style.cursor = "pointer";
+    checkbox.onchange = handleShiftCheckboxChange;
+
+    const span = document.createElement("span");
+    span.textContent = shift;
+
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    optionsContainer.appendChild(label);
+  });
+
+  initializeShiftSelectAll();
+}
+
 // Initialize custom multi-select dropdown
 function initializeProcessAreaDropdown() {
   const input = document.getElementById("processAreaInput");
   const dropdown = document.getElementById("processAreaDropdown");
+
+  if (!input || !dropdown) return;
+
+  // Toggle dropdown on click
+  input.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isVisible = dropdown.style.display === "block";
+    dropdown.style.display = isVisible ? "none" : "block";
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".custom-multiselect")) {
+      dropdown.style.display = "none";
+    }
+  });
+
+  // Prevent dropdown from closing when clicking inside
+  dropdown.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+}
+
+function initializeShiftDropdown() {
+  const input = document.getElementById("shiftInput");
+  const dropdown = document.getElementById("shiftDropdown");
 
   if (!input || !dropdown) return;
 
@@ -921,6 +998,25 @@ async function handleProcessAreaCheckboxChange() {
   updatePaginationControls();
 }
 
+async function handleShiftCheckboxChange() {
+  updateShiftSelectedText();
+  updateSelectAllState();
+
+  // Reset to page 1 and fetch from API
+  currentPage = 1;
+  await fetchStats();
+  await fetchProductionOrders(currentPage);
+
+  // Check current view and render accordingly
+  const activeViewBtn = document.querySelector(".view-btn.active");
+  if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+    renderGridView();
+  } else {
+    renderProductionTable();
+  }
+  updatePaginationControls();
+}
+
 // Update selected text display
 function updateProcessAreaSelectedText() {
   const checkboxes = document.querySelectorAll(".process-area-checkbox");
@@ -933,6 +1029,27 @@ function updateProcessAreaSelectedText() {
 
   if (selected.length === 0) {
     selectedText.textContent = "Select process areas...";
+    selectedText.style.color = "#999";
+  } else if (selected.length <= 2) {
+    selectedText.textContent = selected.join(", ");
+    selectedText.style.color = "#333";
+  } else {
+    selectedText.textContent = `${selected.length} selected`;
+    selectedText.style.color = "#333";
+  }
+}
+
+function updateShiftSelectedText() {
+  const checkboxes = document.querySelectorAll(".shift-checkbox");
+  const selectedText = document.getElementById("shiftSelectedText");
+  if (!selectedText) return;
+
+  const selected = Array.from(checkboxes)
+    .filter((cb) => cb.checked)
+    .map((cb) => cb.value);
+
+  if (selected.length === 0) {
+    selectedText.textContent = "Select shifts...";
     selectedText.style.color = "#999";
   } else if (selected.length <= 2) {
     selectedText.textContent = selected.join(", ");
@@ -971,6 +1088,32 @@ function initializeProcessAreaSelectAll() {
   });
 }
 
+function initializeShiftSelectAll() {
+  const selectAllCheckbox = document.getElementById("shiftSelectAll");
+  if (!selectAllCheckbox) return;
+
+  selectAllCheckbox.addEventListener("change", async function () {
+    const checkboxes = document.querySelectorAll(".shift-checkbox");
+    checkboxes.forEach((cb) => {
+      cb.checked = this.checked;
+    });
+
+    updateShiftSelectedText();
+
+    // Reset to page 1 and fetch from API
+    currentPage = 1;
+    await fetchStats();
+    await fetchProductionOrders(currentPage);
+    // Check current view and render accordingly
+    const activeViewBtn = document.querySelector(".view-btn.active");
+    if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+      renderGridView();
+    } else {
+      renderProductionTable();
+    }
+  });
+}
+
 // Update select all state based on individual checkboxes
 function updateSelectAllState() {
   const selectAllProcessAreaCheckbox = document.getElementById(
@@ -982,7 +1125,7 @@ function updateSelectAllState() {
   const selectAllStatusCheckbox = document.getElementById("statusSelectAll");
   const statusCheckboxes = document.querySelectorAll(".status-checkbox");
 
-  if (selectAllProcessAreaCheckbox || processAreaCcheckboxes.length !== 0) {
+  if (selectAllProcessAreaCheckbox || processAreaCheckboxes.length !== 0) {
     const allChecked = Array.from(processAreaCheckboxes).every(
       (cb) => cb.checked,
     );
@@ -1016,6 +1159,11 @@ function getSelectedStatuses() {
   return Array.from(checkboxes).map((cb) => cb.value);
 }
 
+function getSelectedShifts() {
+  const checkboxes = document.querySelectorAll(".shift-checkbox:checked");
+  return Array.from(checkboxes).map((cb) => cb.value);
+}
+
 async function fetchProductionOrders(page = 1) {
   try {
     // Get filter values
@@ -1024,6 +1172,7 @@ async function fetchProductionOrders(page = 1) {
     const dateTo = document.getElementById("dateTo")?.value || "";
     const selectedProcessAreas = getSelectedProcessAreas();
     const selectedStatuses = getSelectedStatuses();
+    const selectedShifts = getSelectedShifts();
 
     // Determine which endpoint to use based on filters
     const hasFilters =
@@ -1031,7 +1180,8 @@ async function fetchProductionOrders(page = 1) {
       dateFrom ||
       dateTo ||
       selectedProcessAreas.length > 0 ||
-      selectedStatuses.length > 0;
+      selectedStatuses.length > 0 ||
+      selectedShifts.length > 0;
     const endpoint = hasFilters
       ? "/api/production-orders/search"
       : "/api/production-orders";
@@ -1057,6 +1207,9 @@ async function fetchProductionOrders(page = 1) {
       }
       if (selectedStatuses.length > 0) {
         params.append("statuses", selectedStatuses.join(","));
+      }
+      if (selectedShifts.length > 0) {
+        params.append("shifts", selectedShifts.join(","));
       }
     }
 
@@ -1087,6 +1240,17 @@ async function fetchProductionOrders(page = 1) {
         });
         allProcessAreas = Array.from(processAreasSet);
         populateProcessAreas();
+      }
+
+      if (page === 1 && allShifts.length === 0) {
+        const shiftsSet = new Set();
+        productionOrders.forEach((order) => {
+          if (order.Shift && order.Shift.trim() !== "") {
+            shiftsSet.add(order.Shift);
+          }
+        });
+        allShifts = Array.from(shiftsSet);
+        populateShifts();
       }
 
       updatePaginationControls();

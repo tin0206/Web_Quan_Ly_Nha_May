@@ -48,6 +48,7 @@ router.get("/stats/search", async (req, res) => {
     const dateFrom = req.query.dateFrom || "";
     const dateTo = req.query.dateTo || "";
     const processAreas = req.query.processAreas || "";
+    const shifts = req.query.shifts || "";
 
     const request = getPool().request();
     const where = [];
@@ -82,6 +83,16 @@ router.get("/stats/search", async (req, res) => {
       where.push(
         `po.ProcessArea IN (${arr.map((_, i) => `@pa${i}`).join(",")})`,
       );
+    }
+
+    if (shifts.trim()) {
+      const arr = shifts
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+
+      arr.forEach((v, i) => request.input(`sh${i}`, sql.NVarChar, v));
+      where.push(`po.Shift IN (${arr.map((_, i) => `@sh${i}`).join(",")})`);
     }
 
     const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
@@ -252,6 +263,7 @@ router.get("/search", async (req, res) => {
       dateTo = "",
       processAreas = "",
       statuses = "",
+      shifts = "",
     } = req.query;
 
     const request = pool.request();
@@ -286,6 +298,14 @@ router.get("/search", async (req, res) => {
       const ps = arr.map((_, i) => `@pa${i}`).join(",");
       arr.forEach((v, i) => request.input(`pa${i}`, sql.NVarChar, v));
       where.push(`po.ProcessArea IN (${ps})`);
+    }
+
+    /* ================= SHIFT ================= */
+    if (shifts.trim()) {
+      const arr = shifts.split(",").map((v) => v.trim());
+      const ps = arr.map((_, i) => `@sh${i}`).join(",");
+      arr.forEach((v, i) => request.input(`sh${i}`, sql.NVarChar, v));
+      where.push(`po.Shift IN (${ps})`);
     }
 
     /* ================= STATUS (LOGIC GỐC – QUAN TRỌNG) ================= */
