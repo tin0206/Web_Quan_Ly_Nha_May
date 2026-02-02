@@ -2,6 +2,31 @@ const express = require("express");
 const router = express.Router();
 const { getPool, sql } = require("../db");
 
+router.get("/filters", async (req, res) => {
+  try {
+    const pool = getPool();
+    const result = await pool.request().query(`
+      SELECT DISTINCT ProcessArea FROM ProductionOrders WHERE ProcessArea IS NOT NULL AND LTRIM(RTRIM(ProcessArea)) <> '';
+      SELECT DISTINCT Shift FROM ProductionOrders WHERE Shift IS NOT NULL AND LTRIM(RTRIM(Shift)) <> '';
+    `);
+
+    // MSSQL returns multiple recordsets for multiple queries
+    const processAreas = result.recordsets[0].map((row) => row.ProcessArea);
+    const shifts = result.recordsets[1].map((row) => row.Shift);
+
+    res.json({
+      processAreas,
+      shifts,
+    });
+  } catch (error) {
+    console.error("❌ Lỗi khi lấy filters:", error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
 router.get("/stats", async (req, res) => {
   try {
     // Optimized stats query - avoid full table scan on MESMaterialConsumption

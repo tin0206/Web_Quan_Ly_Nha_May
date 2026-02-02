@@ -34,79 +34,81 @@ document.addEventListener("DOMContentLoaded", async function () {
   sourceCodeSpan.textContent = PLANTCODE;
   destinationCodeSpan.textContent = LINE;
 
-  // if (dateFromInput && !dateFromInput.value) {
-  //   dateFromInput.value = yesterday.toISOString().split("T")[0];
-  // }
-  // if (dateToInput && !dateToInput.value) {
-  //   dateToInput.value = tomorrow.toISOString().split("T")[0];
-  // }
+  if (dateFromInput && !dateFromInput.value) {
+    dateFromInput.value = yesterday.toISOString().split("T")[0];
+  }
+  if (dateToInput && !dateToInput.value) {
+    dateToInput.value = tomorrow.toISOString().split("T")[0];
+  }
+
+  initializeProcessAreaDropdown();
+  initializeStatusDropdown();
+  initializeShiftDropdown();
+  populateStatusOptions();
+  await fetchFilterMetadata();
 
   // Restore state if returning from detail page
   const savedState = sessionStorage.getItem("poListState");
   if (savedState) {
-    try {
-      const state = JSON.parse(savedState);
-      // Restore filters
-      if (state.searchQuery && document.getElementById("searchInput")) {
-        document.getElementById("searchInput").value = state.searchQuery;
-      }
-      if (state.dateFrom && dateFromInput) {
-        dateFromInput.value = state.dateFrom;
-      }
-      if (state.dateTo && dateToInput) {
-        dateToInput.value = state.dateTo;
-      }
+    console.log(savedState);
+    const state = JSON.parse(savedState);
+    currentPage = state.currentPage || 1;
 
-      // Clear the saved state after restoring
-      sessionStorage.removeItem("poListState");
-
-      await fetchStats();
-      await fetchProductionOrders(state.currentPage || 1);
-
-      // Initialize dropdown first to create checkboxes
-      initializeProcessAreaDropdown();
-      initializeStatusDropdown();
-      initializeShiftDropdown();
-
-      // Restore process area selections after dropdown is initialized
-      if (state.selectedProcessAreas && state.selectedProcessAreas.length > 0) {
-        setTimeout(() => {
-          state.selectedProcessAreas.forEach((area) => {
-            const checkbox = document.querySelector(
-              `.process-area-checkbox[value="${area}"]`,
-            );
-            if (checkbox) checkbox.checked = true;
-          });
-          updateProcessAreaSelectedText();
-          updateSelectAllState();
-        }, 100);
-      }
-
-      // Render view after state is restored
-      renderProductionTable();
-    } catch (e) {
-      console.error("Error restoring state:", e);
-      sessionStorage.removeItem("poListState");
-      await fetchStats();
-      await fetchProductionOrders(1);
-      renderProductionTable();
-      initializeProcessAreaDropdown();
-      initializeShiftDropdown();
-    }
+    restoreFiltersFromSession(state);
   } else {
-    await fetchStats();
-    await fetchProductionOrders(1);
-    renderProductionTable();
-    initializeProcessAreaDropdown();
-    initializeStatusDropdown();
-    initializeShiftDropdown();
+    currentPage = 1;
   }
+
+  await fetchStats();
+  await fetchProductionOrders(currentPage);
+
+  renderProductionTable();
 
   initializeEventListeners();
   initializeSearch();
   initializeModalHandlers();
-  populateStatusOptions();
 });
+
+function restoreFiltersFromSession(state) {
+  document.getElementById("searchInput").value = state.searchQuery || "";
+  document.getElementById("dateFrom").value = state.dateFrom || "";
+  document.getElementById("dateTo").value = state.dateTo || "";
+
+  state.selectedProcessAreas?.forEach((area) => {
+    const cb = document.querySelector(
+      `.process-area-checkbox[value="${area}"]`,
+    );
+    if (cb) cb.checked = true;
+  });
+
+  state.selectedStatuses?.forEach((status) => {
+    const cb = document.querySelector(`.status-checkbox[value="${status}"]`);
+    if (cb) cb.checked = true;
+  });
+
+  state.selectedShifts?.forEach((shift) => {
+    const cb = document.querySelector(`.shift-checkbox[value="${shift}"]`);
+    if (cb) cb.checked = true;
+  });
+
+  updateProcessAreaSelectedText();
+  updateStatusSelectedText();
+  updateShiftSelectedText();
+  updateSelectAllState();
+}
+
+// Fetch filter metadata (process areas and shifts)
+async function fetchFilterMetadata() {
+  const res = await fetch(`${API_ROUTE}/api/production-orders/filters`);
+  if (!res.ok) return;
+
+  const data = await res.json();
+  allProcessAreas = data.processAreas || [];
+  allShifts = data.shifts || [];
+
+  populateProcessAreas();
+  populateShifts();
+}
 
 // Populate status filter options
 function populateStatusOptions() {
@@ -158,6 +160,7 @@ async function handleStatusCheckboxChange() {
 
   // Reset to page 1 and fetch from API
   currentPage = 1;
+  saveCurrentState();
   await fetchStats();
   await fetchProductionOrders(currentPage);
 
@@ -569,6 +572,8 @@ function saveCurrentState() {
     dateFrom: document.getElementById("dateFrom")?.value || "",
     dateTo: document.getElementById("dateTo")?.value || "",
     selectedProcessAreas: getSelectedProcessAreas(),
+    selectedStatuses: getSelectedStatuses(),
+    selectedShifts: getSelectedShifts(),
   };
   sessionStorage.setItem("poListState", JSON.stringify(state));
 }
@@ -661,6 +666,7 @@ function initializeSearch() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(async () => {
       await fetchStats();
+      saveCurrentState();
       currentPage = 1; // Reset to first page when filter changes
       await fetchProductionOrders(currentPage);
 
@@ -985,6 +991,7 @@ async function handleProcessAreaCheckboxChange() {
 
   // Reset to page 1 and fetch from API
   currentPage = 1;
+  saveCurrentState();
   await fetchStats();
   await fetchProductionOrders(currentPage);
 
@@ -1004,6 +1011,7 @@ async function handleShiftCheckboxChange() {
 
   // Reset to page 1 and fetch from API
   currentPage = 1;
+  saveCurrentState();
   await fetchStats();
   await fetchProductionOrders(currentPage);
 
@@ -1303,6 +1311,7 @@ function updatePaginationControls() {
 // Go to previous page
 async function prevPage() {
   if (currentPage > 1) {
+    saveCurrentState();
     await fetchProductionOrders(currentPage - 1);
 
     // Check current view mode and render accordingly
@@ -1320,6 +1329,7 @@ async function nextPage() {
   const pageSize = 20;
   const totalPages = Math.ceil(totalRecords / pageSize);
   if (currentPage < totalPages) {
+    saveCurrentState();
     await fetchProductionOrders(currentPage + 1);
 
     // Check current view mode and render accordingly
