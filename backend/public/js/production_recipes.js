@@ -235,7 +235,6 @@ async function showRecipeModal(recipe) {
   );
   if (response.ok) {
     const data = await response.json();
-    console.log("Recipe details fetched:", data);
   }
 
   ensureRecipeModal();

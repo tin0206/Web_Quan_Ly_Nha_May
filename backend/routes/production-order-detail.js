@@ -592,7 +592,6 @@ router.post("/product-masters-by-codes", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const productionOrderId = parseInt(req.params.id, 10);
-    console.log("Fetching details for ProductionOrderId:", productionOrderId);
 
     if (isNaN(productionOrderId)) {
       return res.status(400).json({

@@ -50,7 +50,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   // Restore state if returning from detail page
   const savedState = sessionStorage.getItem("poListState");
   if (savedState) {
-    console.log(savedState);
     const state = JSON.parse(savedState);
     currentPage = state.currentPage || 1;
 
