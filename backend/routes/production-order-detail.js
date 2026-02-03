@@ -145,29 +145,42 @@ router.get("/ingredients-by-product", async (req, res) => {
 });
 
 // Helper: Get ingredients for a production order
-async function getIngredientCount(request) {
+function getIngredientCountFromList(ingredientList) {
+  return ingredientList.length;
+}
+
+async function getIngredientList(request) {
   const result = await request.query(`
-    SELECT COUNT(*) AS total
+    SELECT DISTINCT IngredientCode, ItemName
     FROM (
-      SELECT i.IngredientCode
+      SELECT 
+        i.IngredientCode,
+        pm.ItemName
       FROM ProductionOrders po
       JOIN RecipeDetails rd 
-        ON rd.ProductCode = po.ProductCode 
-        AND rd.Version = po.RecipeVersion
+        ON rd.ProductCode = po.ProductCode
+       AND rd.Version = po.RecipeVersion
       JOIN Processes p 
         ON p.RecipeDetailsId = rd.RecipeDetailsId
       JOIN Ingredients i 
         ON i.ProcessId = p.ProcessId
+      LEFT JOIN ProductMasters pm
+        ON pm.ItemCode = i.IngredientCode
       WHERE po.ProductionOrderNumber = @prodOrderNum
 
       UNION
 
-      SELECT mc.ingredientCode
+      SELECT 
+        mc.ingredientCode,
+        pm.ItemName
       FROM MESMaterialConsumption mc
+      LEFT JOIN ProductMasters pm
+        ON pm.ItemCode = mc.ingredientCode
       WHERE mc.productionOrderNumber = @prodOrderNum
-    ) t
+    ) x
   `);
-  return result.recordset[0].total;
+
+  return result.recordset;
 }
 
 async function getTotalBatchCount(request) {
@@ -185,12 +198,22 @@ async function getMaterialConsumptionsData(
   request,
   productionOrderNumber,
   batches,
+  ingredientList,
 ) {
   if (!batches.length) return [];
 
   const table = batches.map((b, i) => `(@b${i})`).join(",");
   batches.forEach((b, i) => {
     request.input(`b${i}`, sql.NVarChar, b);
+  });
+
+  const ingredientTable = ingredientList
+    .map((_, i) => `(@i${i}, @n${i})`)
+    .join(",");
+
+  ingredientList.forEach((ing, i) => {
+    request.input(`i${i}`, sql.NVarChar, ing.IngredientCode);
+    request.input(`n${i}`, sql.NVarChar, ing.ItemName);
   });
 
   const dataQuery = `
@@ -216,29 +239,8 @@ async function getMaterialConsumptionsData(
       WHERE BatchNumber IN (${table})
     ) b
     CROSS JOIN (
-      SELECT DISTINCT IngredientCode, ItemName
-      FROM (
-        SELECT i.IngredientCode, pm.ItemName
-        FROM ProductionOrders po
-        JOIN RecipeDetails rd 
-          ON rd.ProductCode = po.ProductCode 
-          AND rd.Version = po.RecipeVersion
-        JOIN Processes p 
-          ON p.RecipeDetailsId = rd.RecipeDetailsId
-        JOIN Ingredients i 
-          ON i.ProcessId = p.ProcessId
-        LEFT JOIN ProductMasters pm 
-          ON pm.ItemCode = i.IngredientCode
-        WHERE po.ProductionOrderNumber = @prodOrderNum
-
-        UNION
-
-        SELECT mc.ingredientCode, pm.ItemName
-        FROM MESMaterialConsumption mc
-        LEFT JOIN ProductMasters pm 
-          ON pm.ItemCode = mc.ingredientCode
-        WHERE mc.productionOrderNumber = @prodOrderNum
-      ) x
+      SELECT IngredientCode, ItemName
+      FROM (VALUES ${ingredientTable}) AS v(IngredientCode, ItemName)
     ) i
     LEFT JOIN MESMaterialConsumption mc
       ON mc.productionOrderNumber = @prodOrderNum
@@ -340,12 +342,12 @@ router.post("/material-consumptions", async (req, res) => {
     request.timeout = 120000;
     request.input("prodOrderNum", sql.NVarChar, productionOrderNumber.trim());
 
-    const [totalBatches, totalIngredients] = await Promise.all([
-      getTotalBatchCount(request),
-      getIngredientCount(request),
-    ]);
+    const ingredientList = await getIngredientList(request);
+    const ingredientCount = ingredientList.length;
 
-    if (!totalBatches || !totalIngredients) {
+    const [totalBatches] = await Promise.all([getTotalBatchCount(request)]);
+
+    if (!totalBatches || !ingredientCount) {
       return res.json({
         success: true,
         page: pageNum,
@@ -360,6 +362,7 @@ router.post("/material-consumptions", async (req, res) => {
       request,
       productionOrderNumber,
       batches,
+      ingredientList,
     );
 
     res.json({
@@ -367,7 +370,7 @@ router.post("/material-consumptions", async (req, res) => {
       message: "Lấy danh sách tiêu hao vật liệu thành công",
       page: pageNum,
       limit: pageLimit,
-      totalCount: totalBatches * totalIngredients,
+      totalCount: totalBatches * ingredientCount,
       totalPages: Math.ceil(totalBatches / pageLimit),
       data,
     });
