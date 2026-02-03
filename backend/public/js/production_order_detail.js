@@ -543,9 +543,17 @@ async function fetchMaterialsWithPagination() {
           items: group.items.filter((item) => item.id !== null),
         }));
     } else if (materialFilterType === "unconsumed") {
-      finalGroupedMaterials = groupedMaterials.filter(
-        (group) => group.ids[0] === null || group.ids.length === 0,
-      );
+      finalGroupedMaterials = groupedMaterials
+        .filter((group) => {
+          if (group.ids.length == 0) return true;
+
+          if (group.ids[0] === null) return true;
+        })
+        .map((group) => ({
+          ...group,
+          ids: group.ids.filter((id) => id === null),
+          items: group.items.filter((item) => item.id === null),
+        }));
     }
     const paginatedGroupedMaterials = finalGroupedMaterials.slice(
       startIndex,
