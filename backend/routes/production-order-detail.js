@@ -202,21 +202,35 @@ async function getMaterialConsumptionsData(
 ) {
   if (!batches.length) return [];
 
-  const table = batches.map((b, i) => `(@b${i})`).join(",");
   batches.forEach((b, i) => {
     request.input(`b${i}`, sql.NVarChar, b);
   });
-
-  const ingredientTable = ingredientList
-    .map((_, i) => `(@i${i}, @n${i})`)
-    .join(",");
 
   ingredientList.forEach((ing, i) => {
     request.input(`i${i}`, sql.NVarChar, ing.IngredientCode);
     request.input(`n${i}`, sql.NVarChar, ing.ItemName);
   });
 
-  const dataQuery = `
+  const batchValues = batches.map((_, i) => `(@b${i})`).join(",");
+  const ingredientValues = ingredientList
+    .map((_, i) => `(@i${i}, @n${i})`)
+    .join(",");
+
+  const query = `
+    /* ===== Batch table variable ===== */
+    DECLARE @BatchList TABLE (batchCode NVARCHAR(50));
+    INSERT INTO @BatchList (batchCode)
+    VALUES ${batchValues};
+
+    /* ===== Ingredient table variable ===== */
+    DECLARE @IngredientList TABLE (
+      IngredientCode NVARCHAR(50),
+      ItemName NVARCHAR(255)
+    );
+    INSERT INTO @IngredientList (IngredientCode, ItemName)
+    VALUES ${ingredientValues};
+
+    /* ===== MAIN QUERY (data + NULL batch) ===== */
     SELECT
       b.batchCode,
       i.IngredientCode,
@@ -233,27 +247,48 @@ async function getMaterialConsumptionsData(
       mc.respone,
       mc.status1,
       mc.timestamp
-    FROM (
-      SELECT BatchNumber AS batchCode
-      FROM Batches
-      WHERE BatchNumber IN (${table})
-    ) b
-    CROSS JOIN (
-      SELECT IngredientCode, ItemName
-      FROM (VALUES ${ingredientTable}) AS v(IngredientCode, ItemName)
-    ) i
+    FROM @BatchList b
+    CROSS JOIN @IngredientList i
     LEFT JOIN MESMaterialConsumption mc
       ON mc.productionOrderNumber = @prodOrderNum
      AND mc.batchCode = b.batchCode
      AND mc.ingredientCode = i.IngredientCode
     LEFT JOIN Ingredients ing
       ON ing.IngredientCode = i.IngredientCode
-    ORDER BY b.batchCode, i.IngredientCode
+
+    UNION ALL
+
+    SELECT
+      NULL AS batchCode,
+      mc.ingredientCode AS IngredientCode,
+      pm.ItemName,
+      mc.id,
+      mc.lot,
+      mc.quantity,
+      mc.unitOfMeasurement,
+      mc.datetime,
+      mc.operator_ID,
+      mc.supplyMachine,
+      mc.count,
+      mc.request,
+      mc.respone,
+      mc.status1,
+      mc.timestamp
+    FROM MESMaterialConsumption mc
+    LEFT JOIN ProductMasters pm
+      ON pm.ItemCode = mc.ingredientCode
+    WHERE mc.productionOrderNumber = @prodOrderNum
+      AND mc.batchCode IS NULL
+
+    ORDER BY batchCode, IngredientCode;
   `;
 
-  const { recordset } = await request.query(dataQuery);
+  const { recordset } = await request.query(query);
 
-  const mappedRecordset = recordset.map((row) => ({
+  /* ===============================
+     4. Map result
+     =============================== */
+  return recordset.map((row) => ({
     id: row.id,
     batchCode: row.batchCode,
     ingredientCode: row.ItemName
@@ -271,54 +306,6 @@ async function getMaterialConsumptionsData(
     status1: row.status1,
     timestamp: row.timestamp,
   }));
-
-  const nullBatchQuery = `
-    SELECT
-      mc.id,
-      mc.batchCode,
-      mc.ingredientCode AS IngredientCode,
-      pm.ItemName,
-      mc.lot,
-      mc.quantity,
-      mc.unitOfMeasurement,
-      mc.datetime,
-      mc.operator_ID,
-      mc.supplyMachine,
-      mc.count,
-      mc.request,
-      mc.respone,
-      mc.status1,
-      mc.timestamp
-    FROM MESMaterialConsumption mc
-    LEFT JOIN ProductMasters pm
-      ON pm.ItemCode = mc.ingredientCode
-    WHERE mc.productionOrderNumber = @prodOrderNum
-      AND mc.batchCode IS NULL
-  `;
-
-  const { recordset: nullBatchRows } = await request.query(nullBatchQuery);
-
-  const nullBatchData = nullBatchRows.map((row) => ({
-    id: row.id,
-    batchCode: null,
-    ingredientCode: row.ItemName
-      ? `${row.IngredientCode} - ${row.ItemName}`
-      : row.IngredientCode,
-    lot: row.lot || "",
-    quantity: row.quantity,
-    unitOfMeasurement: row.unitOfMeasurement || "",
-    datetime: row.datetime,
-    operator_ID: row.operator_ID,
-    supplyMachine: row.supplyMachine,
-    count: row.count || 0,
-    request: row.request,
-    respone: row.respone,
-    status1: row.status1,
-    timestamp: row.timestamp,
-  }));
-
-  const finalData = [...mappedRecordset, ...nullBatchData];
-  return finalData;
 }
 
 // Route: Get material consumptions (refactored)
