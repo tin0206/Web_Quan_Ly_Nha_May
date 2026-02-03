@@ -144,184 +144,108 @@ router.get("/ingredients-by-product", async (req, res) => {
   }
 });
 
-// Helper: Get ingredients for a production order
-async function getIngredientList(request) {
-  const result = await request.query(`
-    ;WITH RecipeIngredient AS (
-      SELECT DISTINCT
-        i.IngredientCode,
-        pm.ItemName
-      FROM ProductionOrders po
-      JOIN RecipeDetails rd
-        ON rd.ProductCode = po.ProductCode
-       AND rd.Version = po.RecipeVersion
-      JOIN Processes p
-        ON p.RecipeDetailsId = rd.RecipeDetailsId
-      JOIN Ingredients i
-        ON i.ProcessId = p.ProcessId
-      LEFT JOIN ProductMasters pm
-        ON pm.ItemCode = i.IngredientCode
-      WHERE po.ProductionOrderNumber = @prodOrderNum
-    ),
-    ExtraIngredient AS (
-      SELECT DISTINCT
-        mc.ingredientCode AS IngredientCode,
-        pm.ItemName
-      FROM MESMaterialConsumption mc
-      LEFT JOIN ProductMasters pm
-        ON pm.ItemCode = mc.ingredientCode
-      WHERE mc.productionOrderNumber = @prodOrderNum
-        AND NOT EXISTS (
-          SELECT 1
-          FROM RecipeIngredient r
-          WHERE r.IngredientCode = mc.ingredientCode
-        )
-    )
-    SELECT IngredientCode, ItemName, 1 AS isInRecipe
-    FROM RecipeIngredient
-
-    UNION ALL
-
-    SELECT IngredientCode, ItemName, 0 AS isInRecipe
-    FROM ExtraIngredient
-  `);
-
-  return result.recordset;
-}
-
-async function getTotalBatchCount(request) {
-  const result = await request.query(`
-    SELECT COUNT(*) AS total
+// Route: Get material consumptions (refactored)
+const query = `
+  ;WITH BatchCTE AS (
+    SELECT
+      b.BatchNumber AS batchCode,
+      ROW_NUMBER() OVER (ORDER BY b.BatchNumber) AS rn
     FROM Batches b
-    JOIN ProductionOrders po 
+    JOIN ProductionOrders po
       ON po.ProductionOrderId = b.ProductionOrderId
     WHERE po.ProductionOrderNumber = @prodOrderNum
-  `);
-  return result.recordset[0].total;
-}
-
-async function getMaterialConsumptionsData(request) {
-  const query = `
-    ;WITH RecipeIngredient AS (
-      SELECT DISTINCT
-        i.IngredientCode,
-        pm.ItemName
-      FROM ProductionOrders po
-      JOIN RecipeDetails rd
-        ON rd.ProductCode = po.ProductCode
-      AND rd.Version = po.RecipeVersion
-      JOIN Processes p ON p.RecipeDetailsId = rd.RecipeDetailsId
-      JOIN Ingredients i ON i.ProcessId = p.ProcessId
-      LEFT JOIN ProductMasters pm ON pm.ItemCode = i.IngredientCode
-      WHERE po.ProductionOrderNumber = @prodOrderNum
-    ),
-    ExtraIngredient AS (
-      SELECT DISTINCT
-        mc.ingredientCode AS IngredientCode,
-        pm.ItemName
-      FROM MESMaterialConsumption mc
-      LEFT JOIN ProductMasters pm ON pm.ItemCode = mc.ingredientCode
-      WHERE mc.productionOrderNumber = @prodOrderNum
-        AND NOT EXISTS (
-          SELECT 1 FROM RecipeIngredient r
-          WHERE r.IngredientCode = mc.ingredientCode
-        )
-    ),
-    BatchList AS (
-      SELECT b.BatchNumber AS batchCode
-      FROM Batches b
-      JOIN ProductionOrders po
-        ON po.ProductionOrderId = b.ProductionOrderId
-      WHERE po.ProductionOrderNumber = @prodOrderNum
-    )
-
-    -- =====================
-    -- A. RECIPE INGREDIENT → CROSS JOIN
-    -- =====================
-    SELECT
-      b.batchCode,
-      r.IngredientCode,
-      r.ItemName,
-      mc.id,
-      mc.lot,
-      mc.quantity,
-      COALESCE(mc.unitOfMeasurement, ing.UnitOfMeasurement) AS unitOfMeasurement,
-      mc.datetime,
-      mc.operator_ID,
-      mc.supplyMachine,
-      mc.count,
-      mc.request,
-      mc.respone,
-      mc.status1,
-      mc.timestamp
-    FROM BatchList b
-    CROSS JOIN RecipeIngredient r
-    LEFT JOIN MESMaterialConsumption mc
-      ON mc.productionOrderNumber = @prodOrderNum
-    AND mc.batchCode = b.batchCode
-    AND mc.ingredientCode = r.IngredientCode
-    LEFT JOIN Ingredients ing
-      ON ing.IngredientCode = r.IngredientCode
-
-    UNION ALL
-
-    -- =====================
-    -- B. EXTRA INGREDIENT → NO GRID
-    -- =====================
-    SELECT
-      mc.batchCode,
-      e.IngredientCode,
-      e.ItemName,
-      mc.id,
-      mc.lot,
-      mc.quantity,
-      mc.unitOfMeasurement,
-      mc.datetime,
-      mc.operator_ID,
-      mc.supplyMachine,
-      mc.count,
-      mc.request,
-      mc.respone,
-      mc.status1,
-      mc.timestamp
+  ),
+  PagedBatch AS (
+    SELECT batchCode
+    FROM BatchCTE
+    WHERE rn BETWEEN @from AND @to
+  ),
+  RecipeIngredient AS (
+    SELECT DISTINCT
+      i.IngredientCode,
+      pm.ItemName
+    FROM ProductionOrders po
+    JOIN RecipeDetails rd
+      ON rd.ProductCode = po.ProductCode
+    AND rd.Version = po.RecipeVersion
+    JOIN Processes p ON p.RecipeDetailsId = rd.RecipeDetailsId
+    JOIN Ingredients i ON i.ProcessId = p.ProcessId
+    LEFT JOIN ProductMasters pm ON pm.ItemCode = i.IngredientCode
+    WHERE po.ProductionOrderNumber = @prodOrderNum
+  ),
+  ExtraIngredient AS (
+    SELECT DISTINCT
+      mc.ingredientCode AS IngredientCode,
+      pm.ItemName
     FROM MESMaterialConsumption mc
-    JOIN ExtraIngredient e
-      ON e.IngredientCode = mc.ingredientCode
+    JOIN PagedBatch pb
+      ON pb.batchCode = mc.batchCode
+    LEFT JOIN RecipeIngredient r
+      ON r.IngredientCode = mc.ingredientCode
+    LEFT JOIN ProductMasters pm
+      ON pm.ItemCode = mc.ingredientCode
     WHERE mc.productionOrderNumber = @prodOrderNum
+      AND r.IngredientCode IS NULL
+  )
 
-    ORDER BY batchCode, IngredientCode;
-  `;
+  -- A. RECIPE INGREDIENT GRID
+  SELECT
+    pb.batchCode,
+    r.IngredientCode,
+    r.ItemName,
+    mc.id,
+    mc.lot,
+    mc.quantity,
+    COALESCE(mc.unitOfMeasurement, ing.UnitOfMeasurement) AS unitOfMeasurement,
+    mc.datetime,
+    mc.operator_ID,
+    mc.supplyMachine,
+    mc.count,
+    mc.request,
+    mc.respone,
+    mc.status1,
+    mc.timestamp
+  FROM PagedBatch pb
+  CROSS JOIN RecipeIngredient r
+  LEFT JOIN MESMaterialConsumption mc
+    ON mc.productionOrderNumber = @prodOrderNum
+  AND mc.batchCode = pb.batchCode
+  AND mc.ingredientCode = r.IngredientCode
+  LEFT JOIN Ingredients ing
+    ON ing.IngredientCode = r.IngredientCode
 
-  const { recordset } = await request.query(query);
+  UNION ALL
 
-  /* ===============================
-     4. Map result
-     =============================== */
-  return recordset.map((row) => ({
-    id: row.id,
-    batchCode: row.batchCode,
-    ingredientCode: row.ItemName
-      ? `${row.IngredientCode} - ${row.ItemName}`
-      : row.IngredientCode,
-    lot: row.lot || "",
-    quantity: row.quantity,
-    unitOfMeasurement: row.unitOfMeasurement || "",
-    datetime: row.datetime,
-    operator_ID: row.operator_ID,
-    supplyMachine: row.supplyMachine,
-    count: row.count || 0,
-    request: row.request,
-    respone: row.respone,
-    status1: row.status1,
-    timestamp: row.timestamp,
-  }));
-}
+  -- B. EXTRA INGREDIENT (NO GRID)
+  SELECT
+    mc.batchCode,
+    e.IngredientCode,
+    e.ItemName,
+    mc.id,
+    mc.lot,
+    mc.quantity,
+    mc.unitOfMeasurement,
+    mc.datetime,
+    mc.operator_ID,
+    mc.supplyMachine,
+    mc.count,
+    mc.request,
+    mc.respone,
+    mc.status1,
+    mc.timestamp
+  FROM MESMaterialConsumption mc
+  JOIN PagedBatch pb
+    ON pb.batchCode = mc.batchCode
+  JOIN ExtraIngredient e
+    ON e.IngredientCode = mc.ingredientCode
+  WHERE mc.productionOrderNumber = @prodOrderNum
 
-// Route: Get material consumptions (refactored)
+  ORDER BY batchCode, IngredientCode;
+`;
+
 router.post("/material-consumptions", async (req, res) => {
   try {
     const { productionOrderNumber, page = 1, limit = 20 } = req.query;
-    const { batches } = req.body;
 
     if (!productionOrderNumber?.trim()) {
       return res.status(400).json({
@@ -333,37 +257,42 @@ router.post("/material-consumptions", async (req, res) => {
     const pageNum = Math.max(1, Number(page));
     const pageLimit = Math.min(100, Math.max(1, Number(limit)));
 
+    const from = (pageNum - 1) * pageLimit + 1;
+    const to = pageNum * pageLimit;
+
     const pool = getPool();
     const request = pool.request();
     request.timeout = 120000;
+
     request.input("prodOrderNum", sql.NVarChar, productionOrderNumber.trim());
+    request.input("from", sql.Int, from);
+    request.input("to", sql.Int, to);
 
-    const ingredientList = await getIngredientList(request);
-    const ingredientCount = ingredientList.length;
-
-    const totalBatches = await getTotalBatchCount(request);
-
-    if (!totalBatches || !ingredientCount) {
-      return res.json({
-        success: true,
-        page: pageNum,
-        limit: pageLimit,
-        totalCount: 0,
-        totalPages: 0,
-        data: [],
-      });
-    }
-
-    const data = await getMaterialConsumptionsData(request);
+    const { recordset } = await request.query(query);
 
     res.json({
       success: true,
       message: "Lấy danh sách tiêu hao vật liệu thành công",
       page: pageNum,
       limit: pageLimit,
-      totalCount: totalBatches * ingredientCount,
-      totalPages: Math.ceil((totalBatches * ingredientCount) / pageLimit),
-      data,
+      data: recordset.map((row) => ({
+        id: row.id,
+        batchCode: row.batchCode,
+        ingredientCode: row.ItemName
+          ? `${row.IngredientCode} - ${row.ItemName}`
+          : row.IngredientCode,
+        lot: row.lot || "",
+        quantity: row.quantity,
+        unitOfMeasurement: row.unitOfMeasurement || "",
+        datetime: row.datetime,
+        operator_ID: row.operator_ID,
+        supplyMachine: row.supplyMachine,
+        count: row.count || 0,
+        request: row.request,
+        respone: row.respone,
+        status1: row.status1,
+        timestamp: row.timestamp,
+      })),
     });
   } catch (error) {
     console.error(error);
