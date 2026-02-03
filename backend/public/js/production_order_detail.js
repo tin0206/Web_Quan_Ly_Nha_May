@@ -282,6 +282,7 @@ function renderMaterialsTable(groupedMaterialsArray, selectedBatchCode = "") {
       : "";
     let totalPlanQuantity = 0;
     let hasValidPlan = false;
+    console.log("Calculating plan quantity for group:", group);
     group.items.forEach((item) => {
       const batch = batches.find((b) => b.BatchNumber === item.batchCode);
       const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
@@ -552,6 +553,7 @@ async function fetchMaterialsWithPagination() {
         .map((group) => ({
           ...group,
           ids: group.ids.filter((id) => id === null),
+          totalQuantity: 0,
           items: group.items.filter((item) => item.id === null),
         }));
     }
