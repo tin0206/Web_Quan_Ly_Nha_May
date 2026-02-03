@@ -145,39 +145,45 @@ router.get("/ingredients-by-product", async (req, res) => {
 });
 
 // Helper: Get ingredients for a production order
-function getIngredientCountFromList(ingredientList) {
-  return ingredientList.length;
-}
-
 async function getIngredientList(request) {
   const result = await request.query(`
-    SELECT DISTINCT IngredientCode, ItemName
-    FROM (
-      SELECT 
+    ;WITH RecipeIngredient AS (
+      SELECT DISTINCT
         i.IngredientCode,
         pm.ItemName
       FROM ProductionOrders po
-      JOIN RecipeDetails rd 
+      JOIN RecipeDetails rd
         ON rd.ProductCode = po.ProductCode
        AND rd.Version = po.RecipeVersion
-      JOIN Processes p 
+      JOIN Processes p
         ON p.RecipeDetailsId = rd.RecipeDetailsId
-      JOIN Ingredients i 
+      JOIN Ingredients i
         ON i.ProcessId = p.ProcessId
       LEFT JOIN ProductMasters pm
         ON pm.ItemCode = i.IngredientCode
       WHERE po.ProductionOrderNumber = @prodOrderNum
-
-      UNION
-
-      SELECT 
-        mc.ingredientCode,
+    ),
+    ExtraIngredient AS (
+      SELECT DISTINCT
+        mc.ingredientCode AS IngredientCode,
         pm.ItemName
       FROM MESMaterialConsumption mc
       LEFT JOIN ProductMasters pm
         ON pm.ItemCode = mc.ingredientCode
       WHERE mc.productionOrderNumber = @prodOrderNum
-    ) x
+        AND NOT EXISTS (
+          SELECT 1
+          FROM RecipeIngredient r
+          WHERE r.IngredientCode = mc.ingredientCode
+        )
+    )
+    SELECT IngredientCode, ItemName, 1 AS isInRecipe
+    FROM RecipeIngredient
+
+    UNION ALL
+
+    SELECT IngredientCode, ItemName, 0 AS isInRecipe
+    FROM ExtraIngredient
   `);
 
   return result.recordset;
@@ -194,47 +200,48 @@ async function getTotalBatchCount(request) {
   return result.recordset[0].total;
 }
 
-async function getMaterialConsumptionsData(
-  request,
-  productionOrderNumber,
-  batches,
-  ingredientList,
-) {
-  if (!batches.length) return [];
-
-  batches.forEach((b, i) => {
-    request.input(`b${i}`, sql.NVarChar, b);
-  });
-
-  ingredientList.forEach((ing, i) => {
-    request.input(`i${i}`, sql.NVarChar, ing.IngredientCode);
-    request.input(`n${i}`, sql.NVarChar, ing.ItemName);
-  });
-
-  const batchValues = batches.map((_, i) => `(@b${i})`).join(",");
-  const ingredientValues = ingredientList
-    .map((_, i) => `(@i${i}, @n${i})`)
-    .join(",");
-
+async function getMaterialConsumptionsData(request) {
   const query = `
-    /* ===== Batch table variable ===== */
-    DECLARE @BatchList TABLE (batchCode NVARCHAR(50));
-    INSERT INTO @BatchList (batchCode)
-    VALUES ${batchValues};
+    ;WITH RecipeIngredient AS (
+      SELECT DISTINCT
+        i.IngredientCode,
+        pm.ItemName
+      FROM ProductionOrders po
+      JOIN RecipeDetails rd
+        ON rd.ProductCode = po.ProductCode
+      AND rd.Version = po.RecipeVersion
+      JOIN Processes p ON p.RecipeDetailsId = rd.RecipeDetailsId
+      JOIN Ingredients i ON i.ProcessId = p.ProcessId
+      LEFT JOIN ProductMasters pm ON pm.ItemCode = i.IngredientCode
+      WHERE po.ProductionOrderNumber = @prodOrderNum
+    ),
+    ExtraIngredient AS (
+      SELECT DISTINCT
+        mc.ingredientCode AS IngredientCode,
+        pm.ItemName
+      FROM MESMaterialConsumption mc
+      LEFT JOIN ProductMasters pm ON pm.ItemCode = mc.ingredientCode
+      WHERE mc.productionOrderNumber = @prodOrderNum
+        AND NOT EXISTS (
+          SELECT 1 FROM RecipeIngredient r
+          WHERE r.IngredientCode = mc.ingredientCode
+        )
+    ),
+    BatchList AS (
+      SELECT b.BatchNumber AS batchCode
+      FROM Batches b
+      JOIN ProductionOrders po
+        ON po.ProductionOrderId = b.ProductionOrderId
+      WHERE po.ProductionOrderNumber = @prodOrderNum
+    )
 
-    /* ===== Ingredient table variable ===== */
-    DECLARE @IngredientList TABLE (
-      IngredientCode NVARCHAR(50),
-      ItemName NVARCHAR(255)
-    );
-    INSERT INTO @IngredientList (IngredientCode, ItemName)
-    VALUES ${ingredientValues};
-
-    /* ===== MAIN QUERY (data + NULL batch) ===== */
+    -- =====================
+    -- A. RECIPE INGREDIENT → CROSS JOIN
+    -- =====================
     SELECT
       b.batchCode,
-      i.IngredientCode,
-      i.ItemName,
+      r.IngredientCode,
+      r.ItemName,
       mc.id,
       mc.lot,
       mc.quantity,
@@ -247,21 +254,24 @@ async function getMaterialConsumptionsData(
       mc.respone,
       mc.status1,
       mc.timestamp
-    FROM @BatchList b
-    CROSS JOIN @IngredientList i
+    FROM BatchList b
+    CROSS JOIN RecipeIngredient r
     LEFT JOIN MESMaterialConsumption mc
       ON mc.productionOrderNumber = @prodOrderNum
-     AND mc.batchCode = b.batchCode
-     AND mc.ingredientCode = i.IngredientCode
+    AND mc.batchCode = b.batchCode
+    AND mc.ingredientCode = r.IngredientCode
     LEFT JOIN Ingredients ing
-      ON ing.IngredientCode = i.IngredientCode
+      ON ing.IngredientCode = r.IngredientCode
 
     UNION ALL
 
+    -- =====================
+    -- B. EXTRA INGREDIENT → NO GRID
+    -- =====================
     SELECT
-      NULL AS batchCode,
-      mc.ingredientCode AS IngredientCode,
-      pm.ItemName,
+      mc.batchCode,
+      e.IngredientCode,
+      e.ItemName,
       mc.id,
       mc.lot,
       mc.quantity,
@@ -275,10 +285,9 @@ async function getMaterialConsumptionsData(
       mc.status1,
       mc.timestamp
     FROM MESMaterialConsumption mc
-    LEFT JOIN ProductMasters pm
-      ON pm.ItemCode = mc.ingredientCode
+    JOIN ExtraIngredient e
+      ON e.IngredientCode = mc.ingredientCode
     WHERE mc.productionOrderNumber = @prodOrderNum
-      AND mc.batchCode IS NULL
 
     ORDER BY batchCode, IngredientCode;
   `;
@@ -332,7 +341,7 @@ router.post("/material-consumptions", async (req, res) => {
     const ingredientList = await getIngredientList(request);
     const ingredientCount = ingredientList.length;
 
-    const [totalBatches] = await Promise.all([getTotalBatchCount(request)]);
+    const totalBatches = await getTotalBatchCount(request);
 
     if (!totalBatches || !ingredientCount) {
       return res.json({
@@ -345,12 +354,7 @@ router.post("/material-consumptions", async (req, res) => {
       });
     }
 
-    const data = await getMaterialConsumptionsData(
-      request,
-      productionOrderNumber,
-      batches,
-      ingredientList,
-    );
+    const data = await getMaterialConsumptionsData(request);
 
     res.json({
       success: true,
@@ -358,7 +362,7 @@ router.post("/material-consumptions", async (req, res) => {
       page: pageNum,
       limit: pageLimit,
       totalCount: totalBatches * ingredientCount,
-      totalPages: Math.ceil(totalBatches / pageLimit),
+      totalPages: Math.ceil((totalBatches * ingredientCount) / pageLimit),
       data,
     });
   } catch (error) {
