@@ -4,3 +4,24 @@
   align-items: center;
   margin: 20px 0;
 }
+
+#filterBatchCodeOptions label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  cursor: pointer;
+  background: ${bgColor};
+  border: 1px solid ${borderColor};
+  border-radius: 4px;
+  transition: all 0.2s;
+  font-size: 13px;
+  min-width: 50px;
+}
+
+#filterBatchCodeOptions label.selected {
+  background: #007bff !important;
+  color: white !important;
+  border-color: #0056b3 !important;
+  font-weight: 500 !important;
+}

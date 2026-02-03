@@ -904,9 +904,12 @@ async function displayBatchesTable(batchesArray) {
   const viewMaterialsButtons = document.querySelectorAll(".viewMaterialsBtn");
   viewMaterialsButtons.forEach((btn) => {
     btn.addEventListener("click", function () {
-      const batchCode = this.getAttribute("data-batch-code");
-      // Save selected batch code BEFORE switching tabs
-      selectedMaterialsBatchCode = batchCode;
+      let batchCode = this.getAttribute("data-batch-code");
+      if (batchCode === null || batchCode === "null") {
+        selectedMaterialsBatchCode = "null";
+      } else {
+        selectedMaterialsBatchCode = batchCode;
+      }
       // Switch to materials tab (this will call fetchMaterialConsumptions)
       activateTab("tab-materials");
     });
@@ -1054,6 +1057,7 @@ function renderBatchCodeRadioButtons(batchesArray) {
   // Add batch code options - display as numbered buttons
   html += uniqueBatchCodes
     .map((code) => {
+      const isSelected = selectedMaterialsBatchCode === code;
       const isRunning = running_batches.some((b) => b.batchCode === code);
       let bgColor, borderColor;
       if (isRunning) {
@@ -1069,24 +1073,13 @@ function renderBatchCodeRadioButtons(batchesArray) {
       }
 
       return `
-        <label style="
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 6px 10px;
-          cursor: pointer;
-          background: ${bgColor};
-          border: 1px solid ${borderColor};
-          border-radius: 4px;
-          transition: all 0.2s;
-          font-size: 13px;
-          min-width: 50px;
-        " onmouseover="this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='${bgColor}'; this.style.color='inherit'; this.style.borderColor='${borderColor}'; this.style.fontWeight='normal'; } else { this.style.borderColor='#0056b3'; } this.style.boxShadow='none'">
+        <label class="${isSelected ? "selected" : ""} 
+          " onmouseover="this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='${bgColor}'; this.style.color='inherit'; this.style.borderColor='${borderColor}'; this.style.fontWeight='normal'; } else { this.style.borderColor='#0056b3'; } this.style.boxShadow='none'">
           <input
             type="radio"
             name="filterBatchCode"
             value="${code}"
-            ${selectedMaterialsBatchCode === code ? "checked" : ""}
+            ${isSelected === code ? "checked" : ""}
             style="margin-right: 6px; cursor: pointer; width: 16px;"
           />
           <span>${code}</span>

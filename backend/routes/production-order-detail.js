@@ -308,34 +308,35 @@ router.get("/material-consumptions-exclude-batches", async (req, res) => {
   try {
     const { productionOrderNumber, page = 1, limit = 20 } = req.query;
 
-    if (!productionOrderNumber || productionOrderNumber.trim() === "") {
+    if (!productionOrderNumber?.trim()) {
       return res.status(400).json({
         success: false,
         message: "productionOrderNumber là bắt buộc",
       });
     }
 
-    const pageNum = Math.max(1, parseInt(page) || 1);
-    const pageLimit = Math.max(1, Math.min(100, parseInt(limit) || 20));
+    const pageNum = Math.max(1, Number(page));
+    const pageLimit = Math.min(100, Math.max(1, Number(limit)));
     const offset = (pageNum - 1) * pageLimit;
 
-    const request = getPool().request();
+    const pool = getPool();
+    const request = pool.request();
+    request.timeout = 120000;
+
     request.input("prodOrderNum", sql.NVarChar, productionOrderNumber.trim());
 
-    // Query to get all batch codes for the production order
-    const batchCodesQuery = `
-      SELECT b.BatchNumber AS batchCode
-      FROM Batches b
-      JOIN ProductionOrders po 
-        ON po.ProductionOrderId = b.ProductionOrderId
-      WHERE po.ProductionOrderNumber = @prodOrderNum
+    /* ===== COUNT ===== */
+    const countQuery = `
+      SELECT COUNT(*) AS totalCount
+      FROM MESMaterialConsumption mc WITH (NOLOCK)
+      WHERE mc.ProductionOrderNumber = @prodOrderNum
+        AND mc.BatchCode IS NULL
     `;
 
-    const batchCodesResult = await request.query(batchCodesQuery);
-    const batchCodes = batchCodesResult.recordset.map((b) => b.batchCode);
+    const countResult = await request.query(countQuery);
+    const totalCount = countResult.recordset[0].totalCount;
 
-    // If there are no batch codes, return an empty result
-    if (!batchCodes.length) {
+    if (totalCount === 0) {
       return res.json({
         success: true,
         message: "Không có dữ liệu",
@@ -347,30 +348,14 @@ router.get("/material-consumptions-exclude-batches", async (req, res) => {
       });
     }
 
-    // Query to count total materials excluding those with batch codes in the Batches table
-    const countQuery = `
-      SELECT COUNT(*) as totalCount
-      FROM MESMaterialConsumption mc
-      WHERE mc.ProductionOrderNumber = @prodOrderNum
-        AND mc.batchCode NOT IN (${batchCodes.map((_, i) => `@batchCode${i}`).join(", ")})
-    `;
-
-    // Add batch codes as parameters
-    batchCodes.forEach((code, index) => {
-      request.input(`batchCode${index}`, sql.NVarChar, code);
-    });
-
-    const countResult = await request.query(countQuery);
-    const totalCount = countResult.recordset[0].totalCount;
-
-    // Query to fetch materials excluding those with batch codes in the Batches table
+    /* ===== DATA ===== */
     const dataQuery = `
-      SELECT 
+      SELECT
         mc.id,
         mc.productionOrderNumber,
         mc.batchCode,
         mc.ingredientCode,
-        COALESCE(pm.ItemName, '') as itemName,
+        pm.ItemName,
         mc.lot,
         mc.quantity,
         mc.unitOfMeasurement,
@@ -383,45 +368,32 @@ router.get("/material-consumptions-exclude-batches", async (req, res) => {
         mc.status1,
         mc.timestamp
       FROM MESMaterialConsumption mc WITH (NOLOCK)
-      LEFT JOIN ProductMasters pm WITH (NOLOCK) ON mc.ingredientCode = pm.ItemCode
+      LEFT JOIN ProductMasters pm WITH (NOLOCK)
+        ON pm.ItemCode = mc.ingredientCode
       WHERE mc.ProductionOrderNumber = @prodOrderNum
-        AND mc.batchCode NOT IN (${batchCodes.map((_, i) => `@batchCode${i}`).join(", ")})
-      ORDER BY mc.batchCode ASC, mc.id DESC
+        AND mc.BatchCode IS NULL
+      ORDER BY mc.id DESC
       OFFSET ${offset} ROWS
       FETCH NEXT ${pageLimit} ROWS ONLY
     `;
 
     const result = await request.query(dataQuery);
-
-    if (result.recordset.length === 0) {
-      return res.json({
-        success: true,
-        message: "Không có dữ liệu",
-        page: pageNum,
-        limit: pageLimit,
-        totalCount: 0,
-        totalPages: 0,
-        data: [],
-      });
-    }
-
     const totalPages = Math.ceil(totalCount / pageLimit);
 
     const data = result.recordset.map((row) => ({
       id: row.id,
       productionOrderNumber: row.productionOrderNumber,
-      batchCode: row.batchCode,
-      ingredientCode:
-        row.itemName && row.itemName !== ""
-          ? `${row.ingredientCode} - ${row.itemName}`
-          : row.ingredientCode,
+      batchCode: row.batchCode, // luôn NULL
+      ingredientCode: row.ItemName
+        ? `${row.ingredientCode} - ${row.ItemName}`
+        : row.ingredientCode,
       lot: row.lot,
       quantity: row.quantity,
       unitOfMeasurement: row.unitOfMeasurement,
       datetime: row.datetime,
       operator_ID: row.operator_ID,
       supplyMachine: row.supplyMachine,
-      count: row.count,
+      count: row.count || 0,
       request: row.request,
       respone: row.respone,
       status1: row.status1,
@@ -430,15 +402,15 @@ router.get("/material-consumptions-exclude-batches", async (req, res) => {
 
     res.json({
       success: true,
-      message: "Lấy danh sách tiêu hao vật liệu thành công",
+      message: "Lấy danh sách tiêu hao vật liệu (không thuộc batch) thành công",
       page: pageNum,
       limit: pageLimit,
-      totalCount: totalCount,
-      totalPages: totalPages,
-      data: data,
+      totalCount,
+      totalPages,
+      data,
     });
   } catch (error) {
-    console.error("Lỗi khi lấy danh sách tiêu hao vật liệu: ", error.message);
+    console.error(error);
     res.status(500).json({
       success: false,
       message: "Lỗi Server: " + error.message,
