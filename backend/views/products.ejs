@@ -119,7 +119,7 @@
           />
         </div>
         <div class="view-controls-product">
-          <button class="view-btn-product" id="tableViewBtn">
+          <button class="view-btn-product active" id="tableViewBtn">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="20"
@@ -132,7 +132,7 @@
               <rect x="3" y="17" width="18" height="3" rx="1.5" />
             </svg>
           </button>
-          <button class="view-btn-product active" id="gridViewBtn">
+          <button class="view-btn-product" id="gridViewBtn">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="20"
@@ -150,6 +150,14 @@
             <option value="">Tất cả Trạng thái</option>
             <option value="active">Hoạt động</option>
             <option value="inactive">Ngừng hoạt động</option>
+          </select>
+          <select
+            class="filter-dropdown-product"
+            id="typeFilter"
+            style="min-width: 180px"
+          >
+            <option value="">Tất cả Loại</option>
+            <!-- JS sẽ nạp thêm các option từ API /types -->
           </select>
           <button class="refresh-btn">
             <i class="fa-solid fa-rotate-right"></i>
@@ -170,9 +178,9 @@
             <tr>
               <th>Mã SP</th>
               <th>Tên Sản Phẩm</th>
-              <th>Loại</th>
-              <th>Nhóm</th>
-              <th>ĐV Cơ Sở</th>
+              <th style="text-align: center">Loại</th>
+              <th style="text-align: center">Nhóm</th>
+              <th style="text-align: center">ĐV Cơ Sở</th>
               <th style="text-align: center">Quy Đổi</th>
               <th style="text-align: center">Trạng Thái</th>
               <th>Cập Nhật</th>
@@ -216,6 +224,38 @@
             </svg>
           </button>
         </div>
+      </div>
+    </div>
+    <!-- Product Detail Modal -->
+    <div
+      id="productDetailModal"
+      style="
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.25);
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div
+        style="
+          background: #fff;
+          border-radius: 12px;
+          max-width: 600px;
+          width: 90vw;
+          margin: 40px auto;
+          padding: 32px 24px;
+          box-shadow: 0 2px 24px #0002;
+          position: relative;
+        "
+        id="productDetailBody"
+      >
+        <!-- JS will render product details here -->
       </div>
     </div>
   </body>

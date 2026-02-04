@@ -40,7 +40,7 @@ router.get("/", async (req, res) => {
         p.Item_Status,
         p.[timestamp],
         m.MHUTypeId,
-        m.FromUnit,
+        m.FromUnit, 
         m.ToUnit,
         m.Conversion
       FROM ProductMasters p
@@ -48,6 +48,185 @@ router.get("/", async (req, res) => {
     `);
     const data = result.recordset;
     res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/types", async (req, res) => {
+  try {
+    const pool = getPool();
+    const result = await pool.request().query(`
+      SELECT DISTINCT Item_Type FROM ProductMasters
+    `);
+    const types = result.recordset.map((row) => row.Item_Type);
+    res.json(types);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Tìm kiếm với filter và phân trang
+router.get("/search", async (req, res) => {
+  try {
+    const {
+      q = "",
+      status = "",
+      type = "",
+      page = "1",
+      pageSize = "20",
+    } = req.query;
+
+    const pageInt = Math.max(parseInt(page, 10) || 1, 1);
+    const pageSizeInt = Math.min(
+      Math.max(parseInt(pageSize, 10) || 20, 1),
+      100,
+    );
+    const offset = (pageInt - 1) * pageSizeInt;
+
+    const pool = getPool();
+
+    const whereClauses = [];
+    const statusUpper = (status || "").toUpperCase();
+    // Bind parameters safely
+    const bindParams = (request) => {
+      if (q) request.input("q", sql.NVarChar, `%${q}%`);
+      if (statusUpper === "ACTIVE") {
+        request.input("status", sql.NVarChar, "ACTIVE");
+      } else if (statusUpper === "INACTIVE") {
+        request.input("inactiveStatus", sql.NVarChar, "INACTIVE");
+      }
+      if (type) request.input("type", sql.NVarChar, type);
+    };
+
+    if (q)
+      whereClauses.push(
+        "(p.ItemCode LIKE @q OR p.ItemName LIKE @q OR p.[Group] LIKE @q)",
+      );
+    if (statusUpper === "ACTIVE") {
+      whereClauses.push("p.Item_Status = @status");
+    } else if (statusUpper === "INACTIVE") {
+      whereClauses.push(
+        "(p.Item_Status = @inactiveStatus OR p.Item_Status IS NULL)",
+      );
+    }
+    if (type) whereClauses.push("p.Item_Type = @type");
+
+    const whereSql = whereClauses.length
+      ? `WHERE ${whereClauses.join(" AND ")}`
+      : "";
+
+    // Count total matching rows
+    const totalReq = pool.request();
+    bindParams(totalReq);
+    const totalQuery = `
+      SELECT COUNT(*) AS total
+      FROM ProductMasters p
+      ${whereSql}
+    `;
+    const totalResult = await totalReq.query(totalQuery);
+    const total = totalResult.recordset[0]?.total || 0;
+
+    // Fetch paged data (joined with MHUTypes)
+    const dataReq = pool.request();
+    bindParams(dataReq);
+    dataReq.input("offset", sql.Int, offset);
+    dataReq.input("pageSize", sql.Int, pageSizeInt);
+
+    const dataQuery = `
+      SELECT 
+        p.ProductMasterId,
+        p.ItemCode,
+        p.ItemName,
+        p.Item_Type,
+        p.[Group],
+        p.Category,
+        p.Brand,
+        p.BaseUnit,
+        p.InventoryUnit,
+        p.Item_Status,
+        p.[timestamp],
+        m.MHUTypeId,
+        m.FromUnit,
+        m.ToUnit,
+        m.Conversion
+      FROM ProductMasters p
+      LEFT JOIN MHUTypes m ON p.ProductMasterId = m.ProductMasterId
+      ${whereSql}
+      ORDER BY p.ItemCode
+      OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
+    `;
+
+    const dataResult = await dataReq.query(dataQuery);
+    res.json({
+      items: dataResult.recordset,
+      total,
+      page: pageInt,
+      pageSize: pageSizeInt,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Thống kê có filter (q, status, type)
+router.get("/stats/search", async (req, res) => {
+  try {
+    const { q = "", status = "", type = "" } = req.query;
+    const pool = getPool();
+
+    const whereClauses = [];
+    const statusUpper = (status || "").toUpperCase();
+    const bindParams = (request) => {
+      if (q) request.input("q", sql.NVarChar, `%${q}%`);
+      if (statusUpper === "ACTIVE") {
+        request.input("status", sql.NVarChar, "ACTIVE");
+      } else if (statusUpper === "INACTIVE") {
+        request.input("inactiveStatus", sql.NVarChar, "INACTIVE");
+      }
+      if (type) request.input("type", sql.NVarChar, type);
+    };
+
+    if (q) {
+      whereClauses.push(
+        "(p.ItemCode LIKE @q OR p.ItemName LIKE @q OR p.[Group] LIKE @q)",
+      );
+    }
+    if (statusUpper === "ACTIVE") {
+      whereClauses.push("p.Item_Status = @status");
+    } else if (statusUpper === "INACTIVE") {
+      whereClauses.push(
+        "(p.Item_Status = @inactiveStatus OR p.Item_Status IS NULL)",
+      );
+    }
+    if (type) whereClauses.push("p.Item_Type = @type");
+
+    const whereSql = whereClauses.length
+      ? `WHERE ${whereClauses.join(" AND ")}`
+      : "";
+
+    const reqStats = pool.request();
+    bindParams(reqStats);
+    const queryStats = `
+      SELECT
+        COUNT(*) AS totalProducts,
+        SUM(CASE WHEN p.Item_Status = 'ACTIVE' THEN 1 ELSE 0 END) AS activeProducts,
+        COUNT(DISTINCT p.Item_Type) AS totalTypes,
+        COUNT(DISTINCT p.Category) AS totalCategories,
+        COUNT(DISTINCT p.[Group]) AS totalGroups
+      FROM ProductMasters p
+      ${whereSql}
+    `;
+    const result = await reqStats.query(queryStats);
+    res.json(
+      result.recordset[0] || {
+        totalProducts: 0,
+        activeProducts: 0,
+        totalTypes: 0,
+        totalCategories: 0,
+        totalGroups: 0,
+      },
+    );
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
