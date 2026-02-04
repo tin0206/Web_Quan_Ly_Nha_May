@@ -20,6 +20,7 @@ function formatDateTime(dateString) {
 
   return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 }
+
 async function fetchRecipeDetail(recipeId) {
   const response = await fetch(
     `${API_ROUTE}/api/production-recipe-detail/${recipeId}`,
