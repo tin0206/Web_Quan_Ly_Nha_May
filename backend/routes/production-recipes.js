@@ -9,8 +9,7 @@ router.get("/stats", async (req, res) => {
       SELECT
         (SELECT COUNT(*) FROM RecipeDetails) as total,
         (SELECT COUNT(*) FROM RecipeDetails WHERE RecipeStatus = 'Active') as active,
-        (SELECT COUNT(DISTINCT Version) FROM RecipeDetails) as totalVersions,
-        (SELECT COUNT(*) FROM RecipeDetails WHERE RecipeStatus = 'Draft') as draft
+        (SELECT COUNT(DISTINCT Version) FROM RecipeDetails) as totalVersions
     `);
 
     const stats = statsResult.recordset[0];
@@ -60,18 +59,14 @@ router.get("/stats/search", async (req, res) => {
         .filter(Boolean);
       const parts = [];
       if (statuses.includes("active")) parts.push("RecipeStatus = 'Active'");
-      if (statuses.includes("draft")) parts.push("RecipeStatus = 'Draft'");
       if (statuses.includes("inactive"))
-        parts.push(
-          "(RecipeStatus NOT IN ('Active','Draft') OR RecipeStatus IS NULL)",
-        );
+        parts.push("(RecipeStatus NOT IN ('Active') OR RecipeStatus IS NULL)");
       if (parts.length > 0) statusClause = ` AND (${parts.join(" OR ")})`;
     } else if (status) {
       if (status === "active") statusClause = " AND RecipeStatus = 'Active'";
-      else if (status === "draft") statusClause = " AND RecipeStatus = 'Draft'";
       else if (status === "inactive")
         statusClause =
-          " AND (RecipeStatus NOT IN ('Active','Draft') OR RecipeStatus IS NULL)";
+          " AND (RecipeStatus NOT IN ('Active') OR RecipeStatus IS NULL)";
     }
 
     const whereTotal = whereCommon + statusClause;
@@ -80,8 +75,7 @@ router.get("/stats/search", async (req, res) => {
       SELECT
         (SELECT COUNT(*) FROM RecipeDetails WHERE ${whereTotal}) as total,
         (SELECT COUNT(*) FROM RecipeDetails WHERE ${whereCommon} AND RecipeStatus = 'Active'${statusClause}) as active,
-        (SELECT COUNT(DISTINCT Version) FROM RecipeDetails WHERE ${whereTotal}) as totalVersions,
-        (SELECT COUNT(*) FROM RecipeDetails WHERE ${whereCommon} AND RecipeStatus = 'Draft'${statusClause}) as draft
+        (SELECT COUNT(DISTINCT Version) FROM RecipeDetails WHERE ${whereTotal}) as totalVersions
     `;
 
     const statsResult = await request.query(statsQuery);
@@ -150,17 +144,13 @@ router.get("/search", async (req, res) => {
         .filter(Boolean);
       const parts = [];
       if (statuses.includes("active")) parts.push("RecipeStatus = 'Active'");
-      if (statuses.includes("draft")) parts.push("RecipeStatus = 'Draft'");
       if (statuses.includes("inactive"))
-        parts.push(
-          "(RecipeStatus NOT IN ('Active','Draft') OR RecipeStatus IS NULL)",
-        );
+        parts.push("(RecipeStatus NOT IN ('Active') OR RecipeStatus IS NULL)");
       if (parts.length > 0) where += ` AND (${parts.join(" OR ")})`;
     } else if (status) {
       if (status === "active") where += ` AND RecipeStatus = 'Active'`;
-      else if (status === "draft") where += ` AND RecipeStatus = 'Draft'`;
       else if (status === "inactive")
-        where += ` AND (RecipeStatus NOT IN ('Active','Draft') OR RecipeStatus IS NULL)`;
+        where += ` AND (RecipeStatus NOT IN ('Active') OR RecipeStatus IS NULL)`;
     }
 
     // Đếm tổng số bản ghi

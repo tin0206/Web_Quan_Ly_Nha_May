@@ -90,7 +90,6 @@ function populateStatusOptions() {
 
   const statusList = [
     { value: "active", label: "Hoạt động" },
-    { value: "draft", label: "Bản nháp" },
     { value: "inactive", label: "Ngừng hoạt động" },
   ];
 
@@ -171,7 +170,6 @@ function updateStatusSelectedText() {
   } else if (selectedStatuses.length <= 2) {
     const labelMap = {
       active: "Hoạt động",
-      draft: "Bản nháp",
       inactive: "Ngừng hoạt động",
     };
     selectedText.textContent = selectedStatuses
@@ -232,9 +230,9 @@ function renderRecipeGrid(recipes) {
             Phiên bản:  ${recipe.Version ? recipe.Version : ""}
           </span>
         </div>
-        <span class="status-badge status-${recipe.RecipeStatus === "Active" ? "success" : recipe.RecipeStatus === "Draft" ? "draft" : "inactive"}">
+        <span class="status-badge status-${recipe.RecipeStatus === "Active" ? "success" : "inactive"}">
           <i class="fa-solid fa-circle-check"></i>
-          ${recipe.RecipeStatus === "Active" ? "Hoạt động" : recipe.RecipeStatus === "Draft" ? "Bản nháp" : "Ngừng hoạt động"}
+          ${recipe.RecipeStatus === "Active" ? "Hoạt động" : "Ngừng hoạt động"}
         </span>
       </div>
       <div class="recipe-product">
@@ -293,8 +291,8 @@ function renderRecipeTable(recipes) {
       <td style="max-width: 300px;">${recipe.RecipeCode || ""} - ${recipe.RecipeName || ""}</td>
       <td>${recipe.Version || ""}</td>
       <td style="text-align:center">
-        <span class="status-badge status-${recipe.RecipeStatus === "Active" ? "success" : recipe.RecipeStatus === "Draft" ? "draft" : "inactive"}">
-          ${recipe.RecipeStatus === "Active" ? "Hoạt động" : recipe.RecipeStatus === "Draft" ? "Bản nháp" : "Ngừng hoạt động"}
+        <span class="status-badge status-${recipe.RecipeStatus === "Active" ? "success" : "inactive"}">
+          ${recipe.RecipeStatus === "Active" ? "Hoạt động" : "Ngừng hoạt động"}
         </span>
       </td>
       <td>${recipe.timestamp ? formatDateTime(recipe.timestamp) : ""}</td>
@@ -516,7 +514,6 @@ async function fetchAndDisplayRecipeStats() {
       document.getElementById("activeRecipes").textContent = data.stats.active;
       document.getElementById("totalVersions").textContent =
         data.stats.totalVersions;
-      document.getElementById("draftRecipes").textContent = data.stats.draft;
     }
   } catch (err) {
     console.error("Lỗi khi lấy thống kê recipes:", err);
