@@ -124,12 +124,67 @@
               <rect x="3" y="13" width="7" height="7" rx="2" />
             </svg>
           </button>
-          <select class="filter-dropdown" id="statusFilter">
-            <option value="">Tất cả Trạng thái</option>
-            <option value="active">Hoạt động</option>
-            <option value="draft">Bản nháp</option>
-            <option value="inactive">Ngừng hoạt động</option>
-          </select>
+          <div
+            class="custom-multiselect"
+            style="position: relative; min-width: 220px"
+          >
+            <div
+              id="statusInput"
+              class="multiselect-input"
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px 10px;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                cursor: pointer;
+                background: #fff;
+                min-width: 220px;
+              "
+            >
+              <span id="statusSelectedText" style="color: #999"
+                >Select statuses...</span
+              >
+              <i class="fa-solid fa-chevron-down" style="color: #666"></i>
+            </div>
+            <div
+              id="statusDropdown"
+              class="multiselect-dropdown"
+              style="
+                position: absolute;
+                top: 105%;
+                left: 0;
+                background: #fff;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+                padding: 8px;
+                width: 220px;
+                display: none;
+                z-index: 50;
+              "
+            >
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  padding: 6px 8px;
+                  cursor: pointer;
+                  border-radius: 4px;
+                "
+              >
+                <input
+                  type="checkbox"
+                  id="statusSelectAll"
+                  style="cursor: pointer"
+                />
+                <span style="font-weight: 600">[Select all]</span>
+              </label>
+              <div id="statusOptions"></div>
+            </div>
+          </div>
           <button class="refresh-btn">
             <i class="fa-solid fa-rotate-right"></i>
             Làm mới

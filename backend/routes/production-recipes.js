@@ -39,28 +39,49 @@ router.get("/stats/search", async (req, res) => {
   try {
     const search = req.query.search ? String(req.query.search).trim() : "";
     const status = req.query.status ? String(req.query.status).trim() : "";
+    const statusesParam = req.query.statuses
+      ? String(req.query.statuses).trim()
+      : "";
 
-    let where = "1=1";
     const request = getPool().request();
-
+    let whereCommon = "1=1";
     if (search) {
       request.input("search", sql.NVarChar, `%${search}%`);
-      where +=
+      whereCommon +=
         " AND (RecipeCode LIKE @search OR ProductCode LIKE @search OR ProductName LIKE @search)";
     }
-    if (status) {
-      if (status === "active") where += " AND RecipeStatus = 'Active'";
-      else if (status === "draft") where += " AND RecipeStatus = 'Draft'";
+
+    // Build status clause supporting multiple selections
+    let statusClause = "";
+    if (statusesParam) {
+      const statuses = statusesParam
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+      const parts = [];
+      if (statuses.includes("active")) parts.push("RecipeStatus = 'Active'");
+      if (statuses.includes("draft")) parts.push("RecipeStatus = 'Draft'");
+      if (statuses.includes("inactive"))
+        parts.push(
+          "(RecipeStatus NOT IN ('Active','Draft') OR RecipeStatus IS NULL)",
+        );
+      if (parts.length > 0) statusClause = ` AND (${parts.join(" OR ")})`;
+    } else if (status) {
+      if (status === "active") statusClause = " AND RecipeStatus = 'Active'";
+      else if (status === "draft") statusClause = " AND RecipeStatus = 'Draft'";
       else if (status === "inactive")
-        where += " AND RecipeStatus NOT IN ('Active','Draft')";
+        statusClause =
+          " AND (RecipeStatus NOT IN ('Active','Draft') OR RecipeStatus IS NULL)";
     }
+
+    const whereTotal = whereCommon + statusClause;
 
     const statsQuery = `
       SELECT
-        (SELECT COUNT(*) FROM RecipeDetails WHERE ${where}) as total,
-        (SELECT COUNT(*) FROM RecipeDetails WHERE ${where} AND RecipeStatus = 'Active') as active,
-        (SELECT COUNT(DISTINCT Version) FROM RecipeDetails WHERE ${where}) as totalVersions,
-        (SELECT COUNT(*) FROM RecipeDetails WHERE ${where} AND RecipeStatus = 'Draft') as draft
+        (SELECT COUNT(*) FROM RecipeDetails WHERE ${whereTotal}) as total,
+        (SELECT COUNT(*) FROM RecipeDetails WHERE ${whereCommon} AND RecipeStatus = 'Active'${statusClause}) as active,
+        (SELECT COUNT(DISTINCT Version) FROM RecipeDetails WHERE ${whereTotal}) as totalVersions,
+        (SELECT COUNT(*) FROM RecipeDetails WHERE ${whereCommon} AND RecipeStatus = 'Draft'${statusClause}) as draft
     `;
 
     const statsResult = await request.query(statsQuery);
@@ -113,6 +134,7 @@ router.get("/search", async (req, res) => {
     const skip = (page - 1) * limit;
     const search = req.query.search ? req.query.search.trim() : "";
     const status = req.query.status ? req.query.status.trim() : "";
+    const statusesParam = req.query.statuses ? req.query.statuses.trim() : "";
 
     let where = "1=1";
     if (search) {
@@ -120,11 +142,25 @@ router.get("/search", async (req, res) => {
         OR ProductCode LIKE N'%${search.replace(/'/g, "''")}%'
         OR ProductName LIKE N'%${search.replace(/'/g, "''")}%')`;
     }
-    if (status) {
+    // Multi-status support
+    if (statusesParam) {
+      const statuses = statusesParam
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+      const parts = [];
+      if (statuses.includes("active")) parts.push("RecipeStatus = 'Active'");
+      if (statuses.includes("draft")) parts.push("RecipeStatus = 'Draft'");
+      if (statuses.includes("inactive"))
+        parts.push(
+          "(RecipeStatus NOT IN ('Active','Draft') OR RecipeStatus IS NULL)",
+        );
+      if (parts.length > 0) where += ` AND (${parts.join(" OR ")})`;
+    } else if (status) {
       if (status === "active") where += ` AND RecipeStatus = 'Active'`;
       else if (status === "draft") where += ` AND RecipeStatus = 'Draft'`;
       else if (status === "inactive")
-        where += ` AND RecipeStatus NOT IN ('Active','Draft')`;
+        where += ` AND (RecipeStatus NOT IN ('Active','Draft') OR RecipeStatus IS NULL)`;
     }
 
     // Đếm tổng số bản ghi

@@ -3,7 +3,8 @@ import { Recipe } from "../js/models/Recipes.js";
 const API_ROUTE = window.location.origin;
 
 // Pagination/filter/search state
-let filterStatus = "";
+let filterStatus = ""; // legacy single status (kept for backward compatibility)
+let selectedStatuses = [];
 let filterSearch = "";
 let currentPage = 1;
 let pageSize = 20;
@@ -16,6 +17,7 @@ function saveRecipesState() {
   try {
     const state = {
       filterStatus,
+      selectedStatuses,
       filterSearch,
       currentPage,
     };
@@ -30,6 +32,9 @@ function restoreRecipesState() {
     const state = JSON.parse(raw);
     if (state && typeof state === "object") {
       filterStatus = state.filterStatus || "";
+      selectedStatuses = Array.isArray(state.selectedStatuses)
+        ? state.selectedStatuses
+        : [];
       filterSearch = state.filterSearch || "";
       currentPage = Math.max(1, parseInt(state.currentPage) || 1);
       return true;
@@ -76,6 +81,134 @@ function updatePaginationUI() {
       }
     });
   });
+}
+
+// ===================== Status Multiselect =====================
+function populateStatusOptions() {
+  const optionsContainer = document.getElementById("statusOptions");
+  if (!optionsContainer) return;
+
+  const statusList = [
+    { value: "active", label: "Hoạt động" },
+    { value: "draft", label: "Bản nháp" },
+    { value: "inactive", label: "Ngừng hoạt động" },
+  ];
+
+  optionsContainer.innerHTML = "";
+  statusList.forEach((status) => {
+    const label = document.createElement("label");
+    label.style.cssText =
+      "display:flex; align-items:center; gap:8px; padding:6px 8px; cursor:pointer; border-radius:4px;";
+    label.onmouseover = function () {
+      this.style.background = "#f5f5f5";
+    };
+    label.onmouseout = function () {
+      this.style.background = "transparent";
+    };
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "status-checkbox";
+    checkbox.value = status.value;
+    checkbox.style.cursor = "pointer";
+    checkbox.onchange = handleStatusCheckboxChange;
+    checkbox.checked = selectedStatuses.includes(status.value);
+
+    const span = document.createElement("span");
+    span.textContent = status.label;
+
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    optionsContainer.appendChild(label);
+  });
+
+  initializeStatusSelectAll();
+  updateStatusSelectedText();
+  updateStatusSelectAllState();
+}
+
+function initializeStatusDropdown() {
+  const input = document.getElementById("statusInput");
+  const dropdown = document.getElementById("statusDropdown");
+  if (!input || !dropdown) return;
+  input.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isVisible = dropdown.style.display === "block";
+    dropdown.style.display = isVisible ? "none" : "block";
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".custom-multiselect")) {
+      dropdown.style.display = "none";
+    }
+  });
+  dropdown.addEventListener("click", (e) => e.stopPropagation());
+}
+
+function initializeStatusSelectAll() {
+  const selectAllCheckbox = document.getElementById("statusSelectAll");
+  if (!selectAllCheckbox) return;
+  const statusCheckboxes = document.querySelectorAll(".status-checkbox");
+  selectAllCheckbox.addEventListener("change", async function () {
+    statusCheckboxes.forEach((cb) => (cb.checked = this.checked));
+    selectedStatuses = this.checked
+      ? Array.from(statusCheckboxes).map((cb) => cb.value)
+      : [];
+    updateStatusSelectedText();
+    updateStatusSelectAllState();
+    currentPage = 1;
+    saveRecipesState();
+    await fetchAndDisplayRecipeStats();
+    await fetchAndDisplayRecipes();
+  });
+}
+
+function updateStatusSelectedText() {
+  const selectedText = document.getElementById("statusSelectedText");
+  if (!selectedText) return;
+  if (selectedStatuses.length === 0) {
+    selectedText.textContent = "Select statuses...";
+    selectedText.style.color = "#999";
+  } else if (selectedStatuses.length <= 2) {
+    const labelMap = {
+      active: "Hoạt động",
+      draft: "Bản nháp",
+      inactive: "Ngừng hoạt động",
+    };
+    selectedText.textContent = selectedStatuses
+      .map((s) => labelMap[s] || s)
+      .join(", ");
+    selectedText.style.color = "#333";
+  } else {
+    selectedText.textContent = `${selectedStatuses.length} selected`;
+    selectedText.style.color = "#333";
+  }
+}
+
+function updateStatusSelectAllState() {
+  const selectAll = document.getElementById("statusSelectAll");
+  const statusCheckboxes = document.querySelectorAll(".status-checkbox");
+  if (!selectAll || statusCheckboxes.length === 0) return;
+  const allChecked = Array.from(statusCheckboxes).every((cb) => cb.checked);
+  const someChecked = Array.from(statusCheckboxes).some((cb) => cb.checked);
+  selectAll.checked = allChecked;
+  selectAll.indeterminate = someChecked && !allChecked;
+}
+
+async function handleStatusCheckboxChange() {
+  const statusCheckboxes = document.querySelectorAll(".status-checkbox");
+  selectedStatuses = Array.from(statusCheckboxes)
+    .filter((cb) => cb.checked)
+    .map((cb) => cb.value);
+  updateStatusSelectedText();
+  updateStatusSelectAllState();
+  currentPage = 1;
+  saveRecipesState();
+  await fetchAndDisplayRecipeStats();
+  await fetchAndDisplayRecipes();
+}
+
+function getSelectedStatuses() {
+  return selectedStatuses;
 }
 
 function renderRecipeGrid(recipes) {
@@ -320,14 +453,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Filter & refresh logic
   const searchInput = document.getElementById("searchInput");
-  const statusFilter = document.getElementById("statusFilter");
+  const statusFilter = null; // replaced by custom multiselect
   const refreshBtn = document.querySelector(".refresh-btn");
 
   // Restore state to inputs before wiring listeners
   if (restoreRecipesState()) {
     if (searchInput) searchInput.value = filterSearch;
-    if (statusFilter) statusFilter.value = filterStatus;
+    // selectedStatuses restored; checkboxes will reflect after populate
   }
+
+  // Initialize status multiselect UI
+  initializeStatusDropdown();
+  populateStatusOptions();
 
   if (searchInput) {
     searchInput.addEventListener("input", function (e) {
@@ -338,25 +475,18 @@ document.addEventListener("DOMContentLoaded", function () {
       fetchAndDisplayRecipes();
     });
   }
-  if (statusFilter) {
-    statusFilter.addEventListener("change", function (e) {
-      filterStatus = e.target.value;
-      currentPage = 1;
-      saveRecipesState();
-      fetchAndDisplayRecipeStats();
-      fetchAndDisplayRecipes();
-    });
-  }
   if (refreshBtn) {
     refreshBtn.addEventListener("click", function () {
       if (searchInput) searchInput.value = "";
-      if (statusFilter) statusFilter.value = "";
       filterSearch = "";
       filterStatus = "";
+      selectedStatuses = [];
       currentPage = 1;
       try {
         sessionStorage.removeItem(STATE_KEY);
       } catch (_) {}
+      updateStatusSelectedText();
+      updateStatusSelectAllState();
       fetchAndDisplayRecipeStats();
       fetchAndDisplayRecipes();
     });
@@ -373,9 +503,10 @@ async function fetchAndDisplayRecipeStats() {
     // Choose stats endpoint based on filters
     let endpoint = `${API_ROUTE}/api/production-recipes/stats`;
     const params = new URLSearchParams();
-    if (filterStatus) params.append("status", filterStatus);
+    const statuses = getSelectedStatuses();
+    if (statuses.length > 0) params.append("statuses", statuses.join(","));
     if (filterSearch) params.append("search", filterSearch);
-    if (filterStatus || filterSearch) {
+    if (statuses.length > 0 || filterSearch) {
       endpoint = `${API_ROUTE}/api/production-recipes/stats/search?${params.toString()}`;
     }
     const res = await fetch(endpoint);
@@ -396,7 +527,9 @@ async function fetchAndDisplayRecipeStats() {
 async function fetchAndDisplayRecipes() {
   try {
     let url = `${API_ROUTE}/api/production-recipes/search?page=${currentPage}&limit=${pageSize}`;
-    if (filterStatus) url += `&status=${encodeURIComponent(filterStatus)}`;
+    const statuses = getSelectedStatuses();
+    if (statuses.length > 0)
+      url += `&statuses=${encodeURIComponent(statuses.join(","))}`;
     if (filterSearch) url += `&search=${encodeURIComponent(filterSearch)}`;
     const res = await fetch(url);
     if (res.ok) {
