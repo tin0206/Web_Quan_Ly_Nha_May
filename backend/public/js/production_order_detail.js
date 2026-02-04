@@ -1035,12 +1035,12 @@ function renderBatchCodeRadioButtons(batchesArray) {
       justify-content: center;
       padding: 8px;
       cursor: pointer;
-      background: ${isAllSelected ? "#007bff" : "white"};
-      color: ${isAllSelected ? "white" : "inherit"};
-      border: 1px solid ${isAllSelected ? "#0056b3" : "#ddd"};
+      background: white;
+      color: inherit;
+      border: 1px solid #ddd;
       border-radius: 4px;
       font-size: 14px;
-      font-weight: ${isAllSelected ? "500" : "normal"};
+      font-weight: normal;
     " onmouseover="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'; } else { this.style.background='#0056b3'; }" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='white'; this.style.color='inherit'; this.style.borderColor='#ddd'; this.style.fontWeight='normal'; this.style.boxShadow='none'; } else { this.style.background='#007bff'; this.style.borderColor='#0056b3'; } this.style.boxShadow='none'">
       <input
         type="radio"
@@ -1078,7 +1078,7 @@ function renderBatchCodeRadioButtons(batchesArray) {
             type="radio"
             name="filterBatchCode"
             value="${code}"
-            ${isSelected === code ? "checked" : ""}
+            ${isSelected ? "checked" : ""}
             style="margin-right: 6px; cursor: pointer; width: 16px;"
           />
           <span>${code}</span>
@@ -1088,6 +1088,31 @@ function renderBatchCodeRadioButtons(batchesArray) {
     .join("");
 
   container.innerHTML = html;
+
+  // Explicitly sync the checked radio to avoid initial flash
+  try {
+    let targetValue = selectedMaterialsBatchCode;
+    if (typeof targetValue !== "string") {
+      targetValue = targetValue == null ? "" : String(targetValue);
+    }
+    let targetRadio = document.querySelector(
+      `input[name="filterBatchCode"][value="${CSS.escape(targetValue)}"]`,
+    );
+    if (!targetRadio) {
+      targetRadio = document.querySelector(
+        'input[name="filterBatchCode"][value=""]',
+      );
+    }
+    if (targetRadio) {
+      targetRadio.checked = true;
+    }
+  } catch (_) {
+    // Fallback silently if CSS.escape is unavailable
+    const radios = document.querySelectorAll('input[name="filterBatchCode"]');
+    radios.forEach((r) => {
+      if (r.value === selectedMaterialsBatchCode) r.checked = true;
+    });
+  }
 
   // Add event listeners to radio buttons
   const radios = document.querySelectorAll('input[name="filterBatchCode"]');
