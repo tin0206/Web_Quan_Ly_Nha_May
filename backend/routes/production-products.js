@@ -180,20 +180,36 @@ router.get("/search", async (req, res) => {
         p.InventoryUnit,
         p.Item_Status,
         p.[timestamp],
-        m.MHUTypeId,
-        m.FromUnit,
-        m.ToUnit,
-        m.Conversion
+        JSON_QUERY(
+          (
+            SELECT
+              m.MHUTypeId,
+              m.FromUnit,
+              m.ToUnit,
+              m.Conversion
+            FROM MHUTypes m
+            WHERE m.ProductMasterId = p.ProductMasterId
+            FOR JSON PATH
+          )
+        ) AS MhuTypes
       FROM ProductMasters p
-      LEFT JOIN MHUTypes m ON p.ProductMasterId = m.ProductMasterId
       ${whereSql}
-      ORDER BY p.ItemCode
+      ORDER BY p.[timestamp] DESC
       OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
     `;
 
     const dataResult = await dataReq.query(dataQuery);
+    const items = dataResult.recordset.map((row) => {
+      let parsed = [];
+      try {
+        parsed = JSON.parse(row.MhuTypes || "[]");
+      } catch (e) {
+        parsed = [];
+      }
+      return { ...row, MhuTypes: parsed };
+    });
     res.json({
-      items: dataResult.recordset,
+      items,
       total,
       page: pageInt,
       pageSize: pageSizeInt,

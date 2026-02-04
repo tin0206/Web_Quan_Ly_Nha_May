@@ -339,13 +339,6 @@ function renderTable() {
           <td style="text-align:center;">${p.BaseUnit || "-"}</td>
           <td class="td-center">
             ${
-              p.Conversion
-                ? `<span class="product-conversion">${p.Conversion}</span>`
-                : "-"
-            }
-          </td>
-          <td class="td-center">
-            ${
               p.Item_Status === "ACTIVE"
                 ? `<span class="product-status active">ACTIVE</span>`
                 : `<span class="product-status inactive">INACTIVE</span>`
@@ -431,6 +424,32 @@ function renderGridView() {
 function showProductModal(product) {
   const modal = document.getElementById("productDetailModal");
   const body = document.getElementById("productDetailBody");
+  const hasMhus = Array.isArray(product.MhuTypes) && product.MhuTypes.length;
+  const mhuTable = hasMhus
+    ? `
+    <table style="width:100%;border-collapse:collapse;max-height:300px;overflow-y:auto;display:block;">
+      <thead>
+        <tr>
+          <th style='width:140px; text-align:center; padding:6px 0;'>MHUTypeId</th>
+          <th style='width:140px; text-align:center; padding:6px 0;'>FromUnit</th>
+          <th style='width:140px; text-align:center; padding:6px 0;'>ToUnit</th>
+          <th style='width:140px; text-align:center; padding:6px 0;'>Conversion</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${product.MhuTypes.map(
+          (m) => `
+          <tr>
+            <td style='text-align:center; padding:6px 0;'>${m.MHUTypeId ?? "-"}</td>
+            <td style='text-align:center; padding:6px 0;'>${m.FromUnit ?? "-"}</td>
+            <td style='text-align:center; padding:6px 0;'>${m.ToUnit ?? "-"}</td>
+            <td style='text-align:center; padding:6px 0;'>${m.Conversion ?? "-"}</td>
+          </tr>`,
+        ).join("")}
+      </tbody>
+    </table>
+  `
+    : `<div style='color:#888;'>Không có quy đổi đơn vị (MHU) cho sản phẩm này</div>`;
   body.innerHTML = `
     <h2 style=\"margin-bottom:16px;color:#6259ee\">Chi tiết sản phẩm</h2>
     <table style=\"width:100%;border-collapse:collapse;\">
@@ -447,14 +466,9 @@ function showProductModal(product) {
       <tr><td style='font-weight:600;padding:6px 0; width:160px;'>Ngày cập nhật</td><td>${product.timestamp ? formatDateTime(product.timestamp) : "-"}</td></tr>
     </table>
     <h3 style=\"margin:18px 0 8px 0;color:#1c96ff\">MHUTypes</h3>
-    <table style=\"width:100%;border-collapse:collapse;\">
-      <tr><td style='font-weight:600;padding:6px 0; width:160px;'>MHUTypeId</td><td>${product.MHUTypeId || "-"}</td></tr>
-      <tr><td style='font-weight:600;padding:6px 0; width:160px;'>FromUnit</td><td>${product.FromUnit || "-"}</td></tr>
-      <tr><td style='font-weight:600;padding:6px 0; width:160px;'>ToUnit</td><td>${product.ToUnit || "-"}</td></tr>
-      <tr><td style='font-weight:600;padding:6px 0; width:160px;'>Conversion</td><td>${product.Conversion || "-"}</td></tr>
-    </table>
+    ${mhuTable}
   `;
-  modal.style.display = "block";
+  modal.style.display = "flex";
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
