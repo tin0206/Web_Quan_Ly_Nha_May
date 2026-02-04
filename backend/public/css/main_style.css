@@ -61,6 +61,13 @@ body {
   padding-bottom: 40px;
 }
 
+.main-container-product {
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
 /* Header Section */
 .header-section {
   margin-bottom: 30px;
@@ -206,6 +213,19 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+.search-section-product {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
 .first-search-section {
   display: flex;
   justify-content: space-between;
@@ -281,6 +301,55 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+.view-controls-product {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.view-btn-product {
+  background-color: #f5f5f5;
+  border: 1px solid #e8e7f0;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #666;
+  transition: all 0.3s ease;
+}
+
+.view-btn-product:hover {
+  background-color: #e8e7f0;
+}
+
+.view-btn-product.active {
+  color: #5546cb;
+  background-color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.filter-dropdown-product {
+  padding: 8px 16px;
+  border: 1px solid #e8e7f0;
+  border-radius: 6px;
+  background-color: white;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.filter-dropdown-product:hover {
+  background-color: #f5f5f5;
+}
+
 .refresh-btn {
   background-color: white;
   border: 1px solid #e8e7f0;
@@ -297,6 +366,42 @@ body {
 
 .refresh-btn:hover {
   background-color: #f5f5f5;
+}
+
+#product-conversion {
+  width: 40px;
+  height: 40px;
+  border-radius: 100%;
+  border: 1px solid #1c96ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1c96ff;
+  font-weight: 600;
+}
+
+#product-status-active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 30px;
+  border-radius: 20px;
+  background-color: #0ebf53;
+  color: white;
+  font-weight: 600;
+}
+
+#product-status-inactive {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70px;
+  height: 30px;
+  border-radius: 20px;
+  background-color: #ff3b30;
+  color: white;
+  font-weight: 600;
 }
 
 /* Table Section */

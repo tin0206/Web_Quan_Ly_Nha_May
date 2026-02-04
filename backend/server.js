@@ -3,6 +3,7 @@ const productionOrdersRoutes = require("./routes/production-orders");
 const productionOrderDetailRoutes = require("./routes/production-order-detail");
 const productionRecipesRoutes = require("./routes/production-recipes");
 const productionRecipeDetailRoutes = require("./routes/production-recipe-detail");
+const productionProductsRoutes = require("./routes/production-products");
 const sql = require("mssql");
 const cors = require("cors");
 const path = require("path");
@@ -21,8 +22,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.set("view engine", "ejs");
-app.set("views", "./views");
 app.use(express.static(path.join(__dirname, "public")));
 
 app.set("view engine", "ejs");
@@ -84,5 +83,6 @@ app.use("/api/production-orders", productionOrdersRoutes);
 app.use("/api/production-order-detail", productionOrderDetailRoutes);
 app.use("/api/production-recipes", productionRecipesRoutes);
 app.use("/api/production-recipe-detail", productionRecipeDetailRoutes);
+app.use("/api/production-products", productionProductsRoutes);
 
 module.exports = { sql };

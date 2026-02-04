@@ -8,32 +8,18 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
     />
     <link rel="stylesheet" href="/css/main_style.css" />
+    <script type="module" src="/js/production_products.js" defer></script>
     <title>Quản Lý Sản Phẩm - Factory Management</title>
   </head>
   <body>
-    <!-- Top Navigation Bar -->
-    <div class="topBar">
-      <div class="nav-left">
-        <i class="fa-solid fa-home"></i>
-        <span>DashBoard</span>
-      </div>
-      <div class="nav-breadcrumb">
-        <span>Sản Phẩm</span>
-        <span class="separator">></span>
-        <span id="material-source-code"><%= process.env.PLANTCODE %></span>
-        <span class="separator">></span>
-        <span id="material-destination-code"><%= process.env.LINE %></span>
-      </div>
-    </div>
-
     <!-- Main Container -->
-    <div class="main-container">
+    <div class="main-container-product">
       <!-- Header Section -->
       <div class="header-section">
         <div class="header-top">
-          <button class="back-btn" onclick="history.back()">
+          <a class="back-btn" href="/">
             <i class="fa-solid fa-arrow-left"></i>
-          </button>
+          </a>
           <div class="header-title">
             <div class="header-top-left">
               <svg
@@ -44,30 +30,128 @@
                 fill="#6259ee"
               >
                 <path
-                  d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"
+                  d="M11.132 2.504l-4 7a1 1 0 0 0 .868 1.496h8a1 1 0 0 0 .868 -1.496l-4 -7a1 1 0 0 0 -1.736 0z"
+                />
+                <path
+                  d="M17 13a4 4 0 1 1 -3.995 4.2l-.005 -.2l.005 -.2a4 4 0 0 1 3.995 -3.8z"
+                />
+                <path
+                  d="M9 13h-4a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h4a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2z"
                 />
               </svg>
               <div class="header-text">
-                <h1>Quản lý Sản phẩm</h1>
-                <p>Danh sách các sản phẩm trong hệ thống</p>
+                <h1>Danh Mục Sản Phẩm</h1>
+                <p>Quản lý dữ liệu chính sản phẩm và quy đổi đơn vị</p>
               </div>
             </div>
             <div class="badge-cs1"><%= process.env.LINE %></div>
           </div>
         </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-header">
+              <span>Tổng Sản Phẩm</span>
+              <div class="stat-icon" id="total-icon">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="#2a65b9"
+                >
+                  <path
+                    d="M11.132 2.504l-4 7a1 1 0 0 0 .868 1.496h8a1 1 0 0 0 .868 -1.496l-4 -7a1 1 0 0 0 -1.736 0z"
+                  />
+                  <path
+                    d="M17 13a4 4 0 1 1 -3.995 4.2l-.005 -.2l.005 -.2a4 4 0 0 1 3.995 -3.8z"
+                  />
+                  <path
+                    d="M9 13h-4a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h4a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2z"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div class="stat-number" id="totalProducts">2</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <span>Sản Phẩm Hoạt động</span>
+              <div class="stat-icon" id="active-icon">
+                <i class="fa-solid fa-circle-check" style="color: #47b54d"></i>
+              </div>
+            </div>
+            <div class="stat-number" id="activeProducts">2</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <span>Type / Category</span>
+              <div class="stat-icon" id="type-category-icon">
+                <i class="fa-solid fa-box-archive" style="color: #1c96ff"></i>
+              </div>
+            </div>
+            <div class="stat-number" id="totalTypes&Categories">2 / 3</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <span>Group</span>
+              <div class="stat-icon" id="group-icon">
+                <i class="fa-solid fa-layer-group" style="color: #1c96ff"></i>
+              </div>
+            </div>
+            <div class="stat-number" id="totalGroups">0</div>
+          </div>
+        </div>
       </div>
 
-      <!-- Content Section -->
-      <div class="search-section">
+      <!-- Search and Filter Section -->
+      <div class="search-section-product">
         <div class="search-bar">
           <i class="fa-solid fa-search"></i>
           <input
             type="text"
             id="searchInput"
-            placeholder="Tìm kiếm Mã sản phẩm, Tên sản phẩm..."
+            placeholder="Tìm theo mã, tên, nhóm..."
           />
         </div>
-        <div class="view-controls">
+        <div class="view-controls-product">
+          <button class="view-btn-product" id="tableViewBtn">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="#6259ee"
+            >
+              <rect x="3" y="4" width="18" height="3" rx="1.5" />
+              <rect x="3" y="10.5" width="18" height="3" rx="1.5" />
+              <rect x="3" y="17" width="18" height="3" rx="1.5" />
+            </svg>
+          </button>
+          <button class="view-btn-product active" id="gridViewBtn">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="#6259ee"
+            >
+              <rect x="3" y="4" width="7" height="7" rx="2" />
+              <rect x="14" y="4" width="7" height="7" rx="2" />
+              <rect x="14" y="13" width="7" height="7" rx="2" />
+              <rect x="3" y="13" width="7" height="7" rx="2" />
+            </svg>
+          </button>
+          <select class="filter-dropdown-product" id="statusFilter">
+            <option value="">Tất cả Trạng thái</option>
+            <option value="active">Hoạt động</option>
+            <option value="draft">Bản nháp</option>
+            <option value="inactive">Ngừng hoạt động</option>
+          </select>
           <button class="refresh-btn">
             <i class="fa-solid fa-rotate-right"></i>
             Làm mới
@@ -75,23 +159,64 @@
         </div>
       </div>
 
-      <!-- Table Section -->
-      <div class="table-section">
+      <!-- Grid View -->
+      <div class="grid-view" id="gridView">
+        <!-- JS sẽ render grid-view ở đây -->
+      </div>
+
+      <!-- Table View -->
+      <div class="table-section" id="tableView">
         <table class="data-table">
           <thead>
             <tr>
-              <th>Mã Sản Phẩm</th>
+              <th>Mã SP</th>
               <th>Tên Sản Phẩm</th>
-              <th>Đơn Vị</th>
-              <th style="text-align: center">Loại</th>
+              <th>Loại</th>
+              <th>Nhóm</th>
+              <th>ĐV Cơ Sở</th>
+              <th style="text-align: center">Quy Đổi</th>
               <th style="text-align: center">Trạng Thái</th>
+              <th>Cập Nhật</th>
               <th style="text-align: center">Thao Tác</th>
             </tr>
           </thead>
           <tbody id="productTableBody">
-            <!-- Rows will be rendered by JavaScript -->
+            <!-- JS sẽ render table-view ở đây -->
           </tbody>
         </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-section">
+        <div class="pagination-controls">
+          <button id="prevPageBtn" class="pagination-btn" onclick="prevPage()">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <span id="pageInfo" class="page-info">Trang 1 / 1</span>
+          <button id="nextPageBtn" class="pagination-btn" onclick="nextPage()">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   </body>
