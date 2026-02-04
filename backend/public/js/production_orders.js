@@ -34,12 +34,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   sourceCodeSpan.textContent = PLANTCODE;
   destinationCodeSpan.textContent = LINE;
 
-  if (dateFromInput && !dateFromInput.value) {
-    dateFromInput.value = yesterday.toISOString().split("T")[0];
-  }
-  if (dateToInput && !dateToInput.value) {
-    dateToInput.value = tomorrow.toISOString().split("T")[0];
-  }
+  // if (dateFromInput && !dateFromInput.value) {
+  //   dateFromInput.value = yesterday.toISOString().split("T")[0];
+  // }
+  // if (dateToInput && !dateToInput.value) {
+  //   dateToInput.value = tomorrow.toISOString().split("T")[0];
+  // }
 
   initializeProcessAreaDropdown();
   initializeStatusDropdown();
@@ -375,11 +375,13 @@ function getStatusText(status) {
 // Format date to DD/MM/YYYY format
 function formatDate(dateString) {
   if (!dateString) return "";
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return dateString;
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
+
+  // Chỉ lấy phần ngày
+  const datePart = dateString.split("T")[0];
+  const [year, month, day] = datePart.split("-");
+
+  if (!year || !month || !day) return dateString;
+
   return `${day}/${month}/${year}`;
 }
 
