@@ -34,6 +34,54 @@ router.get("/stats", async (req, res) => {
   }
 });
 
+// API thống kê có lọc theo từ khóa và trạng thái
+router.get("/stats/search", async (req, res) => {
+  try {
+    const search = req.query.search ? String(req.query.search).trim() : "";
+    const status = req.query.status ? String(req.query.status).trim() : "";
+
+    let where = "1=1";
+    const request = getPool().request();
+
+    if (search) {
+      request.input("search", sql.NVarChar, `%${search}%`);
+      where +=
+        " AND (RecipeCode LIKE @search OR ProductCode LIKE @search OR ProductName LIKE @search)";
+    }
+    if (status) {
+      if (status === "active") where += " AND RecipeStatus = 'Active'";
+      else if (status === "draft") where += " AND RecipeStatus = 'Draft'";
+      else if (status === "inactive")
+        where += " AND RecipeStatus NOT IN ('Active','Draft')";
+    }
+
+    const statsQuery = `
+      SELECT
+        (SELECT COUNT(*) FROM RecipeDetails WHERE ${where}) as total,
+        (SELECT COUNT(*) FROM RecipeDetails WHERE ${where} AND RecipeStatus = 'Active') as active,
+        (SELECT COUNT(DISTINCT Version) FROM RecipeDetails WHERE ${where}) as totalVersions,
+        (SELECT COUNT(*) FROM RecipeDetails WHERE ${where} AND RecipeStatus = 'Draft') as draft
+    `;
+
+    const statsResult = await request.query(statsQuery);
+    const stats = statsResult.recordset[0] || {};
+
+    res.json({
+      success: true,
+      message: "Success",
+      stats: {
+        total: stats.total || 0,
+        active: stats.active || 0,
+        totalVersions: stats.totalVersions || 0,
+        draft: stats.draft || 0,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Lỗi khi lấy thống kê recipes (search): ", error.message);
+    res.status(500).json({ success: false, message: "Lỗi: " + error.message });
+  }
+});
+
 // API để lấy tất cả RecipeDetails
 router.get("/", async (req, res) => {
   try {

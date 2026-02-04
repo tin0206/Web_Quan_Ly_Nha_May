@@ -10,6 +10,33 @@ let pageSize = 20;
 let totalPages = 1;
 let totalRecipes = 0;
 let currentRecipes = [];
+const STATE_KEY = "recipesListState";
+
+function saveRecipesState() {
+  try {
+    const state = {
+      filterStatus,
+      filterSearch,
+      currentPage,
+    };
+    sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
+  } catch (_) {}
+}
+
+function restoreRecipesState() {
+  try {
+    const raw = sessionStorage.getItem(STATE_KEY);
+    if (!raw) return false;
+    const state = JSON.parse(raw);
+    if (state && typeof state === "object") {
+      filterStatus = state.filterStatus || "";
+      filterSearch = state.filterSearch || "";
+      currentPage = Math.max(1, parseInt(state.currentPage) || 1);
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
 
 function updatePaginationUI() {
   const pagination = document.getElementById("pagination");
@@ -30,8 +57,14 @@ function updatePaginationUI() {
   html += `<button class="page-btn" ${currentPage === totalPages ? "disabled" : ""} data-page="${currentPage + 1}">&raquo;</button>`;
   pagination.innerHTML = html;
   // Add event listeners
+  const setPage = (page) => {
+    currentPage = page;
+    saveRecipesState();
+    fetchAndDisplayRecipes();
+    fetchAndDisplayRecipeStats();
+  };
   pagination.querySelectorAll(".page-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
+    btn.addEventListener("click", () => {
       const page = parseInt(btn.getAttribute("data-page"));
       if (
         !isNaN(page) &&
@@ -39,8 +72,7 @@ function updatePaginationUI() {
         page <= totalPages &&
         page !== currentPage
       ) {
-        currentPage = page;
-        fetchAndDisplayRecipes();
+        setPage(page);
       }
     });
   });
@@ -290,10 +322,19 @@ document.addEventListener("DOMContentLoaded", function () {
   const searchInput = document.getElementById("searchInput");
   const statusFilter = document.getElementById("statusFilter");
   const refreshBtn = document.querySelector(".refresh-btn");
+
+  // Restore state to inputs before wiring listeners
+  if (restoreRecipesState()) {
+    if (searchInput) searchInput.value = filterSearch;
+    if (statusFilter) statusFilter.value = filterStatus;
+  }
+
   if (searchInput) {
     searchInput.addEventListener("input", function (e) {
       filterSearch = e.target.value;
       currentPage = 1;
+      saveRecipesState();
+      fetchAndDisplayRecipeStats();
       fetchAndDisplayRecipes();
     });
   }
@@ -301,6 +342,8 @@ document.addEventListener("DOMContentLoaded", function () {
     statusFilter.addEventListener("change", function (e) {
       filterStatus = e.target.value;
       currentPage = 1;
+      saveRecipesState();
+      fetchAndDisplayRecipeStats();
       fetchAndDisplayRecipes();
     });
   }
@@ -311,6 +354,9 @@ document.addEventListener("DOMContentLoaded", function () {
       filterSearch = "";
       filterStatus = "";
       currentPage = 1;
+      try {
+        sessionStorage.removeItem(STATE_KEY);
+      } catch (_) {}
       fetchAndDisplayRecipeStats();
       fetchAndDisplayRecipes();
     });
@@ -324,7 +370,15 @@ document.addEventListener("DOMContentLoaded", function () {
 // Fetch stats and update stat cards
 async function fetchAndDisplayRecipeStats() {
   try {
-    const res = await fetch(`${API_ROUTE}/api/production-recipes/stats`);
+    // Choose stats endpoint based on filters
+    let endpoint = `${API_ROUTE}/api/production-recipes/stats`;
+    const params = new URLSearchParams();
+    if (filterStatus) params.append("status", filterStatus);
+    if (filterSearch) params.append("search", filterSearch);
+    if (filterStatus || filterSearch) {
+      endpoint = `${API_ROUTE}/api/production-recipes/stats/search?${params.toString()}`;
+    }
+    const res = await fetch(endpoint);
     const data = await res.json();
     if (data.success && data.stats) {
       document.getElementById("totalRecipes").textContent = data.stats.total;
@@ -371,13 +425,6 @@ async function fetchAndDisplayRecipes() {
     updatePaginationUI();
   }
 }
-
-window.addEventListener("click", function (event) {
-  if (event.target === document.getElementById("recipeDetailModal")) {
-    document.getElementById("recipeDetailModal").style.display = "none";
-  }
-});
-
 // Pagination button handlers for EJS
 window.nextPage = function () {
   if (
@@ -386,13 +433,17 @@ window.nextPage = function () {
     currentPage < totalPages
   ) {
     currentPage++;
+    saveRecipesState();
     fetchAndDisplayRecipes();
+    fetchAndDisplayRecipeStats();
   }
 };
 window.prevPage = function () {
   if (typeof currentPage !== "undefined" && currentPage > 1) {
     currentPage--;
+    saveRecipesState();
     fetchAndDisplayRecipes();
+    fetchAndDisplayRecipeStats();
   }
 };
 
