@@ -167,6 +167,9 @@ async function activateTab(tabId) {
       "none";
     document.getElementById("materialsPaginationControls").style.display =
       "flex";
+    // Render controls only when entering materials tab
+    renderBatchCodeRadioButtons(batches);
+    renderMaterialFilterTypeButtons();
     fetchMaterialConsumptions();
   }
 }
@@ -561,9 +564,7 @@ async function fetchMaterialsWithPagination() {
       endIndex,
     );
 
-    // Always render batch code radio buttons (even when no data)
-    renderBatchCodeRadioButtons(batches);
-    renderMaterialFilterTypeButtons();
+    // Controls are rendered when entering materials tab
 
     displayMaterialsTable(paginatedGroupedMaterials, batchCode);
     updateMaterialsPaginationControls(
@@ -859,7 +860,6 @@ async function displayBatchesTable(batchesArray) {
 
   const data = await result.json();
   running_batches = data.data || [];
-  renderBatchCodeRadioButtons(batchesArray);
 
   // Calculate pagination
   const totalPages = Math.ceil(batchesArray.length / batchesPerPage);
