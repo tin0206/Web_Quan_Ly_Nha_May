@@ -4,7 +4,6 @@ import { MESMaterialConsumption } from "./models/MESMaterialConsumption.js";
 const API_ROUTE = window.location.origin;
 
 const orderId = window.location.pathname.split("/").pop();
-let po_default_batches = [];
 let batches = [];
 let running_batches = [];
 let order = {};

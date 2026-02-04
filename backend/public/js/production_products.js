@@ -20,18 +20,6 @@ function formatDateTime(dateString) {
 
   return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 }
-async function fetchProducts() {
-  const res = await fetch(`${API_ROUTE}/api/production-products/`);
-  if (!res.ok) throw new Error("Không lấy được dữ liệu sản phẩm");
-  const data = await res.json();
-  productsCache = data;
-}
-
-async function fetchStats() {
-  const res = await fetch(`${API_ROUTE}/api/production-products/stats`);
-  if (!res.ok) throw new Error("Không lấy được thống kê sản phẩm");
-  return await res.json();
-}
 
 async function fetchTypes() {
   const res = await fetch(`${API_ROUTE}/api/production-products/types`);
