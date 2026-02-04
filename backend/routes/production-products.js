@@ -27,10 +27,25 @@ router.get("/", async (req, res) => {
   try {
     const pool = getPool();
     const result = await pool.request().query(`
-			SELECT p.*, m.*
-			FROM ProductMasters p
-			LEFT JOIN MHUTypes m ON p.ProductMasterId = m.ProductMasterId
-		`);
+      SELECT 
+        p.ProductMasterId,
+        p.ItemCode,
+        p.ItemName,
+        p.Item_Type,
+        p.[Group],
+        p.Category,
+        p.Brand,
+        p.BaseUnit,
+        p.InventoryUnit,
+        p.Item_Status,
+        p.[timestamp],
+        m.MHUTypeId,
+        m.FromUnit,
+        m.ToUnit,
+        m.Conversion
+      FROM ProductMasters p
+      LEFT JOIN MHUTypes m ON p.ProductMasterId = m.ProductMasterId
+    `);
     const data = result.recordset;
     res.json(data);
   } catch (err) {
