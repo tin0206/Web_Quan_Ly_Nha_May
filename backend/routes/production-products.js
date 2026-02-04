@@ -72,7 +72,9 @@ router.get("/search", async (req, res) => {
     const {
       q = "",
       status = "",
+      statuses = "",
       type = "",
+      types = "",
       page = "1",
       pageSize = "20",
     } = req.query;
@@ -88,29 +90,61 @@ router.get("/search", async (req, res) => {
 
     const whereClauses = [];
     const statusUpper = (status || "").toUpperCase();
+    const statusesList = (statuses || "")
+      .split(",")
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
+    const typesList = (types || "")
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
     // Bind parameters safely
     const bindParams = (request) => {
       if (q) request.input("q", sql.NVarChar, `%${q}%`);
-      if (statusUpper === "ACTIVE") {
+      if (statusesList.length > 0) {
+        statusesList.forEach((st, idx) =>
+          request.input(`status${idx}`, sql.NVarChar, st),
+        );
+      } else if (statusUpper === "ACTIVE") {
         request.input("status", sql.NVarChar, "ACTIVE");
       } else if (statusUpper === "INACTIVE") {
         request.input("inactiveStatus", sql.NVarChar, "INACTIVE");
       }
-      if (type) request.input("type", sql.NVarChar, type);
+      if (typesList.length > 0) {
+        typesList.forEach((tp, idx) =>
+          request.input(`type${idx}`, sql.NVarChar, tp),
+        );
+      } else if (type) {
+        request.input("type", sql.NVarChar, type);
+      }
     };
 
     if (q)
       whereClauses.push(
         "(p.ItemCode LIKE @q OR p.ItemName LIKE @q OR p.[Group] LIKE @q)",
       );
-    if (statusUpper === "ACTIVE") {
+    if (statusesList.length > 0) {
+      const parts = statusesList.map((st, idx) =>
+        st === "ACTIVE"
+          ? `p.Item_Status = @status${idx}`
+          : `(p.Item_Status = @status${idx} OR p.Item_Status IS NULL)`,
+      );
+      whereClauses.push(`(${parts.join(" OR ")})`);
+    } else if (statusUpper === "ACTIVE") {
       whereClauses.push("p.Item_Status = @status");
     } else if (statusUpper === "INACTIVE") {
       whereClauses.push(
         "(p.Item_Status = @inactiveStatus OR p.Item_Status IS NULL)",
       );
     }
-    if (type) whereClauses.push("p.Item_Type = @type");
+
+    if (typesList.length > 0) {
+      const placeholders = typesList.map((_, idx) => `@type${idx}`).join(", ");
+      whereClauses.push(`p.Item_Type IN (${placeholders})`);
+    } else if (type) {
+      whereClauses.push("p.Item_Type = @type");
+    }
 
     const whereSql = whereClauses.length
       ? `WHERE ${whereClauses.join(" AND ")}`
@@ -172,19 +206,44 @@ router.get("/search", async (req, res) => {
 // API: Thống kê có filter (q, status, type)
 router.get("/stats/search", async (req, res) => {
   try {
-    const { q = "", status = "", type = "" } = req.query;
+    const {
+      q = "",
+      status = "",
+      statuses = "",
+      type = "",
+      types = "",
+    } = req.query;
     const pool = getPool();
 
     const whereClauses = [];
     const statusUpper = (status || "").toUpperCase();
+    const statusesList = (statuses || "")
+      .split(",")
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
+    const typesList = (types || "")
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
     const bindParams = (request) => {
       if (q) request.input("q", sql.NVarChar, `%${q}%`);
-      if (statusUpper === "ACTIVE") {
+      if (statusesList.length > 0) {
+        statusesList.forEach((st, idx) =>
+          request.input(`status${idx}`, sql.NVarChar, st),
+        );
+      } else if (statusUpper === "ACTIVE") {
         request.input("status", sql.NVarChar, "ACTIVE");
       } else if (statusUpper === "INACTIVE") {
         request.input("inactiveStatus", sql.NVarChar, "INACTIVE");
       }
-      if (type) request.input("type", sql.NVarChar, type);
+      if (typesList.length > 0) {
+        typesList.forEach((tp, idx) =>
+          request.input(`type${idx}`, sql.NVarChar, tp),
+        );
+      } else if (type) {
+        request.input("type", sql.NVarChar, type);
+      }
     };
 
     if (q) {
@@ -192,14 +251,27 @@ router.get("/stats/search", async (req, res) => {
         "(p.ItemCode LIKE @q OR p.ItemName LIKE @q OR p.[Group] LIKE @q)",
       );
     }
-    if (statusUpper === "ACTIVE") {
+    if (statusesList.length > 0) {
+      const parts = statusesList.map((st, idx) =>
+        st === "ACTIVE"
+          ? `p.Item_Status = @status${idx}`
+          : `(p.Item_Status = @status${idx} OR p.Item_Status IS NULL)`,
+      );
+      whereClauses.push(`(${parts.join(" OR ")})`);
+    } else if (statusUpper === "ACTIVE") {
       whereClauses.push("p.Item_Status = @status");
     } else if (statusUpper === "INACTIVE") {
       whereClauses.push(
         "(p.Item_Status = @inactiveStatus OR p.Item_Status IS NULL)",
       );
     }
-    if (type) whereClauses.push("p.Item_Type = @type");
+
+    if (typesList.length > 0) {
+      const placeholders = typesList.map((_, idx) => `@type${idx}`).join(", ");
+      whereClauses.push(`p.Item_Type IN (${placeholders})`);
+    } else if (type) {
+      whereClauses.push("p.Item_Type = @type");
+    }
 
     const whereSql = whereClauses.length
       ? `WHERE ${whereClauses.join(" AND ")}`

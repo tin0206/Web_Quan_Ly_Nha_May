@@ -1,9 +1,13 @@
 const API_ROUTE = window.location.origin;
 
+const STATE_KEY = "products_filters_state_v1";
 let productsCache = [];
 let currentPage = 1;
 let totalPages = 1;
 const PAGE_SIZE = 20;
+let filterSearch = "";
+let selectedStatuses = [];
+let selectedTypes = [];
 
 function formatDateTime(dateString) {
   if (!dateString) return "";
@@ -55,16 +59,23 @@ async function updateStats() {
 }
 
 function buildSearchParams() {
-  const q = (document.getElementById("searchInput")?.value || "").trim();
-  const statusRaw = document.getElementById("statusFilter")?.value || "";
-  const status =
-    statusRaw === "active"
-      ? "ACTIVE"
-      : statusRaw === "inactive"
-        ? "INACTIVE"
-        : "";
-  const type = document.getElementById("typeFilter")?.value || "";
-  return { q, status, type, page: currentPage, pageSize: PAGE_SIZE };
+  const params = { page: currentPage, pageSize: PAGE_SIZE };
+  if (filterSearch) params.q = filterSearch;
+  if (selectedStatuses.length === 1) {
+    // Map UI values (active/inactive) to backend values (ACTIVE/INACTIVE)
+    params.status = selectedStatuses[0] === "active" ? "ACTIVE" : "INACTIVE";
+  } else if (selectedStatuses.length > 1) {
+    const mapped = selectedStatuses.map((s) =>
+      s === "active" ? "ACTIVE" : "INACTIVE",
+    );
+    params.statuses = mapped.join(",");
+  }
+  if (selectedTypes.length === 1) {
+    params.type = selectedTypes[0];
+  } else if (selectedTypes.length > 1) {
+    params.types = selectedTypes.join(",");
+  }
+  return params;
 }
 
 async function fetchSearchResults(params) {
@@ -95,6 +106,228 @@ async function loadProducts(resetPage = false) {
   const nextBtn = document.getElementById("nextPageBtn");
   if (prevBtn) prevBtn.disabled = currentPage <= 1;
   if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+}
+// ===================== Session Storage =====================
+function saveProductsState() {
+  try {
+    const state = {
+      filterSearch,
+      selectedStatuses,
+      selectedTypes,
+      currentPage,
+    };
+    sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
+  } catch (_) {}
+}
+
+function restoreProductsState() {
+  try {
+    const raw = sessionStorage.getItem(STATE_KEY);
+    if (!raw) return false;
+    const state = JSON.parse(raw);
+    if (state && typeof state === "object") {
+      filterSearch = state.filterSearch || "";
+      selectedStatuses = Array.isArray(state.selectedStatuses)
+        ? state.selectedStatuses
+        : [];
+      selectedTypes = Array.isArray(state.selectedTypes)
+        ? state.selectedTypes
+        : [];
+      currentPage = Math.max(1, parseInt(state.currentPage) || 1);
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+
+// ===================== Multiselect UI Helpers =====================
+function toggleDropdown(dropdownId) {
+  const dd = document.getElementById(dropdownId);
+  if (!dd) return;
+  const isVisible = dd.style.display === "block";
+  dd.style.display = isVisible ? "none" : "block";
+}
+
+function initDropdownToggle(inputId, dropdownId) {
+  const input = document.getElementById(inputId);
+  const dd = document.getElementById(dropdownId);
+  if (!input || !dd) return;
+  input.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleDropdown(dropdownId);
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".custom-multiselect")) {
+      dd.style.display = "none";
+    }
+  });
+  dd.addEventListener("click", (e) => e.stopPropagation());
+}
+
+function updateStatusSelectedText() {
+  const el = document.getElementById("statusSelectedText");
+  if (!el) return;
+  if (selectedStatuses.length === 0) {
+    el.textContent = "Select statuses...";
+    el.style.color = "#999";
+  } else if (selectedStatuses.length <= 2) {
+    const labelMap = { active: "Hoạt động", inactive: "Ngừng hoạt động" };
+    el.textContent = selectedStatuses.map((s) => labelMap[s] || s).join(", ");
+    el.style.color = "#333";
+  } else {
+    el.textContent = `${selectedStatuses.length} selected`;
+    el.style.color = "#333";
+  }
+}
+
+function updateTypeSelectedText() {
+  const el = document.getElementById("typeSelectedText");
+  if (!el) return;
+  if (selectedTypes.length === 0) {
+    el.textContent = "Select types...";
+    el.style.color = "#999";
+  } else if (selectedTypes.length <= 2) {
+    el.textContent = selectedTypes.join(", ");
+    el.style.color = "#333";
+  } else {
+    el.textContent = `${selectedTypes.length} selected`;
+    el.style.color = "#333";
+  }
+}
+
+function updateSelectAllState(containerSelector, selectAllId) {
+  const selectAll = document.getElementById(selectAllId);
+  const cbs = document.querySelectorAll(containerSelector);
+  if (!selectAll) return;
+  const allChecked = Array.from(cbs).every((cb) => cb.checked);
+  const someChecked = Array.from(cbs).some((cb) => cb.checked);
+  selectAll.checked = allChecked;
+  selectAll.indeterminate = someChecked && !allChecked;
+}
+
+function attachSelectAll(selectAllId, checkboxesSelector, onChange) {
+  const selectAll = document.getElementById(selectAllId);
+  if (!selectAll) return;
+  const cbs = document.querySelectorAll(checkboxesSelector);
+  selectAll.addEventListener("change", async function () {
+    cbs.forEach((cb) => (cb.checked = this.checked));
+    await onChange();
+  });
+}
+
+async function populateStatusOptions() {
+  const container = document.getElementById("statusOptions");
+  if (!container) return;
+  container.innerHTML = "";
+  const statuses = [
+    { value: "active", label: "Hoạt động" },
+    { value: "inactive", label: "Ngừng hoạt động" },
+  ];
+  statuses.forEach((s) => {
+    const label = document.createElement("label");
+    label.style.cssText =
+      "display:flex; align-items:center; gap:8px; padding:6px 8px; cursor:pointer; border-radius:4px;";
+    label.onmouseover = function () {
+      this.style.background = "#f5f5f5";
+    };
+    label.onmouseout = function () {
+      this.style.background = "transparent";
+    };
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "status-checkbox";
+    cb.value = s.value;
+    cb.checked = selectedStatuses.includes(s.value);
+    cb.addEventListener("change", async () => {
+      selectedStatuses = Array.from(
+        document.querySelectorAll(".status-checkbox"),
+      )
+        .filter((x) => x.checked)
+        .map((x) => x.value);
+      updateStatusSelectedText();
+      updateSelectAllState(".status-checkbox", "statusSelectAll");
+      currentPage = 1;
+      saveProductsState();
+      await updateStats();
+      await loadProducts(true);
+    });
+    const span = document.createElement("span");
+    span.textContent = s.label;
+    label.appendChild(cb);
+    label.appendChild(span);
+    container.appendChild(label);
+  });
+  updateStatusSelectedText();
+  updateSelectAllState(".status-checkbox", "statusSelectAll");
+  attachSelectAll("statusSelectAll", ".status-checkbox", async () => {
+    selectedStatuses = Array.from(document.querySelectorAll(".status-checkbox"))
+      .filter((x) => x.checked)
+      .map((x) => x.value);
+    updateStatusSelectedText();
+    updateSelectAllState(".status-checkbox", "statusSelectAll");
+    currentPage = 1;
+    saveProductsState();
+    await updateStats();
+    await loadProducts(true);
+  });
+}
+
+async function populateTypeOptions() {
+  const container = document.getElementById("typeOptions");
+  if (!container) return;
+  container.innerHTML = "";
+  let types = [];
+  try {
+    types = await fetchTypes();
+  } catch (e) {
+    console.warn("Failed to fetch types", e);
+  }
+  const uniqueTypes = [...new Set(types.filter((t) => t && t.trim()))].sort();
+  uniqueTypes.forEach((t) => {
+    const label = document.createElement("label");
+    label.style.cssText =
+      "display:flex; align-items:center; gap:8px; padding:6px 8px; cursor:pointer; border-radius:4px;";
+    label.onmouseover = function () {
+      this.style.background = "#f5f5f5";
+    };
+    label.onmouseout = function () {
+      this.style.background = "transparent";
+    };
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "type-checkbox";
+    cb.value = t;
+    cb.checked = selectedTypes.includes(t);
+    cb.addEventListener("change", async () => {
+      selectedTypes = Array.from(document.querySelectorAll(".type-checkbox"))
+        .filter((x) => x.checked)
+        .map((x) => x.value);
+      updateTypeSelectedText();
+      updateSelectAllState(".type-checkbox", "typeSelectAll");
+      currentPage = 1;
+      saveProductsState();
+      await updateStats();
+      await loadProducts(true);
+    });
+    const span = document.createElement("span");
+    span.textContent = t;
+    label.appendChild(cb);
+    label.appendChild(span);
+    container.appendChild(label);
+  });
+  updateTypeSelectedText();
+  updateSelectAllState(".type-checkbox", "typeSelectAll");
+  attachSelectAll("typeSelectAll", ".type-checkbox", async () => {
+    selectedTypes = Array.from(document.querySelectorAll(".type-checkbox"))
+      .filter((x) => x.checked)
+      .map((x) => x.value);
+    updateTypeSelectedText();
+    updateSelectAllState(".type-checkbox", "typeSelectAll");
+    currentPage = 1;
+    saveProductsState();
+    await updateStats();
+    await loadProducts(true);
+  });
 }
 function getFilteredProducts() {
   return productsCache;
@@ -272,22 +505,16 @@ window.addEventListener("DOMContentLoaded", async () => {
   };
 
   try {
-    // Populate type filter
-    try {
-      const types = await fetchTypes();
-      const typeSel = document.getElementById("typeFilter");
-      if (typeSel) {
-        const uniqueTypes = [
-          ...new Set(types.filter((t) => t && t.trim())),
-        ].sort();
-        typeSel.innerHTML =
-          `<option value="">Tất cả Loại</option>` +
-          uniqueTypes.map((t) => `<option value="${t}">${t}</option>`).join("");
-      }
-    } catch (e) {
-      // Không chặn hiển thị nếu lỗi nạp loại
-      console.warn(e);
+    // Restore state first
+    const searchInput = document.getElementById("searchInput");
+    if (restoreProductsState()) {
+      if (searchInput) searchInput.value = filterSearch;
     }
+    // Initialize custom dropdowns
+    initDropdownToggle("statusInput", "statusDropdown");
+    initDropdownToggle("typeInput", "typeDropdown");
+    await populateStatusOptions();
+    await populateTypeOptions();
     await loadProducts(true);
     await updateStats();
   } catch (e) {
@@ -302,11 +529,18 @@ window.addEventListener("DOMContentLoaded", async () => {
       try {
         // Reset filters
         const searchInput = document.getElementById("searchInput");
-        const statusSel = document.getElementById("statusFilter");
-        const typeSel = document.getElementById("typeFilter");
         if (searchInput) searchInput.value = "";
-        if (statusSel) statusSel.value = "";
-        if (typeSel) typeSel.value = "";
+        filterSearch = "";
+        selectedStatuses = [];
+        selectedTypes = [];
+        currentPage = 1;
+        try {
+          sessionStorage.removeItem(STATE_KEY);
+        } catch (_) {}
+        updateStatusSelectedText();
+        updateTypeSelectedText();
+        updateSelectAllState(".status-checkbox", "statusSelectAll");
+        updateSelectAllState(".type-checkbox", "typeSelectAll");
         currentPage = 1;
         await loadProducts(true);
         await updateStats();
@@ -318,22 +552,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Lắng nghe thay đổi filter loại để render lại view hiện tại
-  const typeSel = document.getElementById("typeFilter");
-  if (typeSel) {
-    typeSel.addEventListener("change", () => {
-      loadProducts(true);
-      updateStats();
-    });
-  }
-
-  // Status filter
-  const statusSel = document.getElementById("statusFilter");
-  if (statusSel) {
-    statusSel.addEventListener("change", () => {
-      loadProducts(true);
-      updateStats();
-    });
-  }
+  // Custom filters handled via checkbox change events in populate* functions
 
   // Search input with debounce
   const searchInput = document.getElementById("searchInput");
@@ -342,6 +561,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     searchInput.addEventListener("input", () => {
       clearTimeout(t);
       t = setTimeout(() => {
+        filterSearch = (searchInput.value || "").trim();
+        currentPage = 1;
+        saveProductsState();
         loadProducts(true);
         updateStats();
       }, 300);
@@ -352,12 +574,14 @@ window.addEventListener("DOMContentLoaded", async () => {
   window.prevPage = async function () {
     if (currentPage > 1) {
       currentPage -= 1;
+      saveProductsState();
       await loadProducts(false);
     }
   };
   window.nextPage = async function () {
     if (currentPage < totalPages) {
       currentPage += 1;
+      saveProductsState();
       await loadProducts(false);
     }
   };

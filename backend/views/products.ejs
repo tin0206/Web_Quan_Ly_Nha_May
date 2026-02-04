@@ -146,19 +146,129 @@
               <rect x="3" y="13" width="7" height="7" rx="2" />
             </svg>
           </button>
-          <select class="filter-dropdown-product" id="statusFilter">
-            <option value="">Tất cả Trạng thái</option>
-            <option value="active">Hoạt động</option>
-            <option value="inactive">Ngừng hoạt động</option>
-          </select>
-          <select
-            class="filter-dropdown-product"
-            id="typeFilter"
-            style="min-width: 180px"
+          <div
+            class="custom-multiselect"
+            style="position: relative; min-width: 220px"
           >
-            <option value="">Tất cả Loại</option>
-            <!-- JS sẽ nạp thêm các option từ API /types -->
-          </select>
+            <div
+              id="statusInput"
+              class="multiselect-input"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 8px 12px;
+                cursor: pointer;
+              "
+            >
+              <span id="statusSelectedText" style="color: #999"
+                >Select statuses...</span
+              >
+            </div>
+            <div
+              id="statusDropdown"
+              class="multiselect-dropdown"
+              style="
+                position: absolute;
+                top: 42px;
+                left: 0;
+                right: 0;
+                background: #fff;
+                border: 1px solid #eee;
+                box-shadow: 0 4px 12px #0001;
+                border-radius: 8px;
+                padding: 8px;
+                display: none;
+                z-index: 1000;
+              "
+            >
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  padding: 6px 8px;
+                  border-bottom: 1px dashed #eee;
+                "
+              >
+                <input type="checkbox" id="statusSelectAll" />
+                <strong>Select all</strong>
+              </label>
+              <div
+                id="statusOptions"
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  gap: 4px;
+                  padding-top: 4px;
+                "
+              ></div>
+            </div>
+          </div>
+
+          <div
+            class="custom-multiselect"
+            style="position: relative; min-width: 220px"
+          >
+            <div
+              id="typeInput"
+              class="multiselect-input"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 8px 12px;
+                cursor: pointer;
+              "
+            >
+              <span id="typeSelectedText" style="color: #999"
+                >Select types...</span
+              >
+            </div>
+            <div
+              id="typeDropdown"
+              class="multiselect-dropdown"
+              style="
+                position: absolute;
+                top: 42px;
+                left: 0;
+                right: 0;
+                background: #fff;
+                border: 1px solid #eee;
+                box-shadow: 0 4px 12px #0001;
+                border-radius: 8px;
+                padding: 8px;
+                display: none;
+                z-index: 1000;
+              "
+            >
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  padding: 6px 8px;
+                  border-bottom: 1px dashed #eee;
+                "
+              >
+                <input type="checkbox" id="typeSelectAll" />
+                <strong>Select all</strong>
+              </label>
+              <div
+                id="typeOptions"
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  gap: 4px;
+                  padding-top: 4px;
+                "
+              ></div>
+            </div>
+          </div>
           <button class="refresh-btn">
             <i class="fa-solid fa-rotate-right"></i>
             Làm mới
