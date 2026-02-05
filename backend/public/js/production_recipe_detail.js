@@ -107,15 +107,24 @@ function renderRecipeDetail() {
 function showAllProcessesInfo() {
   const processInfoDiv = document.getElementById("processInfo");
 
-  processInfoDiv.style.maxHeight = "600px";
-  processInfoDiv.style.overflowY = "auto";
+  // Hiển thị theo hàng ngang với thanh cuộn
+  processInfoDiv.style.maxHeight = "unset";
+  processInfoDiv.style.display = "flex";
+  processInfoDiv.style.flexDirection = "row";
+  processInfoDiv.style.flexWrap = "nowrap";
+  processInfoDiv.style.gap = "12px";
+  processInfoDiv.style.overflowX = "auto";
+  processInfoDiv.style.overflowY = "hidden";
+  processInfoDiv.style.paddingBottom = "8px"; // giúp thanh cuộn không che nội dung
 
   processInfoDiv.innerHTML = recipeProcesses
     .map((process, idx) => {
       const product = recipeProducts[idx];
       return `
       <div style="
-        margin:18px 0 8px 0;
+        flex:0 0 auto;
+        min-width:320px;
+        margin:0 0 8px 0;
         padding:16px 24px;
         background:#fff;
         border-radius:8px;
@@ -465,8 +474,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       <div style='width: 100%;'>
         <h2 style='margin-bottom:16px;'>Processes:</h2>
         <div id="processList" style="display:flex;flex-wrap:wrap;margin-bottom:12px;"></div>
-        <div style='display:flex;gap:32px;'>
-          <div style='flex:0 0 500px;'>
+        <div style='display:flex;flex-direction:column;gap:20px;'>
+          <div style='flex:0 0;'>
             <div id="processInfo"></div>
           </div>
           <div style='flex:1;'>
