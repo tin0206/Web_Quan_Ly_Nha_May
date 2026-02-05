@@ -8,6 +8,7 @@ let recipeIngredients = [];
 let recipeProducts = [];
 let recipeByProducts = [];
 let recipeParameters = [];
+let selectedProcessIds = [];
 
 function formatDateTime(dateString) {
   if (!dateString) return "";
@@ -115,10 +116,18 @@ function showAllProcessesInfo() {
   processInfoDiv.style.gap = "12px";
   processInfoDiv.style.overflowX = "auto";
   processInfoDiv.style.overflowY = "hidden";
-  processInfoDiv.style.paddingBottom = "8px"; // giúp thanh cuộn không che nội dung
+  processInfoDiv.style.paddingBottom = "8px";
 
-  processInfoDiv.innerHTML = recipeProcesses
-    .map((process, idx) => {
+  const filtered = recipeProcesses
+    .map((p, idx) => ({ p, idx }))
+    .filter(
+      ({ p }) =>
+        selectedProcessIds.length === 0 ||
+        selectedProcessIds.includes(String(p.ProcessId)),
+    );
+
+  processInfoDiv.innerHTML = filtered
+    .map(({ p: process, idx }) => {
       const product = recipeProducts[idx];
       return `
       <div style="
@@ -149,8 +158,6 @@ function showAllProcessesInfo() {
     `;
     })
     .join("");
-
-  document.getElementById("processDetail").innerHTML = "";
 }
 
 function showProcessInfo(process, product) {
@@ -179,7 +186,21 @@ function showAllProcessesDetail() {
 
   processDetailDiv.innerHTML = `
     <div style="min-height:${minHeight}px;display:flex;flex-direction:column;">
-      <div style="display:flex;gap:12px;margin-bottom:16px;">
+      <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:16px;">
+        <div class="custom-multiselect" style="position:relative;max-width:320px;">
+          <div id="processInput" style="width:200px;height:33px;padding:8px 12px;border-radius:6px;border:1px solid #6259ee;background:#f6f6ff;color:#6259ee;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <span id="processSelectedText" style="color:#333;">Select processes...</span>
+            <span style="font-size:12px;color:#6259ee;">▼</span>
+          </div>
+          <div id="processDropdown" style="display:none;position:absolute;top:44px;left:0;right:0;background:#fff;border:1px solid #ddd;border-radius:6px;box-shadow:0 2px 8px #0001;z-index:10;padding:8px;max-height:240px;overflow:auto;">
+            <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:4px;">
+              <input type="checkbox" id="processSelectAll" style="cursor:pointer;" />
+              <span>Chọn tất cả</span>
+            </label>
+            <div id="processOptions"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;">
         <button id="tabAllIngredients" class="tab-btn"
           style="padding:8px 18px;border-radius:6px;border:1px solid #6259ee;
           background:#f6f6ff;color:#6259ee;cursor:pointer;font-weight:500;">
@@ -195,6 +216,7 @@ function showAllProcessesDetail() {
           background:#f6f6ff;color:#6259ee;cursor:pointer;font-weight:500;">
           Parameters
         </button>
+        </div>
       </div>
       <div id="tabAllContent"></div>
     </div>
@@ -204,6 +226,117 @@ function showAllProcessesDetail() {
   const tabIngredients = document.getElementById("tabAllIngredients");
   const tabByProducts = document.getElementById("tabAllByProducts");
   const tabParameters = document.getElementById("tabAllParameters");
+  const processInput = document.getElementById("processInput");
+  const processDropdown = document.getElementById("processDropdown");
+  const processOptions = document.getElementById("processOptions");
+  const processSelectedText = document.getElementById("processSelectedText");
+  const processSelectAll = document.getElementById("processSelectAll");
+  let currentAllTab = "ingredients";
+
+  // Removed button highlight on filter changes to prevent perceived tab switch
+
+  // ================= Process Multiselect (giống các page khác) =================
+  function initializeProcessDropdown() {
+    if (!processInput || !processDropdown) return;
+    processInput.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isVisible = processDropdown.style.display === "block";
+      processDropdown.style.display = isVisible ? "none" : "block";
+    });
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".custom-multiselect")) {
+        processDropdown.style.display = "none";
+      }
+    });
+    processDropdown.addEventListener("click", (e) => e.stopPropagation());
+  }
+
+  function updateProcessSelectedText() {
+    if (!processSelectedText) return;
+    if (selectedProcessIds.length === 0) {
+      processSelectedText.textContent = "Select processes...";
+      processSelectedText.style.color = "#999";
+    } else if (selectedProcessIds.length <= 2) {
+      processSelectedText.textContent = selectedProcessIds.join(", ");
+      processSelectedText.style.color = "#333";
+    } else {
+      processSelectedText.textContent = `${selectedProcessIds.length} selected`;
+      processSelectedText.style.color = "#333";
+    }
+  }
+
+  function updateProcessSelectAllState() {
+    if (!processSelectAll) return;
+    // Single-select semantics: "Chọn tất cả" acts as "clear filter" when checked.
+    const someChecked = selectedProcessIds.length > 0;
+    processSelectAll.checked = !someChecked;
+    processSelectAll.indeterminate = false;
+  }
+
+  function populateProcessOptions() {
+    if (!processOptions) return;
+    processOptions.innerHTML = "";
+    recipeProcesses.forEach((proc) => {
+      const label = document.createElement("label");
+      label.style.cssText =
+        "display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:4px;";
+      label.onmouseover = function () {
+        this.style.background = "#f5f5f5";
+      };
+      label.onmouseout = function () {
+        this.style.background = "transparent";
+      };
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "process-checkbox";
+      checkbox.value = proc.ProcessId;
+      checkbox.style.cursor = "pointer";
+      checkbox.checked = selectedProcessIds.includes(String(proc.ProcessId));
+      checkbox.onchange = handleProcessCheckboxChange;
+
+      const span = document.createElement("span");
+      span.textContent = proc.ProcessId;
+
+      label.appendChild(checkbox);
+      label.appendChild(span);
+      processOptions.appendChild(label);
+    });
+    updateProcessSelectedText();
+    updateProcessSelectAllState();
+  }
+
+  processSelectAll?.addEventListener("change", function () {
+    const cbs = processOptions.querySelectorAll(".process-checkbox");
+    // In single-select mode, checking "Chọn tất cả" clears selection
+    if (this.checked) {
+      cbs.forEach((cb) => (cb.checked = false));
+      selectedProcessIds = [];
+    }
+    updateProcessSelectedText();
+    updateProcessSelectAllState();
+    // Re-render both info and current tab
+    showAllProcessesInfo();
+    if (currentAllTab === "ingredients") renderIngredients();
+    if (currentAllTab === "byproducts") renderByProducts();
+    if (currentAllTab === "parameters") renderParameters();
+  });
+
+  function handleProcessCheckboxChange(e) {
+    const clicked = e.target;
+    const cbs = processOptions.querySelectorAll(".process-checkbox");
+    // Single-select: only the clicked checkbox remains checked
+    cbs.forEach((cb) => (cb.checked = cb === clicked));
+    selectedProcessIds = clicked.checked ? [clicked.value] : [];
+    updateProcessSelectedText();
+    updateProcessSelectAllState();
+    // Keep current All tab active; do not modify header button styles
+    // Re-render both info and current tab
+    showAllProcessesInfo();
+    if (currentAllTab === "ingredients") renderIngredients();
+    if (currentAllTab === "byproducts") renderByProducts();
+    if (currentAllTab === "parameters") renderParameters();
+  }
 
   /* ================= INGREDIENTS ================= */
   function renderIngredients() {
@@ -221,50 +354,47 @@ function showAllProcessesDetail() {
       processGroups[i.ProcessId].push(i);
     });
 
-    let rows = "";
-
-    Object.entries(processGroups).forEach(([processId, items]) => {
-      items.forEach((i, idx) => {
-        rows += "<tr>";
-
-        // ✅ Merge cột Process
-        if (idx === 0) {
-          rows += `
-            <td style="padding:8px;border:2px solid black; text-align:center;"
-                rowspan="${items.length}">
-              ${processId}
-            </td>
-          `;
-        }
-
-        rows += `
-          <td style="padding:8px;border:2px solid black;">${i.IngredientId || ""}</td>
-          <td style="padding:8px;border:2px solid black;">${i.IngredientCode || ""}</td>
-          <td style="padding:8px;border:2px solid black;">${i.ItemName || ""}</td>
-          <td style="padding:8px;border:2px solid black;">${i.Quantity || ""}</td>
-          <td style="padding:8px;border:2px solid black;">${i.UnitOfMeasurement || ""}</td>
-        `;
-
-        rows += "</tr>";
-      });
-    });
+    const groupsHTML = Object.entries(processGroups)
+      .filter(
+        ([processId]) =>
+          selectedProcessIds.length === 0 ||
+          selectedProcessIds.includes(String(processId)),
+      )
+      .map(
+        ([processId, items]) => `
+        <div style="
+          background:#fff;
+          border-radius:8px;
+          box-shadow:0 2px 8px #0001;
+          padding:16px 20px;
+        ">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3 style="margin:0;color:#6259ee;">Process: ${processId}</h3>
+            <span style="font-size:13px;color:#777;">${items.length} ingredient(s)</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;">
+            ${items
+              .map(
+                (i) => `
+                <div style="border:1px solid #e5e5ff;border-radius:6px;padding:10px 12px;background:#fdfdff;">
+                  <div style="font-weight:600;margin-bottom:6px;">${i.ItemName || ""}</div>
+                  <div style="font-size:13px;"><b>ID:</b> ${i.IngredientId || ""}</div>
+                  <div style="font-size:13px;"><b>Code:</b> ${i.IngredientCode || ""}</div>
+                  <div style="font-size:13px;"><b>Quantity:</b> ${i.Quantity || ""} ${i.UnitOfMeasurement || ""}</div>
+                </div>
+              `,
+              )
+              .join("")}
+          </div>
+        </div>
+      `,
+      )
+      .join("");
 
     tabContent.innerHTML = `
-      <table style="max-height:420px;overflow-y:auto;width:100%;border-collapse:collapse;margin-top:8px;">
-        <thead>
-          <tr style="background:#f6f6ff;">
-            <th style="padding:8px;border:2px solid black;">Process</th>
-            <th style="padding:8px;border:2px solid black;">IngredientId</th>
-            <th style="padding:8px;border:2px solid black;">IngredientCode</th>
-            <th style="padding:8px;border:2px solid black;">Name</th>
-            <th style="padding:8px;border:2px solid black;">Quantity</th>
-            <th style="padding:8px;border:2px solid black;">UnitOfMeasurement</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows}
-        </tbody>
-      </table>
+      <div style="display:flex;flex-direction:column;gap:16px;margin-top:8px;">
+        ${groupsHTML}
+      </div>
     `;
   }
 
@@ -274,30 +404,26 @@ function showAllProcessesDetail() {
       tabContent.innerHTML = `<div style="margin-top:12px;">Không có dữ liệu</div>`;
       return;
     }
-
+    const filtered = recipeByProducts.filter(
+      (bp) =>
+        selectedProcessIds.length === 0 ||
+        selectedProcessIds.includes(String(bp.ProcessId)),
+    );
     tabContent.innerHTML = `
-      <table style="max-height:420px;overflow-y:auto;width:100%;border-collapse:collapse;margin-top:8px;">
-        <thead>
-          <tr style="background:#f6f6ff;">
-            <th style="padding:8px;border:2px solid black;">Process</th>
-            <th style="padding:8px;border:2px solid black;">ByProduct</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${recipeByProducts
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+        ${
+          filtered
             .map(
               (bp) => `
-              <tr>
-                <td style="padding:8px;border:2px solid black;">${bp.ProcessId}</td>
-                <td style="padding:8px;border:2px solid black;">
-                  ${bp.ByProductName || bp.ByProductCode}
-                </td>
-              </tr>
-            `,
+            <div style="border:1px solid #e5e5ff;border-radius:6px;padding:10px 12px;background:#fdfdff;display:flex;justify-content:space-between;">
+              <div><b>Process:</b> ${bp.ProcessId}</div>
+              <div><b>ByProduct:</b> ${bp.ByProductName || bp.ByProductCode}</div>
+            </div>
+          `,
             )
-            .join("")}
-        </tbody>
-      </table>
+            .join("") || `<div style="margin-top:12px;">Không có dữ liệu</div>`
+        }
+      </div>
     `;
   }
 
@@ -307,32 +433,27 @@ function showAllProcessesDetail() {
       tabContent.innerHTML = `<div style="margin-top:12px;">Không có dữ liệu</div>`;
       return;
     }
-
+    const filtered = recipeParameters.filter(
+      (pm) =>
+        selectedProcessIds.length === 0 ||
+        selectedProcessIds.includes(String(pm.ProcessId)),
+    );
     tabContent.innerHTML = `
-      <table style="max-height:420px;overflow-y:auto;width:100%;border-collapse:collapse;margin-top:8px;">
-        <thead>
-          <tr style="background:#f6f6ff;">
-            <th style="padding:8px;border:2px solid black;">Process</th>
-            <th style="padding:8px;border:2px solid black;">Parameter</th>
-            <th style="padding:8px;border:2px solid black;">Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${recipeParameters
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:8px;">
+        ${
+          filtered
             .map(
               (pm) => `
-              <tr>
-                <td style="padding:8px;border:2px solid black;">${pm.ProcessId}</td>
-                <td style="padding:8px;border:2px solid black;">
-                  ${pm.ParameterName || pm.Code}
-                </td>
-                <td style="padding:8px;border:2px solid black;">${pm.Value || ""}</td>
-              </tr>
-            `,
+            <div style="border:1px solid #e5e5ff;border-radius:6px;padding:10px 12px;background:#fdfdff;">
+              <div style="font-weight:600;margin-bottom:6px;">Process: ${pm.ProcessId}</div>
+              <div style="font-size:13px;"><b>Parameter:</b> ${pm.ParameterName || pm.Code}</div>
+              <div style="font-size:13px;"><b>Value:</b> ${pm.Value || ""}</div>
+            </div>
+          `,
             )
-            .join("")}
-        </tbody>
-      </table>
+            .join("") || `<div style="margin-top:12px;">Không có dữ liệu</div>`
+        }
+      </div>
     `;
   }
 
@@ -341,6 +462,7 @@ function showAllProcessesDetail() {
     tabIngredients.style.background = "#d1d1ff";
     tabByProducts.style.background = "#f6f6ff";
     tabParameters.style.background = "#f6f6ff";
+    currentAllTab = "ingredients";
     renderIngredients();
   };
 
@@ -348,6 +470,7 @@ function showAllProcessesDetail() {
     tabIngredients.style.background = "#f6f6ff";
     tabByProducts.style.background = "#d1d1ff";
     tabParameters.style.background = "#f6f6ff";
+    currentAllTab = "byproducts";
     renderByProducts();
   };
 
@@ -355,8 +478,13 @@ function showAllProcessesDetail() {
     tabIngredients.style.background = "#f6f6ff";
     tabByProducts.style.background = "#f6f6ff";
     tabParameters.style.background = "#d1d1ff";
+    currentAllTab = "parameters";
     renderParameters();
   };
+
+  // Khởi tạo filter
+  initializeProcessDropdown();
+  populateProcessOptions();
 
   // Default tab
   tabIngredients.click();
@@ -475,7 +603,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         <h2 style='margin-bottom:16px;'>Processes:</h2>
         <div id="processList" style="display:flex;flex-wrap:wrap;margin-bottom:12px;"></div>
         <div style='display:flex;flex-direction:column;gap:20px;'>
-          <div style='flex:0 0;'>
+          <div style='flex:0 0 auto; min-height:220px;'>
             <div id="processInfo"></div>
           </div>
           <div style='flex:1;'>
