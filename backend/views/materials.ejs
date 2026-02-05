@@ -129,7 +129,10 @@
                   min-height: 38px;
                 "
               >
-                <span id="poSelectedText" style="color: #999"
+                <span
+                  id="poSelectedText"
+                  class="selected-text"
+                  style="color: #999"
                   >Select production orders...</span
                 >
                 <svg
@@ -215,7 +218,10 @@
                     min-height: 38px;
                   "
                 >
-                  <span id="batchSelectedText" style="color: #999"
+                  <span
+                    id="batchSelectedText"
+                    class="selected-text"
+                    style="color: #999"
                     >Select batches...</span
                   >
                   <svg
@@ -304,7 +310,10 @@
                     min-height: 38px;
                   "
                 >
-                  <span id="ingredientSelectedText" style="color: #999"
+                  <span
+                    id="ingredientSelectedText"
+                    class="selected-text"
+                    style="color: #999"
                     >Select ingredients...</span
                   >
                   <svg
@@ -391,7 +400,10 @@
                     min-height: 38px;
                   "
                 >
-                  <span id="resultSelectedText" style="color: #999"
+                  <span
+                    id="resultSelectedText"
+                    class="selected-text"
+                    style="color: #999"
                     >Select results...</span
                   >
                   <svg
@@ -539,6 +551,12 @@
 
       <!-- Table Section -->
       <div class="table-section">
+        <!-- Grid (hidden by default) -->
+        <div
+          id="materialsGrid"
+          style="display: none; padding: 16px 16px 0 16px"
+        ></div>
+
         <table class="data-table">
           <thead>
             <tr>
