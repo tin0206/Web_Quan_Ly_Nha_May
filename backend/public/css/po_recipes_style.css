@@ -1,3 +1,40 @@
+/* Top Navigation Bar */
+.topBar {
+  width: 100%;
+  max-width: 1480px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  padding: 0 30px;
+  margin-bottom: 20px;
+}
+
+.nav-left {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: #4e4ad4;
+}
+
+.nav-left i {
+  font-size: 18px;
+}
+
+.nav-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #666;
+}
+
+.nav-breadcrumb .separator {
+  color: #d0d0d0;
+}
+
 /* Table Recipes Styling */
 .table-section {
   margin-top: 24px;
@@ -56,7 +93,8 @@ body {
   width: 100%;
   max-width: 1480px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 0px 20px;
+  padding-bottom: 40px;
 }
 
 /* Header Section */

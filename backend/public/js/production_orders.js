@@ -34,12 +34,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   sourceCodeSpan.textContent = PLANTCODE;
   destinationCodeSpan.textContent = LINE;
 
-  // if (dateFromInput && !dateFromInput.value) {
-  //   dateFromInput.value = yesterday.toISOString().split("T")[0];
-  // }
-  // if (dateToInput && !dateToInput.value) {
-  //   dateToInput.value = tomorrow.toISOString().split("T")[0];
-  // }
+  if (dateFromInput && !dateFromInput.value) {
+    dateFromInput.value = yesterday.toISOString().split("T")[0];
+  }
+  if (dateToInput && !dateToInput.value) {
+    dateToInput.value = tomorrow.toISOString().split("T")[0];
+  }
 
   initializeProcessAreaDropdown();
   initializeStatusDropdown();
