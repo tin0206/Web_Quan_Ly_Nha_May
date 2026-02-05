@@ -246,10 +246,21 @@ function showAllProcessesInfo() {
         <div><b>Product Code:</b> ${product?.ProductCode || "-"}</div>
         <div><b>Product Name:</b> ${product?.ItemName || "-"}</div>
         <div><b>Plan Quantity:</b> ${product?.PlanQuantity || "-"} ${product?.UnitOfMeasurement || ""}</div>
+          <div style="margin-top:8px;">
+            ${product?.ProductId ? `<button class="product-detail-btn" data-code="${product.ProductCode}" style="padding:6px 10px;border-radius:6px;border:1px solid #6259ee;background:#6259ee;color:#fff;cursor:pointer;">Xem chi tiết</button>` : ""}
+          </div>
       </div>
     `;
     })
     .join("");
+
+  // Wire detail buttons for process products
+  processInfoDiv.querySelectorAll(".product-detail-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const code = btn.getAttribute("data-code");
+      if (code) showProductModal(code);
+    });
+  });
 }
 
 function showProcessInfo(process, product) {
@@ -267,8 +278,17 @@ function showProcessInfo(process, product) {
       <div><b>Product Code:</b> ${product ? product.ProductCode : "-"}</div>
       <div><b>Product Name:</b> ${product ? product.ItemName : "-"}</div>
       <div><b>Plan Quantity:</b> ${product ? product.PlanQuantity : "-"} ${product ? product.UnitOfMeasurement : ""}</div>
+      ${product && product.ProductId ? `<div style='margin-top:8px;'><button class='product-detail-btn' data-code='${product.ProductCode}' style='padding:6px 10px;border-radius:6px;border:1px solid #6259ee;background:#6259ee;color:#fff;cursor:pointer;'>Xem chi tiết</button></div>` : ""}
     </div>
   `;
+
+  // Wire detail button
+  processInfoDiv.querySelectorAll(".product-detail-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const code = btn.getAttribute("data-code");
+      if (code) showProductModal(code);
+    });
+  });
 }
 
 function showAllProcessesDetail() {
@@ -469,10 +489,12 @@ function showAllProcessesDetail() {
               .map(
                 (i) => `
                 <div style="border:1px solid #e5e5ff;border-radius:6px;padding:10px 12px;background:#fdfdff;display:flex;flex-direction:column;gap:8px;">
-                  <div style="font-weight:600;">${i.ItemName || ""}</div>
-                  <div style="font-size:13px;"><b>ID:</b> ${i.IngredientId || ""}</div>
-                  <div style="font-size:13px;"><b>Code:</b> ${i.IngredientCode || ""}</div>
-                  <div style="font-size:13px;"><b>Quantity:</b> ${i.Quantity || ""} ${i.UnitOfMeasurement || ""}</div>
+                  <div style="display:flex;flex-direction:column;gap:4px;height:120px;">
+                    <div style="font-weight:600;">${i.ItemName || ""}</div>
+                    <div style="font-size:13px;"><b>ID:</b> ${i.IngredientId || ""}</div>
+                    <div style="font-size:13px;"><b>Code:</b> ${i.IngredientCode || ""}</div>
+                    <div style="font-size:13px;"><b>Quantity:</b> ${i.Quantity || ""} ${i.UnitOfMeasurement || ""}</div>
+                  </div>  
                   <div style="margin-top:4px;">
                     <button class="product-detail-btn" data-code="${i.IngredientCode || ""}"
                       style="padding:6px 10px;border-radius:6px;border:1px solid #6259ee;background:#6259ee;color:#fff;cursor:pointer;">
@@ -628,33 +650,36 @@ function showProcessDetail(process) {
       return;
     }
     tabContent.innerHTML = `
-      <table style='max-height:420px;overflow-y:auto;width:100%;border-collapse:collapse;margin-top:8px;'>
-        <thead>
-          <tr style='background:#f6f6ff;'>
-          <th style='padding:8px;border:2px solid black;'>IngredientId</th>
-            <th style='padding:8px;border:2px solid black;'>IngredientCode</th>
-            <th style='padding:8px;border:2px solid black;'>Name</th>
-            <th style='padding:8px;border:2px solid black;'>Quantity</th>
-            <th style='padding:8px;border:2px solid black;'>UnitOfMeasurement</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${ingredients
-            .map(
-              (i) => `
-            <tr>
-            <td style='padding:8px;border:2px solid black;'>${i.IngredientId || ""}</td>
-              <td style='padding:8px;border:2px solid black;'>${i.IngredientCode || ""}</td>
-              <td style='padding:8px;border:2px solid black;'>${i.ItemName || ""}</td>
-              <td style='padding:8px;border:2px solid black;'>${i.Quantity || ""}</td>
-              <td style='padding:8px;border:2px solid black;'>${i.UnitOfMeasurement || ""}</td>
-            </tr>
-          `,
-            )
-            .join("")}
-        </tbody>
-      </table>
+      <div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:8px;'>
+        ${ingredients
+          .map(
+            (i) => `
+          <div style="border:1px solid #e5e5ff;border-radius:6px;padding:10px 12px;background:#fdfdff;display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;flex-direction:column;gap:4px;height:120px;">
+              <div style="font-weight:600;">${i.ItemName || ""}</div>
+              <div style="font-size:13px;"><b>ID:</b> ${i.IngredientId || ""}</div>
+              <div style="font-size:13px;"><b>Code:</b> ${i.IngredientCode || ""}</div>
+              <div style="font-size:13px;"><b>Quantity:</b> ${i.Quantity || ""} ${i.UnitOfMeasurement || ""}</div>
+            </div>
+            <div style="margin-top:4px;">
+              <button class="product-detail-btn" data-code="${i.IngredientCode || ""}"
+                style="padding:6px 10px;border-radius:6px;border:1px solid #6259ee;background:#6259ee;color:#fff;cursor:pointer;">
+                Xem chi tiết
+              </button>
+            </div>
+          </div>
+        `,
+          )
+          .join("")}
+      </div>
     `;
+    // Wire detail buttons
+    tabContent.querySelectorAll(".product-detail-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const code = btn.getAttribute("data-code");
+        if (code) showProductModal(code);
+      });
+    });
   }
 
   function renderByProducts() {
