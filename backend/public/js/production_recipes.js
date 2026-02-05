@@ -236,7 +236,7 @@ function renderRecipeGrid(recipes) {
               ? `<i class="fa-solid fa-check-circle"></i>`
               : `<i class="fa-solid fa-xmark-circle"></i>`
           }
-          ${recipe.RecipeStatus === "Active" ? "Hoạt động" : "Ngừng hoạt động"}
+          ${recipe.RecipeStatus === "Active" ? "Active" : "Inactive"}
         </p>
       </div>
       <div class="recipe-product">
@@ -296,7 +296,7 @@ function renderRecipeTable(recipes) {
       <td>${recipe.Version || ""}</td>
       <td style="text-align:center">
         <span class="status-badge status-${recipe.RecipeStatus === "Active" ? "success" : "inactive"}">
-          ${recipe.RecipeStatus === "Active" ? "Hoạt động" : "Ngừng hoạt động"}
+          ${recipe.RecipeStatus === "Active" ? "Active" : "Inactive"}
         </span>
       </td>
       <td>${recipe.timestamp ? formatDateTime(recipe.timestamp) : ""}</td>

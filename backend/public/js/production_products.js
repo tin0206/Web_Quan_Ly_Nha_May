@@ -340,8 +340,8 @@ function renderTable() {
           <td class="td-center">
             ${
               p.Item_Status === "ACTIVE"
-                ? `<span class="status-badge status-success">Hoạt động</span>`
-                : `<span class="status-badge status-inactive">Ngừng hoạt động</span>`
+                ? `<span class="status-badge status-success">Active</span>`
+                : `<span class="status-badge status-inactive">Inactive</span>`
             }
           </td>
           <td>${p.timestamp ? formatDateTime(p.timestamp) : ""}</td>
@@ -400,7 +400,7 @@ function renderGridView() {
                   ? `<i class="fa-solid fa-check-circle"></i>`
                   : `<i class="fa-solid fa-xmark-circle"></i>`
               }
-              ${p.Item_Status === "ACTIVE" ? "Hoạt động" : "Ngừng hoạt động"}
+              ${p.Item_Status === "ACTIVE" ? "Active" : "Inactive"}
             </p>
         </div>
         <div style="font-size:15px;font-weight:500;margin:6px 0 2px 0;line-height:1.4;">${p.ItemName || "-"}</div>
