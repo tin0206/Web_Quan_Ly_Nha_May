@@ -10,6 +10,98 @@ let recipeByProducts = [];
 let recipeParameters = [];
 let selectedProcessIds = [];
 
+// ===== Product Detail Modal (for Ingredients) =====
+function ensureProductModal() {
+  if (!document.getElementById("productDetailModal")) {
+    const modalDiv = document.createElement("div");
+    modalDiv.id = "productDetailModal";
+    modalDiv.className = "modal";
+    modalDiv.style.display = "none";
+    modalDiv.innerHTML = `
+      <div class="modal-content" style="max-width:720px;">
+        <span class="close-modal" id="closeProductModal" style="top:10px;right:14px">&times;</span>
+        <h2 style="margin-top:0;margin-bottom:10px;">Chi tiết sản phẩm</h2>
+        <div id="modalProductContent"></div>
+      </div>
+    `;
+    document.body.appendChild(modalDiv);
+
+    if (!document.getElementById("product-modal-style")) {
+      const style = document.createElement("style");
+      style.id = "product-modal-style";
+      style.innerHTML = `
+        .modal { display:none; position:fixed; z-index:1000; inset:0; background:rgba(0,0,0,.3); justify-content:center; align-items:center; }
+        .modal-content { background:#fff; padding:24px; border-radius:10px; box-shadow:0 4px 24px rgba(0,0,0,.18); position:relative; }
+        .close-modal { position:absolute; font-size:28px; color:#888; cursor:pointer; font-weight:bold; }
+        .close-modal:hover { color:#e74c3c; }
+        .kv { display:flex; gap:8px; margin-bottom:8px; }
+        .kv .k { min-width:160px; color:#666; font-weight:500; }
+        .kv .v { color:#222; }
+        table.mhu { width:100%; border-collapse:collapse; margin-top:12px; }
+        table.mhu th, table.mhu td { border:1px solid #e5e5f5; padding:8px; text-align:left; }
+        table.mhu thead { background:#f6f6ff; }
+      `;
+      document.head.appendChild(style);
+    }
+  }
+
+  const closeBtn = document.getElementById("closeProductModal");
+  const modal = document.getElementById("productDetailModal");
+  if (closeBtn && modal) {
+    closeBtn.onclick = function () {
+      modal.style.display = "none";
+    };
+  }
+  window.addEventListener("click", function (e) {
+    const m = document.getElementById("productDetailModal");
+    if (e.target === m) m.style.display = "none";
+  });
+}
+
+async function showProductModal(productCode) {
+  try {
+    ensureProductModal();
+    const res = await fetch(
+      `${API_ROUTE}/api/production-products/${productCode}`,
+    );
+    if (!res.ok) throw new Error("Không lấy được thông tin sản phẩm");
+    const p = await res.json();
+    const content = document.getElementById("modalProductContent");
+    if (!content) return;
+    content.innerHTML = `
+      <div class="kv"><div class="k">ProductMasterId</div><div class="v">${p.ProductMasterId ?? ""}</div></div>
+      <div class="kv"><div class="k">Mã SP</div><div class="v">${p.ItemCode ?? ""}</div></div>
+      <div class="kv"><div class="k">Tên SP</div><div class="v">${p.ItemName ?? ""}</div></div>
+      <div class="kv"><div class="k">Loại</div><div class="v">${p.Item_Type ?? ""}</div></div>
+      <div class="kv"><div class="k">Nhóm</div><div class="v">${p.Group ?? "-"}</div></div>
+      <div class="kv"><div class="k">Category</div><div class="v">${p.Category ?? "-"}</div></div>
+      <div class="kv"><div class="k">Brand</div><div class="v">${p.Brand ?? "-"}</div></div>
+      <div class="kv"><div class="k">Đơn vị cơ sở</div><div class="v">${p.BaseUnit ?? ""}</div></div>
+      <div class="kv"><div class="k">Đơn vị tồn kho</div><div class="v">${p.InventoryUnit ?? ""}</div></div>
+      <div class="kv"><div class="k">Trạng thái</div><div class="v">${p.Item_Status ?? ""}</div></div>
+      <div class="kv"><div class="k">Ngày cập nhật</div><div class="v">${p.timestamp ? formatDateTime(p.timestamp) : ""}</div></div>
+
+      <h3 style="margin-top:14px;">MHUTypes</h3>
+      <table class="mhu">
+        <thead>
+          <tr><th style="text-align:center;">MHUTypeId</th><th style="text-align:center;">FromUnit</th><th style="text-align:center;">ToUnit</th><th style="text-align:center;">Conversion</th></tr>
+        </thead>
+        <tbody>
+          ${(p.MhuTypes || [])
+            .map(
+              (m) =>
+                `<tr><td style="text-align:center;">${m.MHUTypeId ?? ""}</td><td style="text-align:center;">${m.FromUnit ?? ""}</td><td style="text-align:center;">${m.ToUnit ?? ""}</td><td style="text-align:center;">${m.Conversion ?? ""}</td></tr>`,
+            )
+            .join("")}
+        </tbody>
+      </table>
+    `;
+    const modal = document.getElementById("productDetailModal");
+    if (modal) modal.style.display = "flex";
+  } catch (e) {
+    alert(e.message || "Lỗi khi mở chi tiết sản phẩm");
+  }
+}
 function formatDateTime(dateString) {
   if (!dateString) return "";
 
@@ -376,11 +468,17 @@ function showAllProcessesDetail() {
             ${items
               .map(
                 (i) => `
-                <div style="border:1px solid #e5e5ff;border-radius:6px;padding:10px 12px;background:#fdfdff;">
-                  <div style="font-weight:600;margin-bottom:6px;">${i.ItemName || ""}</div>
+                <div style="border:1px solid #e5e5ff;border-radius:6px;padding:10px 12px;background:#fdfdff;display:flex;flex-direction:column;gap:8px;">
+                  <div style="font-weight:600;">${i.ItemName || ""}</div>
                   <div style="font-size:13px;"><b>ID:</b> ${i.IngredientId || ""}</div>
                   <div style="font-size:13px;"><b>Code:</b> ${i.IngredientCode || ""}</div>
                   <div style="font-size:13px;"><b>Quantity:</b> ${i.Quantity || ""} ${i.UnitOfMeasurement || ""}</div>
+                  <div style="margin-top:4px;">
+                    <button class="product-detail-btn" data-code="${i.IngredientCode || ""}"
+                      style="padding:6px 10px;border-radius:6px;border:1px solid #6259ee;background:#6259ee;color:#fff;cursor:pointer;">
+                      Xem chi tiết
+                    </button>
+                  </div>
                 </div>
               `,
               )
@@ -396,6 +494,14 @@ function showAllProcessesDetail() {
         ${groupsHTML}
       </div>
     `;
+
+    // Wire detail buttons
+    tabContent.querySelectorAll(".product-detail-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const code = btn.getAttribute("data-code");
+        if (code) showProductModal(code);
+      });
+    });
   }
 
   /* ================= BY PRODUCTS ================= */
