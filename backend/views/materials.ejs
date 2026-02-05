@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/css/main_style.css" />
+    <script>
+      const PLANTCODE = "<%= process.env.PLANTCODE %>";
+      const LINE = "<%= process.env.LINE %>";
+    </script>
+    <script type="module" src="/js/production_materials.js" defer></script>
+    <title>Quản Lý Nguyên Vật Liệu</title>
+  </head>
+  <body>
+    <!-- Top Navigation Bar -->
+    <div class="topBar">
+      <a href="/" class="nav-left">
+        <i class="fa-solid fa-home"></i>
+        <span>DashBoard</span>
+      </a>
+      <div class="nav-breadcrumb">
+        <a href="/materials" style="text-decoration: none; color: inherit"
+          >Nguyên vật liệu</a
+        >
+      </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+      <!-- Header Section -->
+      <div class="header-section">
+        <div class="header-top">
+          <a class="back-btn" href="/">
+            <i class="fa-solid fa-arrow-left"></i>
+          </a>
+          <div class="header-title">
+            <div class="header-top-left">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="#6259ee"
+              >
+                <path
+                  d="M11.132 2.504l-4 7a1 1 0 0 0 .868 1.496h8a1 1 0 0 0 .868 -1.496l-4 -7a1 1 0 0 0 -1.736 0z"
+                />
+                <path
+                  d="M17 13a4 4 0 1 1 -3.995 4.2l-.005 -.2l.005 -.2a4 4 0 0 1 3.995 -3.8z"
+                />
+                <path
+                  d="M9 13h-4a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h4a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2z"
+                />
+              </svg>
+              <div class="header-text">
+                <h1>Quản lý Nguyên vật liệu</h1>
+                <p>Tổng quan kho và sử dụng vật liệu</p>
+              </div>
+            </div>
+            <div class="badge-cs1"><%= process.env.LINE %></div>
+          </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-header">
+              <span>Tổng vật liệu</span>
+              <div class="stat-icon">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="#2a5fc0"
+                >
+                  <path
+                    d="M11.132 2.504l-4 7a1 1 0 0 0 .868 1.496h8a1 1 0 0 0 .868 -1.496l-4 -7a1 1 0 0 0 -1.736 0z"
+                  />
+                  <path
+                    d="M17 13a4 4 0 1 1 -3.995 4.2l-.005 -.2l.005 -.2a4 4 0 0 1 3.995 -3.8z"
+                  />
+                  <path
+                    d="M9 13h-4a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h4a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2z"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div class="stat-number" id="materials-total-stat">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search and Filter Section -->
+      <div class="search-section">
+        <div class="first-search-section">
+          <div
+            style="
+              padding-left: 20px;
+              display: flex;
+              gap: 10px;
+              align-items: center;
+              flex-wrap: wrap;
+            "
+          >
+            <!-- PO filter -->
+            <label style="font-weight: 500; color: #666">Lệnh SX (PO):</label>
+            <div
+              class="custom-multiselect"
+              style="position: relative; min-width: 300px"
+            >
+              <div
+                class="multiselect-input"
+                id="poInput"
+                style="
+                  padding: 8px 12px;
+                  border: 1px solid #ddd;
+                  border-radius: 4px;
+                  font-size: 14px;
+                  background: white;
+                  cursor: pointer;
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  min-height: 38px;
+                "
+              >
+                <span id="poSelectedText" style="color: #999"
+                  >Select production orders...</span
+                >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+              <div
+                class="multiselect-dropdown"
+                id="poDropdown"
+                style="
+                  display: none;
+                  position: absolute;
+                  top: 100%;
+                  left: 0;
+                  right: 0;
+                  background: white;
+                  border: 1px solid #ddd;
+                  border-radius: 4px;
+                  margin-top: 4px;
+                  max-height: 250px;
+                  overflow-y: auto;
+                  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                  z-index: 1000;
+                "
+              >
+                <div style="padding: 8px; border-bottom: 1px solid #eee">
+                  <label
+                    style="
+                      display: flex;
+                      align-items: center;
+                      gap: 8px;
+                      cursor: pointer;
+                      font-weight: 500;
+                    "
+                  >
+                    <input
+                      type="checkbox"
+                      id="poSelectAll"
+                      style="cursor: pointer"
+                    />
+                    <span>[Select all]</span>
+                  </label>
+                </div>
+                <div id="poOptions" style="padding: 4px"></div>
+              </div>
+            </div>
+
+            <!-- Batch filter -->
+            <div
+              style="
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                position: relative;
+              "
+            >
+              <label style="font-weight: 500; color: #666">Batch:</label>
+              <div
+                class="custom-multiselect"
+                style="position: relative; min-width: 220px"
+              >
+                <div
+                  class="multiselect-input"
+                  id="batchInput"
+                  style="
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    background: white;
+                    cursor: pointer;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    min-height: 38px;
+                  "
+                >
+                  <span id="batchSelectedText" style="color: #999"
+                    >Select batches...</span
+                  >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div
+                  class="multiselect-dropdown"
+                  id="batchDropdown"
+                  style="
+                    display: none;
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background: white;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    margin-top: 4px;
+                    max-height: 250px;
+                    overflow-y: auto;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    z-index: 1000;
+                  "
+                >
+                  <div style="padding: 8px; border-bottom: 1px solid #eee">
+                    <label
+                      style="
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        cursor: pointer;
+                        font-weight: 500;
+                      "
+                    >
+                      <input
+                        type="checkbox"
+                        id="batchSelectAll"
+                        style="cursor: pointer"
+                      />
+                      <span>[Select all]</span>
+                    </label>
+                  </div>
+                  <div id="batchOptions" style="padding: 4px"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ingredient code filter -->
+            <div
+              style="
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                position: relative;
+              "
+            >
+              <label style="font-weight: 500; color: #666"
+                >Ingredient Code:</label
+              >
+              <div
+                class="custom-multiselect"
+                style="position: relative; min-width: 220px"
+              >
+                <div
+                  class="multiselect-input"
+                  id="ingredientInput"
+                  style="
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    background: white;
+                    cursor: pointer;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    min-height: 38px;
+                  "
+                >
+                  <span id="ingredientSelectedText" style="color: #999"
+                    >Select ingredients...</span
+                  >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div
+                  class="multiselect-dropdown"
+                  id="ingredientDropdown"
+                  style="
+                    display: none;
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background: white;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    margin-top: 4px;
+                    max-height: 250px;
+                    overflow-y: auto;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    z-index: 1000;
+                  "
+                >
+                  <div style="padding: 8px; border-bottom: 1px solid #eee">
+                    <label
+                      style="
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        cursor: pointer;
+                        font-weight: 500;
+                      "
+                    >
+                      <input
+                        type="checkbox"
+                        id="ingredientSelectAll"
+                        style="cursor: pointer"
+                      />
+                      <span>[Select all]</span>
+                    </label>
+                  </div>
+                  <div id="ingredientOptions" style="padding: 4px"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Result filter -->
+            <div
+              style="
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                position: relative;
+              "
+            >
+              <label style="font-weight: 500; color: #666">Result:</label>
+              <div
+                class="custom-multiselect"
+                style="position: relative; min-width: 220px"
+              >
+                <div
+                  class="multiselect-input"
+                  id="resultInput"
+                  style="
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    background: white;
+                    cursor: pointer;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    min-height: 38px;
+                  "
+                >
+                  <span id="resultSelectedText" style="color: #999"
+                    >Select results...</span
+                  >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div
+                  class="multiselect-dropdown"
+                  id="resultDropdown"
+                  style="
+                    display: none;
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background: white;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    margin-top: 4px;
+                    max-height: 250px;
+                    overflow-y: auto;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    z-index: 1000;
+                  "
+                >
+                  <div style="padding: 8px; border-bottom: 1px solid #eee">
+                    <label
+                      style="
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        cursor: pointer;
+                        font-weight: 500;
+                      "
+                    >
+                      <input
+                        type="checkbox"
+                        id="resultSelectAll"
+                        style="cursor: pointer"
+                      />
+                      <span>[Select all]</span>
+                    </label>
+                  </div>
+                  <div id="resultOptions" style="padding: 4px"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="second-search-section"
+          style="display: flex; justify-content: space-between"
+        >
+          <div
+            style="
+              padding-left: 20px;
+              display: flex;
+              gap: 10px;
+              align-items: center;
+            "
+          >
+            <div style="display: flex; gap: 10px; align-items: center">
+              <label style="font-weight: 500; color: #666">Từ ngày:</label>
+              <input
+                type="date"
+                id="materialsDateFrom"
+                style="
+                  padding: 8px 12px;
+                  border: 1px solid #ddd;
+                  border-radius: 4px;
+                  font-size: 14px;
+                "
+              />
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center">
+              <label style="font-weight: 500; color: #666">Đến ngày:</label>
+              <input
+                type="date"
+                id="materialsDateTo"
+                style="
+                  padding: 8px 12px;
+                  border: 1px solid #ddd;
+                  border-radius: 4px;
+                  font-size: 14px;
+                "
+              />
+            </div>
+          </div>
+          <div class="view-controls" style="padding-right: 40px">
+            <button class="view-btn active" data-view="table" title="Danh sách">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M4 6l16 0" />
+                <path d="M4 12l16 0" />
+                <path d="M4 18l16 0" />
+              </svg>
+            </button>
+            <button class="view-btn" data-view="grid" title="Lưới">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M9 3a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
+                />
+                <path
+                  d="M19 3a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
+                />
+                <path
+                  d="M9 13a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
+                />
+                <path
+                  d="M19 13a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-4a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2z"
+                />
+              </svg>
+            </button>
+            <hr style="height: 30px; width: 2px" />
+            <button class="refresh-btn">
+              <i class="fa-solid fa-rotate-right"></i>
+              Làm mới
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table Section -->
+      <div class="table-section">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>ProductionOrderNumber</th>
+              <th style="text-align: center">Batch Code</th>
+              <th>Quantity</th>
+              <th>IngredientCode</th>
+              <th>Lot</th>
+              <th>Operator_ID</th>
+              <th style="text-align: center">Result</th>
+              <th>Timestamp</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="materialsTableBody">
+            <!-- Rows will be rendered by JavaScript -->
+          </tbody>
+        </table>
+
+        <!-- Pagination Controls -->
+        <div class="pagination-controls">
+          <button
+            id="materialsPrevPageBtn"
+            class="pagination-btn"
+            onclick="materialsPrevPage()"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <span id="materialsPageInfo" class="page-info">Trang 1 / 1</span>
+          <button
+            id="materialsNextPageBtn"
+            class="pagination-btn"
+            onclick="materialsNextPage()"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Material Modal -->
+    <div
+      id="materialModal"
+      style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div
+        style="
+          background: white;
+          border-radius: 8px;
+          padding: 30px;
+          max-width: 600px;
+          width: 90%;
+          max-height: 80vh;
+          overflow-y: auto;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+        "
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 15px;
+          "
+        >
+          <h2 style="margin: 0; color: #333">Chi Tiết Vật Liệu Tiêu Thụ</h2>
+          <button
+            id="closeModalBtn"
+            style="
+              background: none;
+              border: none;
+              font-size: 24px;
+              cursor: pointer;
+              color: #666;
+            "
+          >
+            &times;
+          </button>
+        </div>
+        <div
+          id="modalContent"
+          style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px"
+        >
+          <div>
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >ID</label
+            >
+            <p
+              id="modalId"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+              "
+            >
+              -
+            </p>
+          </div>
+          <div>
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >Production Order Number</label
+            >
+            <p
+              id="modalProductionOrderNumber"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+              "
+            >
+              -
+            </p>
+          </div>
+          <div>
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >Batch Code</label
+            >
+            <p
+              id="modalBatchCode"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+              "
+            >
+              -
+            </p>
+          </div>
+          <div>
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >Ingredient Code</label
+            >
+            <p
+              id="modalIngredientCode"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+              "
+            >
+              -
+            </p>
+          </div>
+          <div>
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >Lot</label
+            >
+            <p
+              id="modalLot"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+              "
+            >
+              -
+            </p>
+          </div>
+          <div>
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >Actual Quantity</label
+            >
+            <p
+              id="modalQuantity"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+              "
+            >
+              -
+            </p>
+          </div>
+          <div>
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >Consumption Date</label
+            >
+            <p
+              id="modalDateTime"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+              "
+            >
+              -
+            </p>
+          </div>
+          <div>
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >Status</label
+            >
+            <p
+              id="modalStatusDisplay"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+              "
+            >
+              -
+            </p>
+          </div>
+          <div>
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >Count</label
+            >
+            <p
+              id="modalCount"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+              "
+            >
+              -
+            </p>
+          </div>
+          <div>
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >Operator ID</label
+            >
+            <p
+              id="modalOperatorId"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+              "
+            >
+              -
+            </p>
+          </div>
+          <div>
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >Supply Machine</label
+            >
+            <p
+              id="modalSupplyMachine"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+              "
+            >
+              -
+            </p>
+          </div>
+          <div>
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >Timestamp</label
+            >
+            <p
+              id="modalTimestamp"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+              "
+            >
+              -
+            </p>
+          </div>
+          <div style="grid-column: 1 / -1">
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >Request</label
+            >
+            <pre
+              id="modalRequest"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+                overflow-x: auto;
+                font-size: 16px;
+                max-height: 500px;
+              "
+            >
+                -</pre
+            >
+          </div>
+          <div style="grid-column: 1 / -1">
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >Response</label
+            >
+            <pre
+              id="modalResponse"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+                overflow-x: auto;
+                font-size: 16px;
+                max-height: 150px;
+              "
+            >
+                -</pre
+            >
+          </div>
+          <div style="grid-column: 1 / -1">
+            <label
+              style="
+                font-weight: bold;
+                color: #666;
+                display: block;
+                margin-bottom: 5px;
+              "
+              >Status</label
+            >
+            <pre
+              id="modalStatus"
+              style="
+                margin: 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+                overflow-x: auto;
+                max-height: 200px;
+                font-size: 16px;
+              "
+            >
+                -</pre
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Prevent errors when clicking pagination without JS implementation
+      function materialsPrevPage() {}
+      function materialsNextPage() {}
+    </script>
+  </body>
+</html>
