@@ -373,27 +373,24 @@ body {
   vertical-align: middle;
 }
 
-.product-status {
+.status-badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-width: 90px;
-  height: 26px;
-  padding: 0 12px;
-  border-radius: 999px;
-  font-size: 13px;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 1;
 }
 
-.product-status.active {
-  background: #47b54d;
-  color: white;
+.status-badge.status-success {
+  background-color: #e7f8e7;
+  color: #47b54d;
 }
 
-.product-status.inactive {
-  background: #d9534f;
-  color: white;
+.status-badge.status-inactive {
+  background-color: #f8d7da;
+  color: #d9534f;
 }
 
 .product-conversion {

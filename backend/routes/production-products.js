@@ -53,49 +53,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.get("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const pool = getPool();
-    const result = await pool.request().input("id", sql.NVarChar, id).query(`
-      SELECT 
-        p.ProductMasterId,
-        p.ItemCode,
-        p.ItemName,
-        p.Item_Type,
-        p.[Group],
-        p.Category,
-        p.Brand,
-        p.BaseUnit,
-        p.InventoryUnit,
-        p.Item_Status,
-        p.timestamp,
-        JSON_QUERY(
-          (
-            SELECT m.MHUTypeId, m.FromUnit, m.ToUnit, m.Conversion
-            FROM MHUTypes m
-            WHERE m.ProductMasterId = p.ProductMasterId
-            FOR JSON PATH
-          )
-        ) AS MhuTypes
-      FROM ProductMasters p
-      WHERE p.ItemCode = @id
-    `);
-    const row = result.recordset[0];
-    if (!row) return res.status(404).json({ error: "Not found" });
-    let mhuTypes = [];
-    try {
-      mhuTypes = JSON.parse(row.MhuTypes || "[]");
-    } catch (_) {
-      mhuTypes = [];
-    }
-    const { MhuTypes, ...rest } = row;
-    res.json({ ...rest, MhuTypes: mhuTypes });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 router.get("/types", async (req, res) => {
   try {
     const pool = getPool();
@@ -358,6 +315,49 @@ router.get("/stats/search", async (req, res) => {
         totalGroups: 0,
       },
     );
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pool = getPool();
+    const result = await pool.request().input("id", sql.NVarChar, id).query(`
+      SELECT 
+        p.ProductMasterId,
+        p.ItemCode,
+        p.ItemName,
+        p.Item_Type,
+        p.[Group],
+        p.Category,
+        p.Brand,
+        p.BaseUnit,
+        p.InventoryUnit,
+        p.Item_Status,
+        p.timestamp,
+        JSON_QUERY(
+          (
+            SELECT m.MHUTypeId, m.FromUnit, m.ToUnit, m.Conversion
+            FROM MHUTypes m
+            WHERE m.ProductMasterId = p.ProductMasterId
+            FOR JSON PATH
+          )
+        ) AS MhuTypes
+      FROM ProductMasters p
+      WHERE p.ItemCode = @id
+    `);
+    const row = result.recordset[0];
+    if (!row) return res.status(404).json({ error: "Not found" });
+    let mhuTypes = [];
+    try {
+      mhuTypes = JSON.parse(row.MhuTypes || "[]");
+    } catch (_) {
+      mhuTypes = [];
+    }
+    const { MhuTypes, ...rest } = row;
+    res.json({ ...rest, MhuTypes: mhuTypes });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

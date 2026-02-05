@@ -340,8 +340,8 @@ function renderTable() {
           <td class="td-center">
             ${
               p.Item_Status === "ACTIVE"
-                ? `<span class="product-status active">ACTIVE</span>`
-                : `<span class="product-status inactive">INACTIVE</span>`
+                ? `<span class="status-badge status-success">Hoạt động</span>`
+                : `<span class="status-badge status-inactive">Ngừng hoạt động</span>`
             }
           </td>
           <td>${p.timestamp ? formatDateTime(p.timestamp) : ""}</td>
@@ -394,9 +394,14 @@ function renderGridView() {
     card.innerHTML = `
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
             <div style="font-size:18px;font-weight:700;color:#222;">${p.ItemCode || "-"}</div>
-            <span style="background:#eafbe7;color:#47b54d;font-size:13px;font-weight:600;padding:4px 16px;border-radius:16px;white-space:nowrap;align-self:flex-start;${p.Item_Status !== "ACTIVE" ? "background:#fbeaea;color:#d9534f" : ""}">
-            ${p.Item_Status === "ACTIVE" ? "Hoạt động" : "Ngừng hoạt động"}
-            </span>
+            <p class="status-badge ${p.Item_Status === "ACTIVE" ? "status-success" : "status-inactive"}">
+              ${
+                p.Item_Status === "ACTIVE"
+                  ? `<i class="fa-solid fa-check-circle"></i>`
+                  : `<i class="fa-solid fa-xmark-circle"></i>`
+              }
+              ${p.Item_Status === "ACTIVE" ? "Hoạt động" : "Ngừng hoạt động"}
+            </p>
         </div>
         <div style="font-size:15px;font-weight:500;margin:6px 0 2px 0;line-height:1.4;">${p.ItemName || "-"}</div>
         <div style="background:#f6f6ff;border-radius:8px;padding:10px 12px 8px 12px;margin-bottom:10px;">

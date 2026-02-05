@@ -626,6 +626,13 @@ body {
 .status-badge.status-success {
   background-color: #e7f8e7;
   color: #47b54d;
+  border: 1px solid #47b54d;
+}
+
+.status-badge.status-inactive {
+  background-color: #f8d7da;
+  color: #d9534f;
+  border: 1px solid #d9534f;
 }
 
 .status-badge.status-warning {

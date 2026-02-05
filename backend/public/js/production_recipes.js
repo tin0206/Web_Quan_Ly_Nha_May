@@ -230,10 +230,14 @@ function renderRecipeGrid(recipes) {
             Phiên bản:  ${recipe.Version ? recipe.Version : ""}
           </span>
         </div>
-        <span class="status-badge status-${recipe.RecipeStatus === "Active" ? "success" : "inactive"}">
-          <i class="fa-solid fa-circle-check"></i>
+        <p class="status-badge status-${recipe.RecipeStatus === "Active" ? "success" : "inactive"}">
+          ${
+            recipe.RecipeStatus === "Active"
+              ? `<i class="fa-solid fa-check-circle"></i>`
+              : `<i class="fa-solid fa-xmark-circle"></i>`
+          }
           ${recipe.RecipeStatus === "Active" ? "Hoạt động" : "Ngừng hoạt động"}
-        </span>
+        </p>
       </div>
       <div class="recipe-product">
         <div class="product-label">SẢN PHẨM</div>
