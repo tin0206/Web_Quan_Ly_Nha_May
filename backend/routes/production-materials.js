@@ -122,59 +122,110 @@ router.get("/ingredients", async (req, res) => {
   }
 });
 
+function normalizeQueryValues(q) {
+  if (!q) return [];
+
+  if (Array.isArray(q)) {
+    return q.flatMap((v) =>
+      String(v)
+        .split(",")
+        .map((s) => s.trim()),
+    );
+  }
+
+  return String(q)
+    .split(",")
+    .map((s) => s.trim());
+}
+
 // Helper: build WHERE clause for search filters
 function buildSearchWhere(req, request) {
   const where = [];
 
   // Production Orders (CSV)
   if (req.query.productionOrderNumber) {
-    const values = String(req.query.productionOrderNumber)
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (values.length) {
-      const placeholders = values.map((v, i) => `@po${i}`);
-      values.forEach((v, i) => request.input(`po${i}`, sql.NVarChar, v));
-      where.push(`productionOrderNumber IN (${placeholders.join(",")})`);
+    const values = normalizeQueryValues(req.query.productionOrderNumber);
+
+    const hasNULL = values.includes("NULL");
+    const realValues = values.filter((v) => v && v !== "NULL");
+
+    const conditions = [];
+
+    if (hasNULL) {
+      conditions.push(`productionOrderNumber = ''`);
+    }
+
+    if (realValues.length) {
+      const placeholders = realValues.map((_, i) => `@po${i}`);
+      realValues.forEach((v, i) => request.input(`po${i}`, sql.NVarChar, v));
+      conditions.push(`productionOrderNumber IN (${placeholders.join(",")})`);
+    }
+
+    if (conditions.length) {
+      where.push(`(${conditions.join(" OR ")})`);
     }
   }
 
   // Batch Codes (CSV)
   if (req.query.batchCode) {
-    const values = String(req.query.batchCode)
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (values.length) {
-      const placeholders = values.map((v, i) => `@bc${i}`);
-      values.forEach((v, i) => request.input(`bc${i}`, sql.NVarChar, v));
-      where.push(`batchCode IN (${placeholders.join(",")})`);
+    const values = normalizeQueryValues(req.query.batchCode);
+
+    const hasNULL = values.includes("NULL");
+    const realValues = values.filter((v) => v && v !== "NULL");
+
+    const conditions = [];
+
+    if (hasNULL) {
+      conditions.push(`batchCode IS NULL`);
+    }
+
+    if (realValues.length) {
+      const placeholders = realValues.map((_, i) => `@bc${i}`);
+      realValues.forEach((v, i) => request.input(`bc${i}`, sql.NVarChar, v));
+      conditions.push(`batchCode IN (${placeholders.join(",")})`);
+    }
+
+    if (conditions.length) {
+      where.push(`(${conditions.join(" OR ")})`);
     }
   }
 
   // Ingredient Codes (CSV)
   if (req.query.ingredientCode) {
-    const values = String(req.query.ingredientCode)
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (values.length) {
-      const placeholders = values.map((v, i) => `@ing${i}`);
-      values.forEach((v, i) => request.input(`ing${i}`, sql.NVarChar, v));
-      where.push(`ingredientCode IN (${placeholders.join(",")})`);
+    const values = normalizeQueryValues(req.query.ingredientCode);
+
+    const hasNULL = values.includes("NULL");
+    const realValues = values.filter((v) => v && v !== "NULL");
+
+    const conditions = [];
+
+    if (hasNULL) {
+      conditions.push(`ingredientCode IS NULL`);
+    }
+
+    if (realValues.length) {
+      const placeholders = realValues.map((_, i) => `@ing${i}`);
+      realValues.forEach((v, i) => request.input(`ing${i}`, sql.NVarChar, v));
+      conditions.push(`ingredientCode IN (${placeholders.join(",")})`);
+    }
+
+    if (conditions.length) {
+      where.push(`(${conditions.join(" OR ")})`);
     }
   }
 
   // Result/Status (CSV) — column name: respone
   if (req.query.respone) {
-    const values = String(req.query.respone)
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (values.length) {
-      const placeholders = values.map((v, i) => `@rs${i}`);
-      values.forEach((v, i) => request.input(`rs${i}`, sql.NVarChar, v));
-      where.push(`respone IN (${placeholders.join(",")})`);
+    const values = normalizeQueryValues(req.query.respone);
+
+    const hasSuccess = values.includes("Success");
+    const hasFailed = values.includes("Failed");
+
+    if (hasFailed) {
+      where.push(`(respone <> 'Success' OR respone IS NULL)`);
+    } else if (hasSuccess) {
+      request.input("rsSuccess", sql.NVarChar, "Success");
+      where.push(`respone = @rsSuccess`);
     }
   }
 

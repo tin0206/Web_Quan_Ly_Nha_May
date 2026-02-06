@@ -77,7 +77,12 @@ function renderOptions({
 
   // Build options
   items.forEach((item) => {
-    const value = item[valueKey];
+    let value;
+    if (containerId === "resultOptions") {
+      value = item[valueKey];
+    } else {
+      value = item;
+    }
     const label = document.createElement("label");
     label.style.display = "flex";
     label.style.alignItems = "center";
@@ -130,12 +135,16 @@ async function loadPOs() {
     `${API_ROUTE}/api/production-materials/production-orders`,
   );
   const items = data.data || [];
-  productionOrders = items.map((r) => r.productionOrderNumber);
+  productionOrders = items.map((r) =>
+    r.productionOrderNumber === ""
+      ? "NULL"
+      : (r.productionOrderNumber ?? "NULL"),
+  );
   renderOptions({
     containerId: "poOptions",
     selectAllId: "poSelectAll",
     selectedSet: state.pos,
-    items,
+    items: productionOrders,
     valueKey: "productionOrderNumber",
     selectedTextId: "poSelectedText",
     emptyText: "Select production orders...",
@@ -195,13 +204,13 @@ async function loadBatches() {
     );
   }
 
-  batchCodes = items.map((r) => r.batchCode);
+  batchCodes = items.map((r) => r.batchCode ?? "NULL");
 
   renderOptions({
     containerId: "batchOptions",
     selectAllId: "batchSelectAll",
     selectedSet: state.batches,
-    items,
+    items: batchCodes,
     valueKey: "batchCode",
     selectedTextId: "batchSelectedText",
     emptyText: "Select batches...",
@@ -257,13 +266,13 @@ async function loadIngredients() {
     );
   }
 
-  ingredientCodes = items.map((r) => r.ingredientCode);
+  ingredientCodes = items.map((r) => r.ingredientCode ?? "NULL");
 
   renderOptions({
     containerId: "ingredientOptions",
     selectAllId: "ingredientSelectAll",
     selectedSet: state.ingredients,
-    items,
+    items: ingredientCodes,
     valueKey: "ingredientCode",
     selectedTextId: "ingredientSelectedText",
     emptyText: "Select ingredients...",
@@ -584,7 +593,7 @@ function renderTable(items) {
           <td>${r.productionOrderNumber ?? "-"}</td>
           <td style="text-align:center">${r.batchCode ?? "-"}</td>
           <td>${r.quantity ?? "-"} ${r.unitOfMeasurement ?? ""}</td>
-          <td>${r.ingredientCode ?? "-"}</td>
+          <td style="text-align:center">${r.ingredientCode ?? "-"}</td>
           <td style="text-align:center">${r.lot || "-"}</td>
           <td style="text-align:center">${r.operator_ID ?? "-"}</td>
           <td style="text-align:center">${renderStatus(r.respone)}</td>
