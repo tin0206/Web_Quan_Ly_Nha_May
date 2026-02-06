@@ -510,6 +510,31 @@ body {
   border-bottom: none;
 }
 
+.recipe-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-btn {
+  background: linear-gradient(135deg, #5b4ce8 0%, #4e42d0 100%);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.3s ease;
+  flex: 1;
+}
+
+.detail-btn:hover {
+  background: linear-gradient(135deg, #4e42d0 0%, #453bb5 100%);
+}
+
 /* Badges and Status Indicators */
 .area-badge {
   color: #5b4ce8;

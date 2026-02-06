@@ -479,7 +479,10 @@ function renderStatus(respone) {
     ? "status-badge status-success"
     : "status-badge status-inactive";
   const text = normalizeStatus(respone);
-  return `<span class="${cls}">${text}</span>`;
+  return `<span class="${cls}">
+    ${text === "Success" ? `<i class="fa-solid fa-check-circle"></i>` : `<i class="fa-solid fa-xmark-circle"></i>`}
+    ${text}
+  </span>`;
 }
 
 function openViewModal(material) {
@@ -582,7 +585,7 @@ function renderTable(items) {
           <td style="text-align:center">${r.batchCode ?? "-"}</td>
           <td>${r.quantity ?? "-"} ${r.unitOfMeasurement ?? ""}</td>
           <td>${r.ingredientCode ?? "-"}</td>
-          <td>${r.lot ?? "-"}</td>
+          <td style="text-align:center">${r.lot || "-"}</td>
           <td style="text-align:center">${r.operator_ID ?? "-"}</td>
           <td style="text-align:center">${renderStatus(r.respone)}</td>
           <td>${formatDateTime(r.timestamp) ?? "-"}</td>
@@ -627,23 +630,20 @@ function renderGrid(items) {
       return `
         <div class="card" style="border:1px solid #e8e7f0; border-radius:10px; padding:12px; background:#fff; box-shadow:0 4px 12px rgba(0,0,0,0.04)">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <div style="font-weight:600; color:#333">#${r.id ?? "-"}</div>
+            <div style="font-weight:600; color:#333">ID: ${r.id ?? "-"}</div>
             <div>${statusHtml}</div>
           </div>
           <div style="font-size:13px; color:#666; display:grid; grid-template-columns: 1fr; gap:6px;">
             <div><b>PO:</b> ${r.productionOrderNumber ?? "-"}</div>
             <div><b>Batch:</b> ${r.batchCode ?? "-"}</div>
-            <div><b>Ingredient:</b> ${r.ingredientCode ?? "-"}</div>
+            <div><b>Ingredient Code:</b> ${r.ingredientCode ?? "-"}</div>
+            <div><b>Lot:</b> ${r.lot || "-"}</div>
             <div><b>Qty:</b> ${qty}</div>
             <div><b>Operator:</b> ${r.operator_ID ?? "-"}</div>
             <div><b>Time:</b> ${formatDateTime(r.timestamp) ?? "-"}</div>
           </div>
-          <div style="display:flex; justify-content:flex-end; margin-top:10px;">
-            <button class="action-view-btn" data-idx="${idx}" title="Xem chi tiết">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
-              </svg>
-            </button>
+          <div class="recipe-actions">
+            <button class="detail-btn" data-idx="${idx}">Xem chi tiết</button>
           </div>
         </div>`;
     })
