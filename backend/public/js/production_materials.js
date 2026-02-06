@@ -13,6 +13,93 @@ const state = {
   results: new Set(),
 };
 
+// Session storage keys
+const STORAGE_FILTERS_KEY = "materialsFilters";
+const STORAGE_PAGE_KEY = "materialsPage";
+
+function saveSessionFilters() {
+  try {
+    const fromDate = $("materialsDateFrom")?.value || "";
+    const toDate = $("materialsDateTo")?.value || "";
+    const payload = {
+      pos: Array.from(state.pos),
+      batches: Array.from(state.batches),
+      ingredients: Array.from(state.ingredients),
+      results: Array.from(state.results),
+      fromDate,
+      toDate,
+    };
+    sessionStorage.setItem(STORAGE_FILTERS_KEY, JSON.stringify(payload));
+  } catch (_) {}
+}
+
+function saveSessionPageAndView() {
+  try {
+    const payload = { page: currentPage, view: currentView };
+    sessionStorage.setItem(STORAGE_PAGE_KEY, JSON.stringify(payload));
+  } catch (_) {}
+}
+
+function restoreSessionState() {
+  try {
+    const filtersRaw = sessionStorage.getItem(STORAGE_FILTERS_KEY);
+    if (filtersRaw) {
+      const f = JSON.parse(filtersRaw);
+      if (Array.isArray(f.pos)) f.pos.forEach((v) => state.pos.add(v));
+      if (Array.isArray(f.batches))
+        f.batches.forEach((v) => state.batches.add(v));
+      if (Array.isArray(f.ingredients))
+        f.ingredients.forEach((v) => state.ingredients.add(v));
+      if (Array.isArray(f.results))
+        f.results.forEach((v) => state.results.add(v));
+      if (f.fromDate) {
+        const el = $("materialsDateFrom");
+        if (el) el.value = f.fromDate;
+      }
+      if (f.toDate) {
+        const el = $("materialsDateTo");
+        if (el) el.value = f.toDate;
+      }
+      // Update selected text placeholders immediately
+      updateSelectedText(
+        state.pos,
+        "poSelectedText",
+        "Select production orders...",
+        1,
+      );
+      updateSelectedText(
+        state.batches,
+        "batchSelectedText",
+        "Select batches...",
+        6,
+      );
+      updateSelectedText(
+        state.ingredients,
+        "ingredientSelectedText",
+        "Select ingredients...",
+        1,
+      );
+      updateSelectedText(
+        state.results,
+        "resultSelectedText",
+        "Select results...",
+      );
+    }
+    const pageRaw = sessionStorage.getItem(STORAGE_PAGE_KEY);
+    if (pageRaw) {
+      const p = JSON.parse(pageRaw);
+      if (typeof p.page === "number" && p.page > 0) currentPage = p.page;
+      if (p.view === "grid" || p.view === "table") currentView = p.view;
+      // Reflect view button state without triggering fetch
+      document.querySelectorAll(".view-btn").forEach((b) => {
+        const v = b.getAttribute("data-view");
+        if (v === currentView) b.classList.add("active");
+        else b.classList.remove("active");
+      });
+    }
+  } catch (_) {}
+}
+
 function $(id) {
   return document.getElementById(id);
 }
@@ -98,6 +185,8 @@ function renderOptions({
       if (cb.checked) selectedSet.add(value);
       else selectedSet.delete(value);
       updateSelectedText(selectedSet, selectedTextId, emptyText, displayLimit);
+      // Persist filters after every change
+      saveSessionFilters();
       if (typeof onChange === "function") {
         Promise.resolve(onChange()).catch(() => {});
       }
@@ -122,6 +211,8 @@ function renderOptions({
       else selectedSet.delete(value);
     });
     updateSelectedText(selectedSet, selectedTextId, emptyText, displayLimit);
+    // Persist filters after bulk change
+    saveSessionFilters();
     if (typeof onChange === "function") {
       Promise.resolve(onChange()).catch(() => {});
     }
@@ -319,7 +410,7 @@ function wireInteractions() {
   // Date inputs trigger search
   const fromEl = $("materialsDateFrom");
   const toEl = $("materialsDateTo");
-  // Set default dates to today if empty
+  // Set default dates to today only if no session saved
   const todayStr = (() => {
     const d = new Date();
     const y = d.getFullYear();
@@ -327,10 +418,17 @@ function wireInteractions() {
     const dd = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${dd}`;
   })();
-  if (fromEl && !fromEl.value) fromEl.value = todayStr;
-  if (toEl && !toEl.value) toEl.value = todayStr;
+  const hasSession = !!sessionStorage.getItem(STORAGE_FILTERS_KEY);
+  if (!hasSession) {
+    if (fromEl && !fromEl.value) fromEl.value = todayStr;
+    if (toEl && !toEl.value) toEl.value = todayStr;
+  }
   [fromEl, toEl].forEach((el) => {
-    if (el) el.addEventListener("change", () => queryAndRender(1));
+    if (el)
+      el.addEventListener("change", () => {
+        saveSessionFilters();
+        queryAndRender(1);
+      });
   });
 
   // Refresh button (supports id or class)
@@ -389,6 +487,11 @@ function wireInteractions() {
 
       // Fetch page 1
       queryAndRender(1);
+
+      // Reset pagination to page 1 and persist defaults
+      currentPage = 1;
+      saveSessionFilters();
+      saveSessionPageAndView();
     });
   }
 
@@ -403,12 +506,14 @@ function wireInteractions() {
 
 async function init() {
   try {
+    // Restore previous filters + pagination/view from session before wiring
+    restoreSessionState();
     wireInteractions();
     loadStatuses();
     await loadPOs();
     await loadBatches();
     await loadIngredients();
-    await queryAndRender(1);
+    await queryAndRender(currentPage);
   } catch (err) {
     console.error("Materials init error:", err);
   }
@@ -692,6 +797,9 @@ function updatePagination(page, total) {
   if (prevBtn) prevBtn.disabled = page <= 1;
   if (nextBtn) nextBtn.disabled = page >= totalPages;
 
+  // Persist current page
+  saveSessionPageAndView();
+
   // Expose handlers globally for inline onclick
   window.materialsPrevPage = async function () {
     if (currentPage > 1) await queryAndRender(currentPage - 1);
@@ -724,6 +832,8 @@ function setView(view) {
     if (v === currentView) b.classList.add("active");
     else b.classList.remove("active");
   });
+  // Persist view selection
+  saveSessionPageAndView();
   // Re-render current page
   queryAndRender(currentPage);
 }

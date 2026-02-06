@@ -221,11 +221,11 @@ function buildSearchWhere(req, request) {
     const hasSuccess = values.includes("Success");
     const hasFailed = values.includes("Failed");
 
-    if (hasFailed) {
-      where.push(`(respone <> 'Success' OR respone IS NULL)`);
-    } else if (hasSuccess) {
+    if (hasSuccess && !hasFailed) {
       request.input("rsSuccess", sql.NVarChar, "Success");
       where.push(`respone = @rsSuccess`);
+    } else if (!hasSuccess && hasFailed) {
+      where.push(`(respone <> 'Success' OR respone IS NULL)`);
     }
   }
 
