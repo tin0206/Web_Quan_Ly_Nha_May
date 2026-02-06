@@ -230,17 +230,40 @@ function buildSearchWhere(req, request) {
   }
 
   // Date range — column name: datetime
-  const fromDate = req.query.fromDate ? String(req.query.fromDate).trim() : "";
-  const toDate = req.query.toDate ? String(req.query.toDate).trim() : "";
+  const fromDateRaw = req.query.fromDate
+    ? String(req.query.fromDate).trim()
+    : "";
+  const toDateRaw = req.query.toDate ? String(req.query.toDate).trim() : "";
+
+  // Helper to normalize date-only input to start/end of day (local time)
+  function normalizeDateBoundary(str, boundary) {
+    if (!str) return null;
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(str);
+    try {
+      if (isDateOnly) {
+        const base = new Date(
+          str + (boundary === "start" ? "T00:00:00" : "T23:59:59.999"),
+        );
+        return base;
+      }
+      return new Date(str);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  const fromDate = normalizeDateBoundary(fromDateRaw, "start");
+  const toDate = normalizeDateBoundary(toDateRaw, "end");
+
   if (fromDate && toDate) {
-    request.input("fromDate", sql.DateTime, new Date(fromDate));
-    request.input("toDate", sql.DateTime, new Date(toDate));
+    request.input("fromDate", sql.DateTime, fromDate);
+    request.input("toDate", sql.DateTime, toDate);
     where.push("datetime BETWEEN @fromDate AND @toDate");
   } else if (fromDate) {
-    request.input("fromDate", sql.DateTime, new Date(fromDate));
+    request.input("fromDate", sql.DateTime, fromDate);
     where.push("datetime >= @fromDate");
   } else if (toDate) {
-    request.input("toDate", sql.DateTime, new Date(toDate));
+    request.input("toDate", sql.DateTime, toDate);
     where.push("datetime <= @toDate");
   }
 

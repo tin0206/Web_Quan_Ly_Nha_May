@@ -319,6 +319,16 @@ function wireInteractions() {
   // Date inputs trigger search
   const fromEl = $("materialsDateFrom");
   const toEl = $("materialsDateTo");
+  // Set default dates to today if empty
+  const todayStr = (() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${dd}`;
+  })();
+  if (fromEl && !fromEl.value) fromEl.value = todayStr;
+  if (toEl && !toEl.value) toEl.value = todayStr;
   [fromEl, toEl].forEach((el) => {
     if (el) el.addEventListener("change", () => queryAndRender(1));
   });
@@ -336,8 +346,9 @@ function wireInteractions() {
       state.results.clear();
       const fromDate = $("materialsDateFrom");
       const toDate = $("materialsDateTo");
-      if (fromDate) fromDate.value = "";
-      if (toDate) toDate.value = "";
+      // Reset to default: current day
+      if (fromDate) fromDate.value = todayStr;
+      if (toDate) toDate.value = todayStr;
 
       // Reset selected-text placeholders and tooltips
       const poSelected = $("poSelectedText");
@@ -373,9 +384,8 @@ function wireInteractions() {
       loadBatches();
       loadIngredients();
       loadStatuses();
-
-      // Reset to table view by default
-      setView("table");
+      // Preserve current view (grid or table) on refresh
+      // Do not force table; keep whatever the user selected
 
       // Fetch page 1
       queryAndRender(1);
