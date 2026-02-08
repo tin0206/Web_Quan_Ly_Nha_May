@@ -454,12 +454,32 @@ async function fetchMaterialsWithPagination() {
       }
 
       materials_planned_batch.forEach((item) => {
+        if (
+          allMaterials.some(
+            (m) =>
+              m.id === item.id &&
+              m.batchCode === item.batchCode &&
+              m.ingredientCode === item.ingredientCode,
+          )
+        ) {
+          return;
+        }
         allMaterials.push(item);
       });
 
       materials_unplanned_batch.forEach((item) => {
+        if (
+          allMaterials.some(
+            (m) =>
+              m.id === item.id &&
+              m.batchCode === item.batchCode &&
+              m.ingredientCode === item.ingredientCode,
+          )
+        )
+          return;
         allMaterials.push(item);
       });
+
       if (allMaterials.length === 0) {
         document.getElementById("materialsTableBody").innerHTML =
           '<tr><td colspan="10" style="padding: 20px; text-align: center; color: red;">Lỗi khi tải dữ liệu</td></tr>';

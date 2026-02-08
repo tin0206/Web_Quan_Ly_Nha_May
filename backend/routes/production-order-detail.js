@@ -304,9 +304,10 @@ router.post("/material-consumptions", async (req, res) => {
 });
 
 // Get material consumptions excluding batches that already have materials recorded
-router.get("/material-consumptions-exclude-batches", async (req, res) => {
+router.post("/material-consumptions-exclude-batches", async (req, res) => {
   try {
     const { productionOrderNumber, page = 1, limit = 20 } = req.query;
+    const { batchCodesWithMaterials } = req.body;
 
     if (!productionOrderNumber?.trim()) {
       return res.status(400).json({
@@ -325,12 +326,34 @@ router.get("/material-consumptions-exclude-batches", async (req, res) => {
 
     request.input("prodOrderNum", sql.NVarChar, productionOrderNumber.trim());
 
+    let batchNumbers = [];
+
+    if (batchCodesWithMaterials && batchCodesWithMaterials.length > 0) {
+      batchNumbers = batchCodesWithMaterials.map((b) => b.BatchNumber);
+    }
+
+    let batchFilterSql = "";
+    if (batchNumbers.length > 0) {
+      const params = batchNumbers.map((_, i) => `@batch${i}`).join(", ");
+
+      batchFilterSql = `
+        OR mc.batchCode IN (${params})
+      `;
+
+      batchNumbers.forEach((code, i) => {
+        request.input(`batch${i}`, sql.NVarChar, code);
+      });
+    }
+
     /* ===== COUNT ===== */
     const countQuery = `
       SELECT COUNT(*) AS totalCount
       FROM MESMaterialConsumption mc WITH (NOLOCK)
       WHERE mc.ProductionOrderNumber = @prodOrderNum
-        AND mc.BatchCode IS NULL
+        AND (
+          mc.batchCode IS NULL
+          ${batchFilterSql}
+        )
     `;
 
     const countResult = await request.query(countQuery);
@@ -371,7 +394,10 @@ router.get("/material-consumptions-exclude-batches", async (req, res) => {
       LEFT JOIN ProductMasters pm WITH (NOLOCK)
         ON pm.ItemCode = mc.ingredientCode
       WHERE mc.ProductionOrderNumber = @prodOrderNum
-        AND mc.BatchCode IS NULL
+        AND (
+          mc.batchCode IS NULL
+          ${batchFilterSql}
+        )
       ORDER BY mc.id DESC
       OFFSET ${offset} ROWS
       FETCH NEXT ${pageLimit} ROWS ONLY
