@@ -195,6 +195,7 @@ let allMaterials = []; // Store all materials for client-side filtering
 let selectedMaterialsBatchCode = ""; // Store selected batch for materials tab
 let ingredientsTotalsByUOM = {}; // Store totals grouped by UnitOfMeasurement
 let materialFilterType = "all"; // Filter type: "all", "consumed", "unconsumed"
+let batchCodesWithMaterials = [];
 
 // Group materials by ingredient code and unit of measurement (without lot)
 function groupMaterials(materialsArray) {
@@ -439,10 +440,13 @@ async function fetchMaterialsWithPagination() {
       const response2 = await fetch(
         `${API_ROUTE}/api/production-order-detail/material-consumptions-exclude-batches?${queryParams.toString()}`,
         {
-          method: "GET",
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            batchCodesWithMaterials,
+          }),
         },
       );
 
@@ -1353,7 +1357,7 @@ async function fetchBatches() {
 
     if (response2.ok) {
       const data2 = await response2.json();
-      const batchCodesWithMaterials = data2.data.map(
+      batchCodesWithMaterials = data2.data.map(
         (batch) =>
           new Batch({
             BatchId: "",
