@@ -286,30 +286,104 @@ function renderRecipeTable(recipes) {
       '<tr><td colspan="8" style="text-align:center;color:#888">Không có công thức nào</td></tr>';
     return;
   }
-  recipes.forEach((recipe, idx) => {
+
+  // Group recipes by RecipeCode
+  const groupsMap = new Map();
+  recipes.forEach((r) => {
+    const code = r.RecipeCode || "";
+    if (!groupsMap.has(code)) groupsMap.set(code, []);
+    groupsMap.get(code).push(r);
+  });
+
+  const groups = Array.from(groupsMap.entries()).map(([code, items]) => {
+    // Sort items by Version (numeric) or timestamp desc to find latest
+    const toNum = (v) => {
+      const n = parseFloat(v);
+      return isNaN(n) ? -Infinity : n;
+    };
+    const sorted = items.slice().sort((a, b) => {
+      const va = toNum(a.Version);
+      const vb = toNum(b.Version);
+      if (va !== vb) return vb - va;
+      const ta = a.timestamp || "";
+      const tb = b.timestamp || "";
+      return String(tb).localeCompare(String(ta));
+    });
+    const latest = sorted[0] || items[0];
+    const versionsCount = items.length;
+    const productCode = latest.ProductCode || items[0].ProductCode || "";
+    const productName = latest.ProductName || items[0].ProductName || "";
+    const recipeName = latest.RecipeName || items[0].RecipeName || "";
+    const latestVersion = latest.Version || "";
+    const latestTimestamp = latest.timestamp || "";
+    const status = latest.RecipeStatus || items[0].RecipeStatus || "";
+    return {
+      code,
+      items,
+      productCode,
+      productName,
+      recipeName,
+      latestVersion,
+      latestTimestamp,
+      status,
+      versionsCount,
+    };
+  });
+
+  groups.forEach((g) => {
+    // Single item groups: render as normal row
+    if (g.items.length === 1) {
+      const r = g.items[0];
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${r.RecipeDetailsId || ""}</td>
+        <td>${r.ProductCode || ""}</td>
+        <td>${r.ProductName || ""}</td>
+        <td style="max-width: 300px;">${r.RecipeCode || ""} - ${r.RecipeName || ""}</td>
+        <td>${r.Version || ""}</td>
+        <td style="text-align:center">
+          <span class="status-badge status-${r.RecipeStatus === "Active" ? "success" : "inactive"}">${r.RecipeStatus === "Active" ? "Active" : "Inactive"}</span>
+        </td>
+        <td>${r.timestamp ? formatDateTime(r.timestamp) : ""}</td>
+        <td style="text-align:center">
+          <button class="detail-btn" title="Xem chi tiết" style="background:none;border:none;padding:0;cursor:pointer;color:#6259ee;font-size:18px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
+            </svg>
+          </button>
+        </td>
+      `;
+      tr.querySelector(".detail-btn").addEventListener("click", function () {
+        window.location.href = `/recipe-detail/${r.RecipeDetailsId}`;
+      });
+      tableBody.appendChild(tr);
+      return;
+    }
+
+    // Multi-item groups: render grouped row
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${recipe.RecipeDetailsId || ""}</td>
-      <td>${recipe.ProductCode || ""}</td>
-      <td>${recipe.ProductName || ""}</td>
-      <td style="max-width: 300px;">${recipe.RecipeCode || ""} - ${recipe.RecipeName || ""}</td>
-      <td>${recipe.Version || ""}</td>
+      <td>${g.versionsCount} items</td>
+      <td>${g.productCode}</td>
+      <td>${g.productName}</td>
+      <td style="max-width: 300px;">${g.code} - ${g.recipeName}</td>
+      <td>${g.versionsCount} versions</td>
       <td style="text-align:center">
-        <span class="status-badge status-${recipe.RecipeStatus === "Active" ? "success" : "inactive"}">
-          ${recipe.RecipeStatus === "Active" ? "Active" : "Inactive"}
+        <span class="status-badge status-${g.status === "Active" ? "success" : "inactive"}">
+          ${g.status === "Active" ? "Active" : "Inactive"}
         </span>
       </td>
-      <td>${recipe.timestamp ? formatDateTime(recipe.timestamp) : ""}</td>
+      <td>${g.latestTimestamp ? formatDateTime(g.latestTimestamp) : ""}</td>
       <td style="text-align:center">
-        <button class="detail-btn" title="Xem chi tiết" style="background:none;border:none;padding:0;cursor:pointer;color:#6259ee;font-size:18px;">
+        <button class="group-view-btn" title="Xem danh sách trong nhóm" style="background:none;border:none;padding:0;cursor:pointer;color:#6259ee;font-size:18px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
           </svg>
         </button>
       </td>
     `;
-    tr.querySelector(".detail-btn").addEventListener("click", function () {
-      window.location.href = `/recipe-detail/${recipe.RecipeDetailsId}`;
+    tr.querySelector(".group-view-btn").addEventListener("click", function () {
+      showRecipeGroupModal(g.code, g.items);
     });
     tableBody.appendChild(tr);
   });
@@ -420,6 +494,115 @@ async function showRecipeModal(recipe) {
   modal.style.display = "flex";
 }
 window.showRecipeModal = showRecipeModal;
+
+// Group modal (list recipes within the same RecipeCode)
+function ensureRecipeGroupModal() {
+  if (!document.getElementById("recipeGroupModal")) {
+    const modalDiv = document.createElement("div");
+    modalDiv.id = "recipeGroupModal";
+    modalDiv.className = "modal";
+    modalDiv.style.display = "none";
+    modalDiv.innerHTML = `
+      <div class="modal-content" style="max-width: 900px;">
+        <span class="close-modal" id="closeRecipeGroupModal">&times;</span>
+        <h2>Danh sách phiên bản theo RecipeCode</h2>
+        <div id="modalGroupSummary" style="margin-bottom:8px;color:#555"></div>
+        <div id="modalGroupContent"></div>
+      </div>
+    `;
+    document.body.appendChild(modalDiv);
+    const closeBtn = document.getElementById("closeRecipeGroupModal");
+    const modal = modalDiv;
+    if (closeBtn)
+      closeBtn.onclick = function () {
+        modal.style.display = "none";
+      };
+    window.addEventListener("click", function (event) {
+      if (event.target === modal) modal.style.display = "none";
+    });
+  }
+}
+
+function showRecipeGroupModal(recipeCode, items) {
+  ensureRecipeGroupModal();
+  const modal = document.getElementById("recipeGroupModal");
+  const summary = document.getElementById("modalGroupSummary");
+  const content = document.getElementById("modalGroupContent");
+  if (!modal || !content) return;
+
+  const sorted = items.slice().sort((a, b) => {
+    const toNum = (v) => {
+      const n = parseFloat(v);
+      return isNaN(n) ? -Infinity : n;
+    };
+    const va = toNum(a.Version);
+    const vb = toNum(b.Version);
+    if (va !== vb) return vb - va;
+    const ta = a.timestamp || "";
+    const tb = b.timestamp || "";
+    return String(tb).localeCompare(String(ta));
+  });
+
+  summary.textContent = `RecipeCode: ${recipeCode} • ${items.length} phiên bản`;
+
+  if (sorted.length === 0) {
+    content.innerHTML = `<div style="padding:12px;color:#999">Không có dữ liệu</div>`;
+  } else {
+    const rowsHtml = sorted
+      .map(
+        (r) => `
+      <tr>
+        <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.RecipeDetailsId ?? ""}</td>
+        <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.ProductCode ?? ""}</td>
+        <td style="border:1px solid #eee;padding:6px;text-align:left;max-width:280px;">${r.ProductName ?? ""}</td>
+        <td style="border:1px solid #eee;padding:6px;text-align:left;max-width:320px;">${r.RecipeName ?? ""}</td>
+        <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.Version ?? ""}</td>
+        <td style="border:1px solid #eee;padding:6px;text-align:center;">
+          <span class="status-badge status-${r.RecipeStatus === "Active" ? "success" : "inactive"}">${r.RecipeStatus === "Active" ? "Active" : "Inactive"}</span>
+        </td>
+        <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.timestamp ? formatDateTime(r.timestamp) : ""}</td>
+        <td style="border:1px solid #eee;padding:6px;text-align:center;">
+          <button class="go-detail" data-id="${r.RecipeDetailsId}" title="Xem chi tiết" style="background:none;border:none;padding:0;cursor:pointer;color:#6259ee;font-size:18px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
+            </svg>
+          </button>
+        </td>
+      </tr>
+    `,
+      )
+      .join("");
+    content.innerHTML = `
+      <div style="overflow:auto">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#f6f6ff">
+              <th style="border:1px solid #eee;padding:8px;text-align:center;width:80px;">ID</th>
+              <th style="border:1px solid #eee;padding:8px;text-align:center;width:120px;">ProductCode</th>
+              <th style="border:1px solid #eee;padding:8px;text-align:left;">ProductName</th>
+              <th style="border:1px solid #eee;padding:8px;text-align:left;">RecipeName</th>
+              <th style="border:1px solid #eee;padding:8px;text-align:center;width:90px;">Version</th>
+              <th style="border:1px solid #eee;padding:8px;text-align:center;width:110px;">Status</th>
+              <th style="border:1px solid #eee;padding:8px;text-align:center;width:160px;">Cập nhật</th>
+              <th style="border:1px solid #eee;padding:8px;text-align:center;width:80px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>`;
+
+    // Wire action buttons
+    content.querySelectorAll(".go-detail").forEach((btn) => {
+      btn.addEventListener("click", function () {
+        const id = this.getAttribute("data-id");
+        if (id) window.location.href = `/recipe-detail/${id}`;
+      });
+    });
+  }
+
+  modal.style.display = "flex";
+}
+window.showRecipeGroupModal = showRecipeGroupModal;
 
 document.addEventListener("DOMContentLoaded", function () {
   const gridBtn = document.getElementById("gridViewBtn");
