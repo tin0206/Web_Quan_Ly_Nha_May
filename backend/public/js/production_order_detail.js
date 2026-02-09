@@ -122,10 +122,10 @@ document.addEventListener("DOMContentLoaded", async function () {
   activateTab("tab-batches");
 
   // ===== Recipe Details modal wiring =====
-  const recipeCodeBtn = document.getElementById("viewRecipeCodeBtn");
-  const recipeVersionBtn = document.getElementById("viewRecipeVersionBtn");
-  if (recipeCodeBtn) {
-    recipeCodeBtn.addEventListener("click", async () => {
+  const recipeCodeDetail = document.getElementById("detailRecipeCode");
+  const recipeVersionDetail = document.getElementById("detailRecipeVersion");
+  if (recipeCodeDetail) {
+    recipeCodeDetail.addEventListener("click", async () => {
       const recipeCodeText = document
         .getElementById("detailRecipeCode")
         ?.textContent.trim();
@@ -134,8 +134,8 @@ document.addEventListener("DOMContentLoaded", async function () {
       await openRecipeDetailsModal({ recipeCode });
     });
   }
-  if (recipeVersionBtn) {
-    recipeVersionBtn.addEventListener("click", async () => {
+  if (recipeVersionDetail) {
+    recipeVersionDetail.addEventListener("click", async () => {
       const recipeCodeText = document
         .getElementById("detailRecipeCode")
         ?.textContent.trim();
@@ -286,7 +286,6 @@ function renderMaterialsTable(groupedMaterialsArray, selectedBatchCode = "") {
 
   pagedConsumedMaterials.forEach((group, index) => {
     const realIndex = start + index;
-    console.log("Rendering material group:", group.items);
     const idsDisplay =
       group.items.length >= 2
         ? `${group.items.length} items`
@@ -1342,7 +1341,7 @@ function ensureRecipeModal() {
   modal.innerHTML = `
     <div style="background:#fff;border-radius:10px;padding:24px;max-width:1000px;width:92%;max-height:85vh;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.25);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid #eee;padding-bottom:10px;">
-        <h2 style="margin:0;color:#333">RecipeDetails</h2>
+        <h2 style="margin:0;color:#333">Recipe Details</h2>
         <button id="recipeModalClose" style="background:none;border:none;font-size:26px;cursor:pointer;color:#666">&times;</button>
       </div>
       <div id="recipeModalFilter" style="margin-bottom:12px;"></div>
@@ -1373,10 +1372,9 @@ async function openRecipeDetailsModal({ recipeCode, version }) {
       const res = await fetch(
         `${API_ROUTE}/api/production-order-detail/recipe-versions?${params.toString()}`,
       );
-      if (!res.ok) throw new Error("Không lấy được RecipeDetails");
+      if (!res.ok) throw new Error("Không lấy được Recipe Details");
       const data = await res.json();
       const rows = Array.isArray(data.data) ? data.data : [];
-      const versions = Array.isArray(data.versions) ? data.versions : [];
 
       summary.textContent = `RecipeCode: ${recipeCode} ${v ? `(Version: ${v})` : ""} • Records: ${rows.length}`;
 
@@ -1422,14 +1420,14 @@ async function openRecipeDetailsModal({ recipeCode, version }) {
             <thead>
               <tr style="background:#f6f6ff">
                 <th style="border:1px solid #eee;padding:8px;text-align:center;width:80px;">ID</th>
-                <th style="border:1px solid #eee;padding:8px;text-align:center;width:130px;">ProductCode</th>
-                <th style="border:1px solid #eee;padding:8px;text-align:center;width:90px;">ProductionLine</th>
-                <th style="border:1px solid #eee;padding:8px;text-align:center;width:130px;">RecipeCode</th>
-                <th style="border:1px solid #eee;padding:8px;text-align:left;">RecipeName</th>
-                <th style="border:1px solid #eee;padding:8px;text-align:center;width:100px;">RecipeStatus</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:center;width:130px;">Product Code</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:center;width:90px;">Production Line</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:center;width:130px;">Recipe Code</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:left;">Recipe Name</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:center;width:100px;">Recipe Status</th>
                 <th style="border:1px solid #eee;padding:8px;text-align:center;width:80px;">Version</th>
-                <th style="border:1px solid #eee;padding:8px;text-align:center;width:160px;">timestamp</th>
-                <th style="border:1px solid #eee;padding:8px;text-align:left;">ProductName</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:center;width:160px;">Timestamp</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:left;">Product Name</th>
               </tr>
             </thead>`;
         const body = rows
@@ -1438,7 +1436,7 @@ async function openRecipeDetailsModal({ recipeCode, version }) {
                 <tr>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.RecipeDetailsId ?? ""}</td>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">
-                    <a style="text-decoration:none;" href=${`/recipe-detail/${r.RecipeDetailsId}`} target="_blank">${r.ProductCode ?? ""}</a>
+                    <a style="text-decoration:none; color: #007bff;" href=${`/recipe-detail/${r.RecipeDetailsId}`} target="_blank">${r.ProductCode ?? ""}</a>
                   </td>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.ProductionLine ?? ""}</td>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.RecipeCode ?? ""}</td>
