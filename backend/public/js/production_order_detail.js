@@ -1095,8 +1095,7 @@ function renderBatchCodeRadioButtons(batchesArray) {
       }
 
       return `
-        <label class="${isSelected ? "selected" : ""} 
-          " onmouseover="this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='${bgColor}'; this.style.color='inherit'; this.style.borderColor='${borderColor}'; this.style.fontWeight='normal'; } else { this.style.borderColor='#0056b3'; } this.style.boxShadow='none'">
+        <label onmouseover="this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='${bgColor}'; this.style.color='inherit'; this.style.borderColor='${borderColor}'; this.style.fontWeight='normal'; } else { this.style.borderColor='#0056b3'; } this.style.boxShadow='none'">
           <input
             type="radio"
             name="filterBatchCode"
