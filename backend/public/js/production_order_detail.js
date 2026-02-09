@@ -1362,10 +1362,8 @@ function ensureRecipeModal() {
 async function openRecipeDetailsModal({ recipeCode, version }) {
   try {
     ensureRecipeModal();
-    const params = new URLSearchParams({ recipeCode });
     const content = document.getElementById("recipeModalContent");
     const summary = document.getElementById("recipeModalSummary");
-    const filterDiv = document.getElementById("recipeModalFilter");
 
     let selectedVersion = version || "";
 
@@ -1388,22 +1386,6 @@ async function openRecipeDetailsModal({ recipeCode, version }) {
             <input type="radio" name="recipeVersionFilter" value="${val}" ${checked ? "checked" : ""} style="margin-right:8px;cursor:pointer;width:16px;" />
             <span>${text}</span>
           </label>`;
-
-      const optionsHtml = [makeLabel("", "Tất cả", selectedVersion === "")]
-        .concat(
-          versions.map((ver) =>
-            makeLabel(
-              String(ver),
-              String(ver),
-              selectedVersion === String(ver),
-            ),
-          ),
-        )
-        .join("");
-      filterDiv.innerHTML = `
-          <div style="display:flex;flex-wrap:wrap;gap:10px;padding:12px;border:1px solid #ddd;border-radius:4px;background:#fafafa;">
-            ${optionsHtml}
-          </div>`;
 
       // Attach change handlers
       document
@@ -1455,7 +1437,9 @@ async function openRecipeDetailsModal({ recipeCode, version }) {
             (r) => `
                 <tr>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.RecipeDetailsId ?? ""}</td>
-                  <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.ProductCode ?? ""}</td>
+                  <td style="border:1px solid #eee;padding:6px;text-align:center;">
+                    <a style="text-decoration:none;" href=${`/recipe-detail/${r.RecipeDetailsId}`} target="_blank">${r.ProductCode ?? ""}</a>
+                  </td>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.ProductionLine ?? ""}</td>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.RecipeCode ?? ""}</td>
                   <td style="border:1px solid #eee;padding:6px;">${r.RecipeName ?? ""}</td>
