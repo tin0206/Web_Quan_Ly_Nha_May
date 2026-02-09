@@ -120,6 +120,34 @@ document.addEventListener("DOMContentLoaded", async function () {
   await fetchBatches();
   // Initialize the first tab on page load
   activateTab("tab-batches");
+
+  // ===== Recipe Details modal wiring =====
+  const recipeCodeBtn = document.getElementById("viewRecipeCodeBtn");
+  const recipeVersionBtn = document.getElementById("viewRecipeVersionBtn");
+  if (recipeCodeBtn) {
+    recipeCodeBtn.addEventListener("click", async () => {
+      const recipeCodeText = document
+        .getElementById("detailRecipeCode")
+        ?.textContent.trim();
+      const recipeCode = (recipeCodeText || "").split(" - ")[0].trim();
+      if (!recipeCode) return;
+      await openRecipeDetailsModal({ recipeCode });
+    });
+  }
+  if (recipeVersionBtn) {
+    recipeVersionBtn.addEventListener("click", async () => {
+      const recipeCodeText = document
+        .getElementById("detailRecipeCode")
+        ?.textContent.trim();
+      const recipeCode = (recipeCodeText || "").split(" - ")[0].trim();
+      const versionText = document
+        .getElementById("detailRecipeVersion")
+        ?.textContent.trim();
+      const version = versionText || "";
+      if (!recipeCode) return;
+      await openRecipeDetailsModal({ recipeCode, version });
+    });
+  }
 });
 
 const batchesContent = document.getElementById("batchesContent");
@@ -258,10 +286,13 @@ function renderMaterialsTable(groupedMaterialsArray, selectedBatchCode = "") {
 
   pagedConsumedMaterials.forEach((group, index) => {
     const realIndex = start + index;
+    console.log("Rendering material group:", group.items);
     const idsDisplay =
       group.items.length >= 2
         ? `${group.items.length} items`
-        : group.items.map((item) => item.id).join(", ");
+        : group.ids[0] !== null
+          ? group.items.map((item) => item.id).join(", ")
+          : "-";
 
     // Get unique batch codes from group items
     const uniqueBatchCodes = [
@@ -1301,6 +1332,153 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 });
 
+/* ============================ Recipe Details Modal ============================ */
+function ensureRecipeModal() {
+  if (document.getElementById("recipeDetailsModal")) return;
+  const modal = document.createElement("div");
+  modal.id = "recipeDetailsModal";
+  modal.style.cssText =
+    "display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;";
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:10px;padding:24px;max-width:1000px;width:92%;max-height:85vh;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.25);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid #eee;padding-bottom:10px;">
+        <h2 style="margin:0;color:#333">RecipeDetails</h2>
+        <button id="recipeModalClose" style="background:none;border:none;font-size:26px;cursor:pointer;color:#666">&times;</button>
+      </div>
+      <div id="recipeModalFilter" style="margin-bottom:12px;"></div>
+      <div id="recipeModalSummary" style="margin-bottom:10px;color:#666;font-size:14px"></div>
+      <div id="recipeModalContent"></div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  document.getElementById("recipeModalClose").onclick = () => {
+    modal.style.display = "none";
+  };
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) modal.style.display = "none";
+  });
+}
+
+async function openRecipeDetailsModal({ recipeCode, version }) {
+  try {
+    ensureRecipeModal();
+    const params = new URLSearchParams({ recipeCode });
+    const content = document.getElementById("recipeModalContent");
+    const summary = document.getElementById("recipeModalSummary");
+    const filterDiv = document.getElementById("recipeModalFilter");
+
+    let selectedVersion = version || "";
+
+    async function fetchAndRender(v) {
+      const params = new URLSearchParams({ recipeCode });
+      if (v) params.set("version", v);
+      const res = await fetch(
+        `${API_ROUTE}/api/production-order-detail/recipe-versions?${params.toString()}`,
+      );
+      if (!res.ok) throw new Error("Không lấy được RecipeDetails");
+      const data = await res.json();
+      const rows = Array.isArray(data.data) ? data.data : [];
+      const versions = Array.isArray(data.versions) ? data.versions : [];
+
+      summary.textContent = `RecipeCode: ${recipeCode} ${v ? `(Version: ${v})` : ""} • Records: ${rows.length}`;
+
+      // Render version filter UI (radio buttons similar to other filters)
+      const makeLabel = (val, text, checked) => `
+          <label style="display:flex;align-items:center;justify-content:center;padding:8px;cursor:pointer;background:${checked ? "#007bff" : "white"};color:${checked ? "white" : "inherit"};border:1px solid ${checked ? "#0056b3" : "#ddd"};border-radius:4px;font-size:14px;font-weight:${checked ? "500" : "normal"};transition:all .2s;margin-right:8px;">
+            <input type="radio" name="recipeVersionFilter" value="${val}" ${checked ? "checked" : ""} style="margin-right:8px;cursor:pointer;width:16px;" />
+            <span>${text}</span>
+          </label>`;
+
+      const optionsHtml = [makeLabel("", "Tất cả", selectedVersion === "")]
+        .concat(
+          versions.map((ver) =>
+            makeLabel(
+              String(ver),
+              String(ver),
+              selectedVersion === String(ver),
+            ),
+          ),
+        )
+        .join("");
+      filterDiv.innerHTML = `
+          <div style="display:flex;flex-wrap:wrap;gap:10px;padding:12px;border:1px solid #ddd;border-radius:4px;background:#fafafa;">
+            ${optionsHtml}
+          </div>`;
+
+      // Attach change handlers
+      document
+        .querySelectorAll('input[name="recipeVersionFilter"]')
+        .forEach((radio) => {
+          radio.addEventListener("change", async function () {
+            selectedVersion = this.value;
+            // re-render styles
+            document
+              .querySelectorAll("#recipeModalFilter label")
+              .forEach((label) => {
+                const r = label.querySelector('input[type="radio"]');
+                if (r && r.checked) {
+                  label.style.background = "#007bff";
+                  label.style.color = "white";
+                  label.style.borderColor = "#0056b3";
+                  label.style.fontWeight = "500";
+                } else {
+                  label.style.background = "white";
+                  label.style.color = "inherit";
+                  label.style.borderColor = "#ddd";
+                  label.style.fontWeight = "normal";
+                }
+              });
+            await fetchAndRender(selectedVersion || "");
+          });
+        });
+
+      // Render table
+      if (rows.length === 0) {
+        content.innerHTML = `<div style="padding:12px;color:#999">Không có dữ liệu</div>`;
+      } else {
+        const header = `
+            <thead>
+              <tr style="background:#f6f6ff">
+                <th style="border:1px solid #eee;padding:8px;text-align:center;width:80px;">ID</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:center;width:130px;">ProductCode</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:center;width:90px;">ProductionLine</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:center;width:130px;">RecipeCode</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:left;">RecipeName</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:center;width:100px;">RecipeStatus</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:center;width:80px;">Version</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:center;width:160px;">timestamp</th>
+                <th style="border:1px solid #eee;padding:8px;text-align:left;">ProductName</th>
+              </tr>
+            </thead>`;
+        const body = rows
+          .map(
+            (r) => `
+                <tr>
+                  <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.RecipeDetailsId ?? ""}</td>
+                  <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.ProductCode ?? ""}</td>
+                  <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.ProductionLine ?? ""}</td>
+                  <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.RecipeCode ?? ""}</td>
+                  <td style="border:1px solid #eee;padding:6px;">${r.RecipeName ?? ""}</td>
+                  <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.RecipeStatus ?? ""}</td>
+                  <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.Version ?? ""}</td>
+                  <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.timestamp ? formatDateTime(r.timestamp) : ""}</td>
+                  <td style="border:1px solid #eee;padding:6px;">${r.ProductName ?? ""}</td>
+                </tr>`,
+          )
+          .join("");
+        content.innerHTML = `<div style="overflow:auto"><table style="width:100%;border-collapse:collapse; overflow:auto">${header}<tbody>${body}</tbody></table></div>`;
+      }
+    }
+
+    await fetchAndRender(selectedVersion);
+    document.getElementById("recipeDetailsModal").style.display = "flex";
+  } catch (error) {
+    console.error("Error opening recipe details modal:", error);
+    alert("Lỗi khi tải chi tiết RecipeDetails");
+  }
+}
+
+// Merge two batch arrays and remove duplicates based on BatchNumber
 function mergeBatchesRemoveDuplicate(arr1, arr2) {
   const map = new Map();
 

@@ -535,6 +535,68 @@ router.post("/product-masters-by-codes", async (req, res) => {
   }
 });
 
+router.get("/recipe-versions", async (req, res) => {
+  try {
+    const { recipeCode, version } = req.query;
+
+    if (!recipeCode?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "recipeCode là bắt buộc",
+      });
+    }
+
+    const pool = getPool();
+    const request = pool.request();
+    request.input("RecipeCode", sql.NVarChar, recipeCode.trim());
+
+    if (version) {
+      request.input("Version", sql.NVarChar, version.trim());
+    }
+
+    // Trả về đầy đủ thông tin từ bảng RecipeDetails và danh sách phiên bản
+    let query = `
+      SELECT 
+        rd.RecipeDetailsId,
+        rd.ProductCode,
+        rd.ProductionLine,
+        rd.RecipeCode,
+        rd.RecipeName,
+        rd.RecipeStatus,
+        rd.Version,
+        rd.timestamp,
+        pm.ItemName AS ProductName
+      FROM RecipeDetails rd
+      LEFT JOIN ProductMasters pm ON pm.ItemCode = rd.ProductCode
+      WHERE rd.RecipeCode = @RecipeCode
+    `;
+
+    if (version) {
+      query += ` AND rd.Version = @Version `;
+    }
+
+    query += ` ORDER BY rd.Version ASC, rd.timestamp DESC `;
+
+    const result = await request.query(query);
+
+    const versions = result.recordset.map((row) => row.Version);
+
+    res.json({
+      success: true,
+      message: "Lấy thông tin RecipeDetails thành công",
+      count: result.recordset.length,
+      versions,
+      data: result.recordset,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy phiên bản công thức:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+    });
+  }
+});
+
 // Get production order detail by ID (MUST be last - catch-all route)
 router.get("/:id", async (req, res) => {
   try {
