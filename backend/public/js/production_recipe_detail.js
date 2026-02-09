@@ -69,17 +69,17 @@ async function showProductModal(productCode) {
     const content = document.getElementById("modalProductContent");
     if (!content) return;
     content.innerHTML = `
-      <div class="kv"><div class="k">ProductMasterId</div><div class="v">${p.ProductMasterId ?? ""}</div></div>
-      <div class="kv"><div class="k">Mã SP</div><div class="v">${p.ItemCode ?? ""}</div></div>
-      <div class="kv"><div class="k">Tên SP</div><div class="v">${p.ItemName ?? ""}</div></div>
-      <div class="kv"><div class="k">Loại</div><div class="v">${p.Item_Type ?? ""}</div></div>
-      <div class="kv"><div class="k">Nhóm</div><div class="v">${p.Group ?? "-"}</div></div>
-      <div class="kv"><div class="k">Category</div><div class="v">${p.Category ?? "-"}</div></div>
-      <div class="kv"><div class="k">Brand</div><div class="v">${p.Brand ?? "-"}</div></div>
-      <div class="kv"><div class="k">Đơn vị cơ sở</div><div class="v">${p.BaseUnit ?? ""}</div></div>
-      <div class="kv"><div class="k">Đơn vị tồn kho</div><div class="v">${p.InventoryUnit ?? ""}</div></div>
-      <div class="kv"><div class="k">Trạng thái</div><div class="v">${p.Item_Status ?? ""}</div></div>
-      <div class="kv"><div class="k">Ngày cập nhật</div><div class="v">${p.timestamp ? formatDateTime(p.timestamp) : ""}</div></div>
+      <div class="kv"><div class="k">ProductMasterId</div><div class="v">${p.ProductMasterId || "-"}</div></div>
+      <div class="kv"><div class="k">Mã SP</div><div class="v">${p.ItemCode || "-"}</div></div>
+      <div class="kv"><div class="k">Tên SP</div><div class="v">${p.ItemName || "-"}</div></div>
+      <div class="kv"><div class="k">Loại</div><div class="v">${p.Item_Type || "-"}</div></div>
+      <div class="kv"><div class="k">Nhóm</div><div class="v">${p.Group || "-"}</div></div>
+      <div class="kv"><div class="k">Category</div><div class="v">${p.Category || "-"}</div></div>
+      <div class="kv"><div class="k">Brand</div><div class="v">${p.Brand || "-"}</div></div>
+      <div class="kv"><div class="k">Đơn vị cơ sở</div><div class="v">${p.BaseUnit || "-"}</div></div>
+      <div class="kv"><div class="k">Đơn vị tồn kho</div><div class="v">${p.InventoryUnit || "-"}</div></div>
+      <div class="kv"><div class="k">Trạng thái</div><div class="v">${p.Item_Status || "-"}</div></div>
+      <div class="kv"><div class="k">Ngày cập nhật</div><div class="v">${p.timestamp ? formatDateTime(p.timestamp) : "-"}</div></div>
 
       <h3 style="margin-top:14px;">MHUTypes</h3>
       <table class="mhu">
@@ -153,48 +153,13 @@ function renderRecipeDetail() {
 
   // Hiển thị danh sách process ngang
   const processListDiv = document.getElementById("processList");
+  // Bỏ hàng filter process ở trên: ẩn và dùng filter chính bên dưới
+  processListDiv.style.display = "none";
+  processListDiv.innerHTML = "";
 
-  processListDiv.innerHTML =
-    `
-      <button class="process-btn all-btn" data-idx="-1"
-      style="margin:0 8px 8px 0;padding:8px 18px;border-radius:6px;
-      border:1px solid #6259ee;background:#f6f6ff;color:#6259ee;cursor:pointer;">
-      Tất cả
-    </button>
-    ` +
-    recipeProcesses
-      .map(
-        (p, idx) => `
-      <button class="process-btn" data-idx="${idx}" style="margin:0 8px 8px 0;padding:8px 18px;border-radius:6px;border:1px solid #6259ee;background:#f6f6ff;color:#6259ee;cursor:pointer;">${p.ProcessId}</button>
-    `,
-      )
-      .join("");
-
-  // Xử lý sự kiện click process
-  const processBtns = processListDiv.querySelectorAll(".process-btn");
-  processBtns.forEach((btn) => {
-    btn.onclick = function () {
-      if (!btn.classList.contains("all-btn")) {
-        showProcessInfo(
-          recipeProcesses[btn.dataset.idx],
-          recipeProducts[btn.dataset.idx],
-        );
-        showProcessDetail(recipeProcesses[btn.dataset.idx]);
-        processBtns.forEach((b) => (b.style.background = "#f6f6ff"));
-        btn.style.background = "#d1d1ff";
-      } else {
-        showAllProcessesInfo();
-        showAllProcessesDetail();
-        processBtns.forEach((b) => (b.style.background = "#f6f6ff"));
-        btn.style.background = "#d1d1ff";
-      }
-    };
-  });
-
-  // Hiển thị mặc định process đầu tiên nếu có
-  if (recipeProcesses.length > 0) {
-    processBtns[0].click();
-  }
+  // Hiển thị tổng quan và filter chính (multi-select)
+  showAllProcessesFilter();
+  showAllProcessesInfo();
 }
 
 function showAllProcessesInfo() {
@@ -291,28 +256,26 @@ function showProcessInfo(process, product) {
   });
 }
 
-function showAllProcessesDetail() {
-  const processDetailDiv = document.getElementById("processDetail");
-  const infoCard = document.getElementById("processInfoCard");
-  let minHeight = infoCard ? infoCard.offsetHeight : 180;
+function showAllProcessesFilter() {
+  const processFilterDiv = document.getElementById("processFilter");
+  if (!processFilterDiv) return;
 
-  processDetailDiv.innerHTML = `
-    <div style="min-height:${minHeight}px;display:flex;flex-direction:column;">
-      <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:16px;">
-        <div class="custom-multiselect" style="position:relative;max-width:320px;">
-          <div id="processInput" style="width:200px;height:33px;padding:8px 12px;border-radius:6px;border:1px solid #6259ee;background:#f6f6ff;color:#6259ee;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-            <span id="processSelectedText" style="color:#333;">Select processes...</span>
-            <span style="font-size:12px;color:#6259ee;">▼</span>
-          </div>
-          <div id="processDropdown" style="display:none;position:absolute;top:44px;left:0;right:0;background:#fff;border:1px solid #ddd;border-radius:6px;box-shadow:0 2px 8px #0001;z-index:10;padding:8px;max-height:240px;overflow:auto;">
-            <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:4px;">
-              <input type="checkbox" id="processSelectAll" style="cursor:pointer;" />
-              <span>Chọn tất cả</span>
-            </label>
-            <div id="processOptions"></div>
-          </div>
+  processFilterDiv.innerHTML = `
+    <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:16px;">
+      <div class="custom-multiselect" style="position:relative;max-width:320px;">
+        <div id="processInput" style="width:200px;height:33px;padding:8px 12px;border-radius:6px;border:1px solid #6259ee;background:#f6f6ff;color:#6259ee;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <span id="processSelectedText" style="color:#333;">Select processes...</span>
+          <span style="font-size:12px;color:#6259ee;">▼</span>
         </div>
-        <div style="display:flex;gap:12px;">
+        <div id="processDropdown" style="display:none;position:absolute;top:44px;left:0;right:0;background:#fff;border:1px solid #ddd;border-radius:6px;box-shadow:0 2px 8px #0001;z-index:10;padding:8px;max-height:240px;overflow:auto;">
+          <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:4px;">
+            <input type="checkbox" id="processSelectAll" style="cursor:pointer;" />
+            <span>Chọn tất cả</span>
+          </label>
+          <div id="processOptions"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;">
         <button id="tabAllIngredients" class="tab-btn"
           style="padding:8px 18px;border-radius:6px;border:1px solid #6259ee;
           background:#f6f6ff;color:#6259ee;cursor:pointer;font-weight:500;">
@@ -328,9 +291,7 @@ function showAllProcessesDetail() {
           background:#f6f6ff;color:#6259ee;cursor:pointer;font-weight:500;">
           Parameters
         </button>
-        </div>
       </div>
-      <div id="tabAllContent"></div>
     </div>
   `;
 
@@ -379,10 +340,18 @@ function showAllProcessesDetail() {
 
   function updateProcessSelectAllState() {
     if (!processSelectAll) return;
-    // Single-select semantics: "Chọn tất cả" acts as "clear filter" when checked.
-    const someChecked = selectedProcessIds.length > 0;
-    processSelectAll.checked = !someChecked;
-    processSelectAll.indeterminate = false;
+    const total = recipeProcesses.length;
+    const count = selectedProcessIds.length;
+    if (count === 0) {
+      processSelectAll.checked = false;
+      processSelectAll.indeterminate = false;
+    } else if (count === total) {
+      processSelectAll.checked = true;
+      processSelectAll.indeterminate = false;
+    } else {
+      processSelectAll.checked = false;
+      processSelectAll.indeterminate = true;
+    }
   }
 
   function populateProcessOptions() {
@@ -420,14 +389,17 @@ function showAllProcessesDetail() {
 
   processSelectAll?.addEventListener("change", function () {
     const cbs = processOptions.querySelectorAll(".process-checkbox");
-    // In single-select mode, checking "Chọn tất cả" clears selection
     if (this.checked) {
+      // Chọn tất cả
+      cbs.forEach((cb) => (cb.checked = true));
+      selectedProcessIds = recipeProcesses.map((p) => String(p.ProcessId));
+    } else {
+      // Bỏ chọn tất cả
       cbs.forEach((cb) => (cb.checked = false));
       selectedProcessIds = [];
     }
     updateProcessSelectedText();
     updateProcessSelectAllState();
-    // Re-render both info and current tab
     showAllProcessesInfo();
     if (currentAllTab === "ingredients") renderIngredients();
     if (currentAllTab === "byproducts") renderByProducts();
@@ -435,15 +407,14 @@ function showAllProcessesDetail() {
   });
 
   function handleProcessCheckboxChange(e) {
-    const clicked = e.target;
-    const cbs = processOptions.querySelectorAll(".process-checkbox");
-    // Single-select: only the clicked checkbox remains checked
-    cbs.forEach((cb) => (cb.checked = cb === clicked));
-    selectedProcessIds = clicked.checked ? [clicked.value] : [];
+    const value = String(e.target.value);
+    if (e.target.checked) {
+      if (!selectedProcessIds.includes(value)) selectedProcessIds.push(value);
+    } else {
+      selectedProcessIds = selectedProcessIds.filter((v) => v !== value);
+    }
     updateProcessSelectedText();
     updateProcessSelectAllState();
-    // Keep current All tab active; do not modify header button styles
-    // Re-render both info and current tab
     showAllProcessesInfo();
     if (currentAllTab === "ingredients") renderIngredients();
     if (currentAllTab === "byproducts") renderByProducts();
@@ -457,13 +428,12 @@ function showAllProcessesDetail() {
       return;
     }
 
-    // 🔹 Group theo ProcessId
+    // Nhóm theo ProcessId và hiển thị dạng bảng, mỗi process là 1 bảng
     const processGroups = {};
     recipeIngredients.forEach((i) => {
-      if (!processGroups[i.ProcessId]) {
-        processGroups[i.ProcessId] = [];
-      }
-      processGroups[i.ProcessId].push(i);
+      const pid = i.ProcessId;
+      if (!processGroups[pid]) processGroups[pid] = [];
+      processGroups[pid].push(i);
     });
 
     const groupsHTML = Object.entries(processGroups)
@@ -472,50 +442,51 @@ function showAllProcessesDetail() {
           selectedProcessIds.length === 0 ||
           selectedProcessIds.includes(String(processId)),
       )
-      .map(
-        ([processId, items]) => `
-        <div style="
-          background:#fff;
-          border-radius:8px;
-          box-shadow:0 2px 8px #0001;
-          padding:16px 20px;
-        ">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <h3 style="margin:0;color:#6259ee;">Process: ${processId}</h3>
-            <span style="font-size:13px;color:#777;">${items.length} ingredient(s)</span>
+      .map(([processId, items]) => {
+        const rows = items
+          .map(
+            (i) => `
+              <tr>
+                <td style="text-align:center; padding:10px 8px;">${i.IngredientId || ""}</td>
+                <td style="text-align:center; padding:10px 8px;">${i.IngredientCode || ""}</td>
+                <td style="text-align:center; padding:10px 8px;">${i.ItemName || ""}</td>
+                <td style="text-align:right; padding:10px 8px;">${i.Quantity || ""}</td>
+                <td style="text-align:center; padding:10px 8px;">${i.UnitOfMeasurement || ""}</td>
+                <td style="text-align:center; padding:10px 8px;">
+                  <button class="product-detail-btn" data-code="${i.IngredientCode || ""}" style="padding:6px 10px;border-radius:6px;border:1px solid #6259ee;background:#6259ee;color:#fff;cursor:pointer;">Xem chi tiết</button>
+                </td>
+              </tr>
+            `,
+          )
+          .join("");
+
+        return `
+          <div style="background:#fff;border-radius:8px;box-shadow:0 2px 8px #0001;padding:16px 20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <h3 style="margin:0;color:#6259ee;">Process: ${processId}</h3>
+              <span style="font-size:13px;color:#777;">${items.length} ingredient(s)</span>
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+              <thead>
+                <tr style="background:#f6f6ff;">
+                  <th style="border:1px solid #e5e5f5;padding:8px;text-align:center;width:120px;">ID</th>
+                  <th style="border:1px solid #e5e5f5;padding:8px;text-align:center;width:160px;">Code</th>
+                  <th style="border:1px solid #e5e5f5;padding:8px;text-align:center;">Tên</th>
+                  <th style="border:1px solid #e5e5f5;padding:8px;text-align:right;width:120px;">Số lượng</th>
+                  <th style="border:1px solid #e5e5f5;padding:8px;text-align:center;width:120px;">Đơn vị</th>
+                  <th style="border:1px solid #e5e5f5;padding:8px;text-align:center;width:140px;">Action</th>
+                </tr>
+              </thead>
+              <tbody style="gap:4px;">
+                ${rows || ""}
+              </tbody>
+            </table>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;">
-            ${items
-              .map(
-                (i) => `
-                <div style="border:1px solid #e5e5ff;border-radius:6px;padding:10px 12px;background:#fdfdff;display:flex;flex-direction:column;gap:8px;">
-                  <div style="display:flex;flex-direction:column;gap:4px;height:120px;">
-                    <div style="font-weight:600;">${i.ItemName || ""}</div>
-                    <div style="font-size:13px;"><b>ID:</b> ${i.IngredientId || ""}</div>
-                    <div style="font-size:13px;"><b>Code:</b> ${i.IngredientCode || ""}</div>
-                    <div style="font-size:13px;"><b>Quantity:</b> ${i.Quantity || ""} ${i.UnitOfMeasurement || ""}</div>
-                  </div>  
-                  <div style="margin-top:4px;">
-                    <button class="product-detail-btn" data-code="${i.IngredientCode || ""}"
-                      style="padding:6px 10px;border-radius:6px;border:1px solid #6259ee;background:#6259ee;color:#fff;cursor:pointer;">
-                      Xem chi tiết
-                    </button>
-                  </div>
-                </div>
-              `,
-              )
-              .join("")}
-          </div>
-        </div>
-      `,
-      )
+        `;
+      })
       .join("");
 
-    tabContent.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:16px;margin-top:8px;">
-        ${groupsHTML}
-      </div>
-    `;
+    tabContent.innerHTML = `<div style="display:flex;flex-direction:column;gap:16px;margin-top:8px;">${groupsHTML}</div>`;
 
     // Wire detail buttons
     tabContent.querySelectorAll(".product-detail-btn").forEach((btn) => {
@@ -734,11 +705,14 @@ window.addEventListener("DOMContentLoaded", async () => {
         <h2 style='margin-bottom:16px;'>Processes:</h2>
         <div id="processList" style="display:flex;flex-wrap:wrap;margin-bottom:12px;"></div>
         <div style='display:flex;flex-direction:column;gap:20px;'>
+          <div id="processFilter"></div>
           <div style='flex:0 0 auto; min-height:220px;'>
             <div id="processInfo"></div>
           </div>
           <div style='flex:1;'>
-            <div id="processDetail"></div>
+            <div id="processDetail">
+              <div id="tabAllContent"></div>
+            </div>
           </div>
         </div>
       </div>
