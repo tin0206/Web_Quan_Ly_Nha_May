@@ -615,32 +615,57 @@ router.get("/:id", async (req, res) => {
 
     const query = `
       SELECT
-        po.*,
+        po.ProductionOrderId,
+        po.ProductionLine,
+        po.ProductCode,
+        po.ProductionOrderNumber,
+        po.RecipeCode,
+        po.RecipeVersion,
+        po.Shift,
+        po.PlannedStart,
+        po.PlannedEnd,
+        po.Quantity,
+        po.UnitOfMeasurement,
+        po.LotNumber,
+        po.timestamp,
+        po.Plant,
+        po.Shopfloor,
+        po.ProcessArea,
+        po.Status,
+
         pm.ItemName,
         ing.PlanQuantity AS ProductQuantity,
-        rd.RecipeName,
 
-        -- MES info
+        rd.RecipeName,
+        MAX(rd.RecipeDetailsId) AS RecipeDetailsId,
+
         CASE 
           WHEN COUNT(mc.Id) > 0 THEN 1 ELSE 0 
         END AS HasMESData,
-        MAX(mc.BatchCode) AS CurrentBatch,
 
-        -- Batch info
+        MAX(mc.BatchCode) AS CurrentBatch,
         COUNT(DISTINCT b.BatchNumber) AS TotalBatches
+
       FROM ProductionOrders po
+
       LEFT JOIN ProductMasters pm 
         ON po.ProductCode = pm.ItemCode
+
       LEFT JOIN Products ing 
         ON po.ProductCode = ing.ProductCode
+
       LEFT JOIN RecipeDetails rd 
-        ON po.RecipeCode = rd.RecipeCode 
+        ON po.RecipeCode = rd.RecipeCode
        AND po.RecipeVersion = rd.Version
+
       LEFT JOIN MESMaterialConsumption mc
         ON mc.ProductionOrderNumber = po.ProductionOrderNumber
+
       LEFT JOIN Batches b
         ON b.ProductionOrderId = po.ProductionOrderId
+
       WHERE po.ProductionOrderId = @ProductionOrderId
+
       GROUP BY
         po.ProductionOrderId,
         po.ProductionLine,
@@ -677,27 +702,31 @@ router.get("/:id", async (req, res) => {
 
     const data = {
       ...order,
+
       ProductCode: order.ItemName
         ? `${order.ProductCode} - ${order.ItemName}`
         : order.ProductCode,
+
       RecipeCode:
         order.RecipeName && order.RecipeCode
           ? `${order.RecipeCode} - ${order.RecipeName}`
           : order.RecipeCode,
-      Status: order.HasMESData,
-      CurrentBatch: order.CurrentBatch || 0,
+
+      RecipeDetailsId: order.RecipeDetailsId || null,
+      Status: order.HasMESData ? 1 : 0,
+      CurrentBatch: order.CurrentBatch || null,
       TotalBatches: order.TotalBatches || 0,
-      ProductQuantity: order.ProductQuantity || null,
+      ProductQuantity: order.ProductQuantity ?? null,
     };
 
-    res.json({
+    return res.json({
       success: true,
       message: "Lấy chi tiết đơn hàng thành công",
       data,
     });
   } catch (error) {
     console.error("Lỗi khi lấy chi tiết đơn hàng:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Lỗi server",
     });

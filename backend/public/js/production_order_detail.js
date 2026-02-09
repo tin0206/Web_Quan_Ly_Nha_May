@@ -136,16 +136,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
   if (recipeVersionDetail) {
     recipeVersionDetail.addEventListener("click", async () => {
-      const recipeCodeText = document
-        .getElementById("detailRecipeCode")
-        ?.textContent.trim();
-      const recipeCode = (recipeCodeText || "").split(" - ")[0].trim();
-      const versionText = document
-        .getElementById("detailRecipeVersion")
-        ?.textContent.trim();
-      const version = versionText || "";
-      if (!recipeCode) return;
-      await openRecipeDetailsModal({ recipeCode, version });
+      window.open(`/recipe-detail/${order.RecipeDetailsId}`, "_blank");
     });
   }
 });
@@ -1377,13 +1368,6 @@ async function openRecipeDetailsModal({ recipeCode, version }) {
       const rows = Array.isArray(data.data) ? data.data : [];
 
       summary.textContent = `RecipeCode: ${recipeCode} ${v ? `(Version: ${v})` : ""} • Records: ${rows.length}`;
-
-      // Render version filter UI (radio buttons similar to other filters)
-      const makeLabel = (val, text, checked) => `
-          <label style="display:flex;align-items:center;justify-content:center;padding:8px;cursor:pointer;background:${checked ? "#007bff" : "white"};color:${checked ? "white" : "inherit"};border:1px solid ${checked ? "#0056b3" : "#ddd"};border-radius:4px;font-size:14px;font-weight:${checked ? "500" : "normal"};transition:all .2s;margin-right:8px;">
-            <input type="radio" name="recipeVersionFilter" value="${val}" ${checked ? "checked" : ""} style="margin-right:8px;cursor:pointer;width:16px;" />
-            <span>${text}</span>
-          </label>`;
 
       // Attach change handlers
       document
