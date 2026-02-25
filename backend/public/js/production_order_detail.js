@@ -157,8 +157,8 @@ async function activateTab(tabId) {
 
   // Add active state to clicked tab
   const activeTab = document.getElementById(tabId);
-  activeTab.style.borderBottom = "3px solid #007bff";
-  activeTab.style.color = "#007bff";
+  activeTab.style.borderBottom = "3px solid #5b4ce8";
+  activeTab.style.color = "#5b4ce8";
   activeTab.style.fontWeight = "bold";
 
   // Hide all content and show relevant content
@@ -349,7 +349,7 @@ function renderMaterialsTable(groupedMaterialsArray, selectedBatchCode = "") {
       <td style="padding: 12px; text-align: center;">${formatDateTime(group.latestDatetime) || "-"}</td>
       <td style="padding: 12px; text-align: center;">${statusDisplay}</td>
       <td style="padding: 12px; text-align: center;">
-        <button class="viewMaterialGroupBtn" data-index="${realIndex}" style="background: none; border: none; cursor: pointer; color: #007bff; padding: 6px; transition: color 0.2s;" title="Xem danh sách">
+        <button class="viewMaterialGroupBtn" data-index="${realIndex}" style="background: none; border: none; cursor: pointer; color: #5b4ce8; padding: 6px; transition: color 0.2s;" title="Xem danh sách">
           <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
           </svg>
@@ -368,10 +368,10 @@ function renderMaterialsTable(groupedMaterialsArray, selectedBatchCode = "") {
       showMaterialListModal(groupedMaterialsArray[index]);
     });
     btn.addEventListener("mouseover", function () {
-      this.style.color = "#0056b3";
+      this.style.color = "#3b2fd0";
     });
     btn.addEventListener("mouseout", function () {
-      this.style.color = "#007bff";
+      this.style.color = "#5b4ce8";
     });
   });
 }
@@ -824,7 +824,7 @@ function showMaterialListModal(group) {
       <td style="padding: 12px; text-align: center;">${formatDateTime(material.datetime) || "-"}</td>
       <td style="padding: 12px; text-align: center;">${statusDisplay}</td>
       <td style="padding: 12px; text-align: center;">
-        <button class="viewMaterialDetailBtn" data-index="${index}" style="background: none; border: none; cursor: pointer; color: #007bff; padding: 6px; transition: color 0.2s;" title="Xem chi tiết">
+        <button class="viewMaterialDetailBtn" data-index="${index}" style="background: none; border: none; cursor: pointer; color: #5b4ce8; padding: 6px; transition: color 0.2s;" title="Xem chi tiết">
           <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 4c4.29 0 7.863 2.429 10.665 7.154l.22 .379l.045 .1l.03 .083l.014 .055l.014 .082l.011 .1v.11l-.014 .111a.992 .992 0 0 1 -.026 .11l-.039 .108l-.036 .075l-.016 .03c-2.764 4.836 -6.3 7.38 -10.555 7.499l-.313 .004c-4.396 0 -8.037 -2.549 -10.868 -7.504a1 1 0 0 1 0 -.992c2.831 -4.955 6.472 -7.504 10.868 -7.504zm0 5a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" />
           </svg>
@@ -845,10 +845,10 @@ function showMaterialListModal(group) {
       showMaterialModal(group.items[index]);
     });
     btn.addEventListener("mouseover", function () {
-      this.style.color = "#0056b3";
+      this.style.color = "#3b2fd0";
     });
     btn.addEventListener("mouseout", function () {
-      this.style.color = "#007bff";
+      this.style.color = "#5b4ce8";
     });
   });
 
@@ -934,7 +934,7 @@ async function displayBatchesTable(batchesArray) {
           <td style="padding: 12px; text-align: center;">${batch.Quantity} ${batch.UnitOfMeasurement}</td>
           <td style="padding: 12px; text-align: center;">${status}</td>
           <td style="padding: 12px; text-align: center;">
-            <button class="viewMaterialsBtn" data-batch-code="${batch.BatchNumber}" style="background: #007bff; color: white; border: none; cursor: pointer; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-weight: 500; transition: background 0.2s;" title="View Materials">
+            <button class="viewMaterialsBtn" data-batch-code="${batch.BatchNumber}" style="background: #5b4ce8; color: white; border: none; cursor: pointer; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-weight: 500; transition: background 0.2s;" title="View Materials">
               View Materials
             </button>
           </td>
@@ -957,10 +957,10 @@ async function displayBatchesTable(batchesArray) {
       activateTab("tab-materials");
     });
     btn.addEventListener("mouseover", function () {
-      this.style.background = "#0056b3";
+      this.style.background = "#3b2fd0";
     });
     btn.addEventListener("mouseout", function () {
-      this.style.background = "#007bff";
+      this.style.background = "#5b4ce8";
     });
   });
 
@@ -988,14 +988,14 @@ function renderMaterialFilterTypeButtons() {
       justify-content: center;
       padding: 8px 12px;
       cursor: pointer;
-      background: ${materialFilterType === option.value ? "#007bff" : "white"};
+      background: ${materialFilterType === option.value ? "#5b4ce8" : "white"};
       color: ${materialFilterType === option.value ? "white" : "inherit"};
-      border: 1px solid ${materialFilterType === option.value ? "#0056b3" : "#ddd"};
+      border: 1px solid ${materialFilterType === option.value ? "#5b4ce8" : "#ddd"};
       border-radius: 4px;
       font-size: 14px;
       font-weight: ${materialFilterType === option.value ? "500" : "normal"};
       transition: all 0.2s;
-    " onmouseover="if (this.querySelector('input[type=radio]').checked) { this.style.background='#0056b3'; } else { this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'; }" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='white'; this.style.color='inherit'; this.style.borderColor='#ddd'; this.style.fontWeight='normal'; } else { this.style.background='#007bff'; this.style.borderColor='#0056b3'; } this.style.boxShadow='none';">
+    " onmouseover="if (this.querySelector('input[type=radio]').checked) { this.style.background='#5b4ce8'; } else { this.style.borderColor='#5b4ce8'; this.style.boxShadow='0 2px 4px rgba(91,76,232,0.2)'; }" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='white'; this.style.color='inherit'; this.style.borderColor='#ddd'; this.style.fontWeight='normal'; } else { this.style.background='#5b4ce8'; this.style.borderColor='#3b2fd0'; } this.style.boxShadow='none';">
       <input
         type="radio"
         name="filterMaterialType"
@@ -1030,9 +1030,9 @@ function updateMaterialFilterTypeStyles() {
   labels.forEach((label) => {
     const radio = label.querySelector('input[type="radio"]');
     if (radio && radio.checked) {
-      label.style.background = "#007bff";
+      label.style.background = "#5b4ce8";
       label.style.color = "white";
-      label.style.borderColor = "#0056b3";
+      label.style.borderColor = "#3b2fd0";
       label.style.fontWeight = "500";
     } else {
       label.style.background = "white";
@@ -1085,7 +1085,7 @@ function renderBatchCodeRadioButtons(batchesArray) {
       border-radius: 4px;
       font-size: 14px;
       font-weight: normal;
-    " onmouseover="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'; } else { this.style.background='#0056b3'; }" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='white'; this.style.color='inherit'; this.style.borderColor='#ddd'; this.style.fontWeight='normal'; this.style.boxShadow='none'; } else { this.style.background='#007bff'; this.style.borderColor='#0056b3'; } this.style.boxShadow='none'">
+    " onmouseover="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.borderColor='#5b4ce8'; this.style.boxShadow='0 2px 4px rgba(91,76,232,0.2)'; } else { this.style.background='#3b2fd0'; }" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='white'; this.style.color='inherit'; this.style.borderColor='#ddd'; this.style.fontWeight='normal'; this.style.boxShadow='none'; } else { this.style.background='#5b4ce8'; this.style.borderColor='#3b2fd0'; } this.style.boxShadow='none'">
       <input
         type="radio"
         name="filterBatchCode"
@@ -1116,7 +1116,7 @@ function renderBatchCodeRadioButtons(batchesArray) {
       }
 
       return `
-        <label onmouseover="this.style.borderColor='#007bff'; this.style.boxShadow='0 2px 4px rgba(0,123,255,0.2)'" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='${bgColor}'; this.style.color='inherit'; this.style.borderColor='${borderColor}'; this.style.fontWeight='normal'; } else { this.style.borderColor='#0056b3'; } this.style.boxShadow='none'">
+        <label onmouseover="this.style.borderColor='#5b4ce8'; this.style.boxShadow='0 2px 4px rgba(91,76,232,0.2)'" onmouseout="var radio = this.querySelector('input[type=radio]'); if (!radio.checked) { this.style.background='${bgColor}'; this.style.color='inherit'; this.style.borderColor='${borderColor}'; this.style.fontWeight='normal'; } else { this.style.borderColor='#3b2fd0'; } this.style.boxShadow='none'">
           <input
             type="radio"
             name="filterBatchCode"
@@ -1185,9 +1185,9 @@ function updateBatchCodeRadioStyles() {
   labels.forEach((label, index) => {
     const radio = label.querySelector('input[type="radio"]');
     if (radio && radio.checked) {
-      label.style.background = "#007bff";
+      label.style.background = "#5b4ce8";
       label.style.color = "white";
-      label.style.borderColor = "#0056b3";
+      label.style.borderColor = "#3b2fd0";
       label.style.fontWeight = "500";
     } else {
       // Skip legend divs (elements without radio buttons)
@@ -1381,9 +1381,9 @@ async function openRecipeDetailsModal({ recipeCode, version }) {
               .forEach((label) => {
                 const r = label.querySelector('input[type="radio"]');
                 if (r && r.checked) {
-                  label.style.background = "#007bff";
+                  label.style.background = "#5b4ce8";
                   label.style.color = "white";
-                  label.style.borderColor = "#0056b3";
+                  label.style.borderColor = "#3b2fd0";
                   label.style.fontWeight = "500";
                 } else {
                   label.style.background = "white";
@@ -1420,7 +1420,7 @@ async function openRecipeDetailsModal({ recipeCode, version }) {
                 <tr>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.RecipeDetailsId ?? ""}</td>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">
-                    <a style="text-decoration:none; color: #007bff;" href=${`/recipe-detail/${r.RecipeDetailsId}`} target="_blank">${r.ProductCode ?? ""}</a>
+                    <a style="text-decoration:none; color: #5b4ce8;" href=${`/recipe-detail/${r.RecipeDetailsId}`} target="_blank">${r.ProductCode ?? ""}</a>
                   </td>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.ProductionLine ?? ""}</td>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.RecipeCode ?? ""}</td>

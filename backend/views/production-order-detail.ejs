@@ -13,6 +13,23 @@
     <script type="module" src="/js/production_order_detail.js" defer></script>
   </head>
   <body>
+    <div class="topBar">
+      <a href="/" class="nav-left">
+        <i class="fa-solid fa-home"></i>
+        <span>DashBoard</span>
+      </a>
+      <div class="nav-breadcrumb">
+        <a
+          href="/production-orders"
+          style="text-decoration: none; color: inherit"
+          >Lệnh Sản xuất</a
+        >
+        <span class="separator">></span>
+        <span id="material-source-code">MIP</span>
+        <span class="separator">></span>
+        <span id="material-destination-code">CS1</span>
+      </div>
+    </div>
     <div class="main-container">
       <div class="header-container">
         <a class="back-btn" href="/production-orders">
@@ -79,10 +96,9 @@
                 <div style="display: flex; align-items: center; gap: 8px">
                   <p
                     style="
-                      margin: 5px 0;
-                      font-size: 16px;
+                      color: #5b4ce8;
+                      text-decoration: underline;
                       cursor: pointer;
-                      color: #007bff;
                     "
                     id="detailRecipeCode"
                   >
@@ -97,10 +113,9 @@
                 <div style="display: flex; align-items: center; gap: 8px">
                   <p
                     style="
-                      margin: 5px 0;
-                      font-size: 16px;
+                      color: #5b4ce8;
+                      text-decoration: underline;
                       cursor: pointer;
-                      color: #007bff;
                     "
                     id="detailRecipeVersion"
                   >
