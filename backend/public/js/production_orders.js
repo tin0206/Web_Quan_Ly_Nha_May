@@ -293,6 +293,7 @@ function initializeEventListeners() {
   const refreshBtn = document.querySelector(".refresh-btn");
   if (refreshBtn) {
     refreshBtn.addEventListener("click", () => {
+      sessionStorage.removeItem("poListState");
       location.reload();
     });
   }
