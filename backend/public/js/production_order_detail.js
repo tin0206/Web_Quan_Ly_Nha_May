@@ -218,6 +218,41 @@ let batchCodesWithMaterials = [];
 
 // Group materials by ingredient code and unit of measurement (without lot)
 function groupMaterials(materialsArray) {
+  function getGroupRespone(items) {
+    if (!items || items.length === 0) {
+      return null;
+    }
+
+    const allSuccess = items.every((item) => item?.respone === "Success");
+    if (allSuccess) {
+      return "Success";
+    }
+
+    const allNull = items.every(
+      (item) =>
+        item?.respone === null ||
+        item?.respone === undefined ||
+        item?.respone === "",
+    );
+    if (allNull) {
+      return null;
+    }
+
+    const allNotNullAndNotSuccess = items.every(
+      (item) =>
+        item?.respone !== null &&
+        item?.respone !== undefined &&
+        item?.respone !== "" &&
+        item?.respone !== "Success",
+    );
+    if (allNotNullAndNotSuccess) {
+      return "Failed";
+    }
+
+    // For any other mixed cases, return null
+    return null;
+  }
+
   const groupMap = new Map();
 
   materialsArray.forEach((material) => {
@@ -232,18 +267,20 @@ function groupMaterials(materialsArray) {
         group.totalQuantity += parseFloat(material.quantity) || 0;
         group.items.push(material);
         group.ids.push(material.id);
+        group.respone = getGroupRespone(group.items);
       }
     } else {
       // Create new group
+      const items = [material];
       groupMap.set(key, {
         ingredientCode: material.ingredientCode,
         lot: material.lot,
         unitOfMeasurement: material.unitOfMeasurement,
         totalQuantity: parseFloat(material.quantity) || 0,
-        items: [material],
+        items,
         ids: [material.id],
         latestDatetime: material.datetime,
-        respone: material.respone,
+        respone: getGroupRespone(items),
       });
     }
   });
@@ -329,16 +366,6 @@ function renderMaterialsTable(groupedMaterialsArray, selectedBatchCode = "") {
       planQuantityDisplay = totalPlanQuantity.toFixed(2);
     }
 
-    // Determine status display - show "-" if multiple items
-    let statusDisplay = "-";
-    if (group.items.length === 1) {
-      statusDisplay = group.respone
-        ? group.respone === "Success"
-          ? "Success"
-          : "Failed"
-        : "-";
-    }
-
     html += `<tr style="border-bottom: 1px solid #eee;">
       <td style="padding: 12px; text-align: center; font-weight: bold;">${idsDisplay}</td>
       <td style="padding: 12px; text-align: center;">${batchCodeDisplay}</td>
@@ -347,7 +374,7 @@ function renderMaterialsTable(groupedMaterialsArray, selectedBatchCode = "") {
       <td style="padding: 12px; text-align: center;">${planQuantityDisplay} ${group.unitOfMeasurement || ""}</td>
       <td style="padding: 12px; text-align: center;">${group.totalQuantity === 0 ? `N/A ${group.unitOfMeasurement || ""}` : `${group.totalQuantity.toFixed(2)} ${group.unitOfMeasurement || ""}`}</td>
       <td style="padding: 12px; text-align: center;">${formatDateTime(group.latestDatetime) || "-"}</td>
-      <td style="padding: 12px; text-align: center;">${statusDisplay}</td>
+      <td style="padding: 12px; text-align: center;">${group.respone || "-"}</td>
       <td style="padding: 12px; text-align: center;">
         <button class="viewMaterialGroupBtn" data-index="${realIndex}" style="background: none; border: none; cursor: pointer; color: #5b4ce8; padding: 6px; transition: color 0.2s;" title="Xem danh sách">
           <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
