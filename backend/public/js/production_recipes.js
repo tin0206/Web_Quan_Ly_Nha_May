@@ -339,7 +339,8 @@ function renderRecipeTable(recipes) {
         <td>${r.RecipeDetailsId || ""}</td>
         <td>${r.ProductCode || ""}</td>
         <td>${r.ProductName || ""}</td>
-        <td style="max-width: 300px;">${r.RecipeCode || ""} - ${r.RecipeName || ""}</td>
+        <td style="max-width: 300px;">${r.RecipeCode || ""}</td>
+        <td style="max-width: 300px;">${r.RecipeName || ""}</td>
         <td>${r.Version || ""}</td>
         <td style="text-align:center">
           <span class="status-badge status-${r.RecipeStatus === "Active" ? "success" : "inactive"}">${r.RecipeStatus === "Active" ? "Active" : "Inactive"}</span>

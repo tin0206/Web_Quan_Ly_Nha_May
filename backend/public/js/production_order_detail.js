@@ -341,9 +341,9 @@ function renderMaterialsTable(groupedMaterialsArray, selectedBatchCode = "") {
     const ingredientCodeOnly = ingredientCode
       ? ingredientCode.split(" - ")[0].trim()
       : "";
-    let totalPlanQuantity = 0;
+    let planQuantityDisplay = "N/A";
     let hasValidPlan = false;
-    group.items.forEach((item) => {
+    for (const item of group.items) {
       const batch = batches.find((b) => b.BatchNumber === item.batchCode);
       const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
       const recipeQuantity =
@@ -355,15 +355,11 @@ function renderMaterialsTable(groupedMaterialsArray, selectedBatchCode = "") {
         planQ = parseFloat(planQ.toFixed(2));
       }
       if (recipeQuantity === 0 || batchQuantity === 0) {
-        // Nếu 1 item không đủ dữ liệu, bỏ qua
-        return;
+        continue;
       }
+      planQuantityDisplay = planQ.toFixed(2);
       hasValidPlan = true;
-      totalPlanQuantity += planQ;
-    });
-    let planQuantityDisplay = "N/A";
-    if (hasValidPlan) {
-      planQuantityDisplay = totalPlanQuantity.toFixed(2);
+      break;
     }
 
     html += `<tr style="border-bottom: 1px solid #eee;">
