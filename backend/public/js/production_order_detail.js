@@ -342,7 +342,6 @@ function renderMaterialsTable(groupedMaterialsArray, selectedBatchCode = "") {
       ? ingredientCode.split(" - ")[0].trim()
       : "";
     let planQuantityDisplay = "N/A";
-    let hasValidPlan = false;
     for (const item of group.items) {
       const batch = batches.find((b) => b.BatchNumber === item.batchCode);
       const batchQuantity = batch ? parseFloat(batch.Quantity) || 0 : 0;
@@ -358,7 +357,6 @@ function renderMaterialsTable(groupedMaterialsArray, selectedBatchCode = "") {
         continue;
       }
       planQuantityDisplay = planQ.toFixed(2);
-      hasValidPlan = true;
       break;
     }
 
