@@ -1440,14 +1440,14 @@ async function openRecipeDetailsModal({ recipeCode, version }) {
             (r) => `
                 <tr>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.RecipeDetailsId ?? ""}</td>
-                  <td style="border:1px solid #eee;padding:6px;text-align:center;">
-                    <a style="text-decoration:none; color: #5b4ce8;" href=${`/recipe-detail/${r.RecipeDetailsId}`} target="_blank">${r.ProductCode ?? ""}</a>
-                  </td>
+                  <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.ProductCode ?? ""}</td>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.ProductionLine ?? ""}</td>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.RecipeCode ?? ""}</td>
                   <td style="border:1px solid #eee;padding:6px;">${r.RecipeName ?? ""}</td>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.RecipeStatus ?? ""}</td>
-                  <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.Version ?? ""}</td>
+                  <td style="border:1px solid #eee;padding:6px;text-align:center;">
+                    <a style="text-decoration:underline; color: #5b4ce8;" href=${`/recipe-detail/${r.RecipeDetailsId}`} target="_blank">${r.Version ?? ""}</a>
+                  </td>
                   <td style="border:1px solid #eee;padding:6px;text-align:center;">${r.timestamp ? formatDateTime(r.timestamp) : ""}</td>
                   <td style="border:1px solid #eee;padding:6px;">${r.ProductName ?? ""}</td>
                 </tr>`,
