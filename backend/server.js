@@ -61,6 +61,12 @@ app.get("/production-orders", (req, res) => {
   res.render("production-orders", { title: "Production Orders" });
 });
 
+app.get("/production-orders-by-batches-pos", (req, res) => {
+  res.render("production-orders-by-batches-pos", {
+    title: "Production Orders by Batches and POs",
+  });
+});
+
 // Render recipes page
 app.get("/recipes", (req, res) => {
   res.render("recipes", { title: "Quản lý Công thức" });
