@@ -10,6 +10,8 @@ let statsData = {};
 const pageSize = 20;
 let allProcessAreas = []; // Store all unique process areas for filter dropdown
 let allShifts = []; // Store all unique shifts for filter dropdown
+let allProductionOrderNumbers = []; // Store all unique production order numbers for search suggestions
+let allBatchIds = []; // Store all unique batch IDs for search suggestions
 
 const sourceCodeSpan = document.getElementById("material-source-code");
 const destinationCodeSpan = document.getElementById(
@@ -44,6 +46,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   initializeProcessAreaDropdown();
   initializeStatusDropdown();
   initializeShiftDropdown();
+  initializePODropdown();
+  initializeBatchIdDropdown();
   populateStatusOptions();
   await fetchFilterMetadata();
 
@@ -90,9 +94,21 @@ function restoreFiltersFromSession(state) {
     if (cb) cb.checked = true;
   });
 
+  state.selectedPOs?.forEach((po) => {
+    const cb = document.querySelector(`.po-checkbox[value="${po}"]`);
+    if (cb) cb.checked = true;
+  });
+
+  state.selectedBatchIds?.forEach((batchId) => {
+    const cb = document.querySelector(`.batch-checkbox[value="${batchId}"]`);
+    if (cb) cb.checked = true;
+  });
+
   updateProcessAreaSelectedText();
   updateStatusSelectedText();
   updateShiftSelectedText();
+  updatePOSelectedText();
+  updateBatchIdSelectedText();
   updateSelectAllState();
 }
 
@@ -102,11 +118,16 @@ async function fetchFilterMetadata() {
   if (!res.ok) return;
 
   const data = await res.json();
+  console.log("Filter metadata:", data);
   allProcessAreas = data.processAreas || [];
   allShifts = data.shifts || [];
+  allProductionOrderNumbers = data.productionOrderNumbers || [];
+  allBatchIds = data.batchIds || [];
 
   populateProcessAreas();
   populateShifts();
+  populatePOs();
+  populateBatchIds();
 }
 
 // Populate status filter options
@@ -574,6 +595,8 @@ function saveCurrentState() {
     selectedProcessAreas: getSelectedProcessAreas(),
     selectedStatuses: getSelectedStatuses(),
     selectedShifts: getSelectedShifts(),
+    selectedPOs: getSelectedPOs(),
+    selectedBatchIds: getSelectedBatchIds(),
   };
   sessionStorage.setItem("poListState", JSON.stringify(state));
 }
@@ -728,6 +751,8 @@ async function fetchStats() {
   const selectedProcessAreas = getSelectedProcessAreas();
   const selectedStatuses = getSelectedStatuses();
   const selectedShifts = getSelectedShifts();
+  const selectedPOs = getSelectedPOs();
+  const selectedBatchIds = getSelectedBatchIds();
 
   const hasFilters =
     searchQuery ||
@@ -735,7 +760,9 @@ async function fetchStats() {
     dateTo ||
     selectedProcessAreas.length > 0 ||
     selectedStatuses.length > 0 ||
-    selectedShifts.length > 0;
+    selectedShifts.length > 0 ||
+    selectedPOs.length > 0 ||
+    selectedBatchIds.length > 0;
   const endpoint = hasFilters
     ? "/api/production-orders/stats/search"
     : "/api/production-orders/stats";
@@ -755,6 +782,12 @@ async function fetchStats() {
       }
       if (selectedShifts.length > 0) {
         params.append("shifts", selectedShifts.join(","));
+      }
+      if (selectedPOs.length > 0) {
+        params.append("pos", selectedPOs.join(","));
+      }
+      if (selectedBatchIds.length > 0) {
+        params.append("batchIds", selectedBatchIds.join(","));
       }
     }
     const url = `${API_ROUTE}${endpoint}?${params.toString()}`;
@@ -900,6 +933,90 @@ function populateShifts() {
   initializeShiftSelectAll();
 }
 
+function populatePOs() {
+  const optionsContainer = document.getElementById("poOptions");
+  if (!optionsContainer) return;
+
+  optionsContainer.innerHTML = "";
+  const sortedPOs = [...allProductionOrderNumbers].sort();
+
+  if (sortedPOs.length === 0) {
+    optionsContainer.innerHTML =
+      '<span style="color: #888;">Không có PO nào để chọn</span>';
+    return;
+  }
+
+  sortedPOs.forEach((po) => {
+    const label = document.createElement("label");
+    label.style.cssText =
+      "display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; border-radius: 4px;";
+    label.onmouseover = function () {
+      this.style.background = "#f5f5f5";
+    };
+    label.onmouseout = function () {
+      this.style.background = "transparent";
+    };
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "po-checkbox";
+    checkbox.value = po;
+    checkbox.style.cursor = "pointer";
+    checkbox.onchange = handlePOCheckboxChange;
+
+    const span = document.createElement("span");
+    span.textContent = po;
+
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    optionsContainer.appendChild(label);
+  });
+
+  initializePOSelectAll();
+}
+
+function populateBatchIds() {
+  const optionsContainer = document.getElementById("batchIdOptions");
+  if (!optionsContainer) return;
+
+  optionsContainer.innerHTML = "";
+  const sortedBatchIds = [...allBatchIds].sort();
+
+  if (sortedBatchIds.length === 0) {
+    optionsContainer.innerHTML =
+      '<span style="color: #888;">Không có Batch nào để chọn</span>';
+    return;
+  }
+
+  sortedBatchIds.forEach((batchId) => {
+    const label = document.createElement("label");
+    label.style.cssText =
+      "display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; border-radius: 4px;";
+    label.onmouseover = function () {
+      this.style.background = "#f5f5f5";
+    };
+    label.onmouseout = function () {
+      this.style.background = "transparent";
+    };
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "batch-checkbox";
+    checkbox.value = batchId;
+    checkbox.style.cursor = "pointer";
+    checkbox.onchange = handleBatchIdCheckboxChange;
+
+    const span = document.createElement("span");
+    span.textContent = batchId;
+
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    optionsContainer.appendChild(label);
+  });
+
+  initializeBatchIdSelectAll();
+}
+
 // Initialize custom multi-select dropdown
 function initializeProcessAreaDropdown() {
   const input = document.getElementById("processAreaInput");
@@ -948,6 +1065,52 @@ function initializeShiftDropdown() {
   });
 
   // Prevent dropdown from closing when clicking inside
+  dropdown.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+}
+
+function initializePODropdown() {
+  const input = document.getElementById("poInput");
+  const dropdown = document.getElementById("poDropdown");
+
+  if (!input || !dropdown) return;
+
+  input.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isVisible = dropdown.style.display === "block";
+    dropdown.style.display = isVisible ? "none" : "block";
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".custom-multiselect")) {
+      dropdown.style.display = "none";
+    }
+  });
+
+  dropdown.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+}
+
+function initializeBatchIdDropdown() {
+  const input = document.getElementById("batchIdInput");
+  const dropdown = document.getElementById("batchIdDropdown");
+
+  if (!input || !dropdown) return;
+
+  input.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isVisible = dropdown.style.display === "block";
+    dropdown.style.display = isVisible ? "none" : "block";
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".custom-multiselect")) {
+      dropdown.style.display = "none";
+    }
+  });
+
   dropdown.addEventListener("click", (e) => {
     e.stopPropagation();
   });
@@ -1021,6 +1184,42 @@ async function handleShiftCheckboxChange() {
   updatePaginationControls();
 }
 
+async function handlePOCheckboxChange() {
+  updatePOSelectedText();
+  updateSelectAllState();
+
+  currentPage = 1;
+  saveCurrentState();
+  await fetchStats();
+  await fetchProductionOrders(currentPage);
+
+  const activeViewBtn = document.querySelector(".view-btn.active");
+  if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+    renderGridView();
+  } else {
+    renderProductionTable();
+  }
+  updatePaginationControls();
+}
+
+async function handleBatchIdCheckboxChange() {
+  updateBatchIdSelectedText();
+  updateSelectAllState();
+
+  currentPage = 1;
+  saveCurrentState();
+  await fetchStats();
+  await fetchProductionOrders(currentPage);
+
+  const activeViewBtn = document.querySelector(".view-btn.active");
+  if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+    renderGridView();
+  } else {
+    renderProductionTable();
+  }
+  updatePaginationControls();
+}
+
 // Update selected text display
 function updateProcessAreaSelectedText() {
   const checkboxes = document.querySelectorAll(".process-area-checkbox");
@@ -1054,6 +1253,48 @@ function updateShiftSelectedText() {
 
   if (selected.length === 0) {
     selectedText.textContent = "Select shifts...";
+    selectedText.style.color = "#999";
+  } else if (selected.length <= 2) {
+    selectedText.textContent = selected.join(", ");
+    selectedText.style.color = "#333";
+  } else {
+    selectedText.textContent = `${selected.length} selected`;
+    selectedText.style.color = "#333";
+  }
+}
+
+function updatePOSelectedText() {
+  const checkboxes = document.querySelectorAll(".po-checkbox");
+  const selectedText = document.getElementById("poSelectedText");
+  if (!selectedText) return;
+
+  const selected = Array.from(checkboxes)
+    .filter((cb) => cb.checked)
+    .map((cb) => cb.value);
+
+  if (selected.length === 0) {
+    selectedText.textContent = "Select POs...";
+    selectedText.style.color = "#999";
+  } else if (selected.length <= 2) {
+    selectedText.textContent = selected.join(", ");
+    selectedText.style.color = "#333";
+  } else {
+    selectedText.textContent = `${selected.length} selected`;
+    selectedText.style.color = "#333";
+  }
+}
+
+function updateBatchIdSelectedText() {
+  const checkboxes = document.querySelectorAll(".batch-checkbox");
+  const selectedText = document.getElementById("batchIdSelectedText");
+  if (!selectedText) return;
+
+  const selected = Array.from(checkboxes)
+    .filter((cb) => cb.checked)
+    .map((cb) => cb.value);
+
+  if (selected.length === 0) {
+    selectedText.textContent = "Select batch IDs...";
     selectedText.style.color = "#999";
   } else if (selected.length <= 2) {
     selectedText.textContent = selected.join(", ");
@@ -1118,6 +1359,58 @@ function initializeShiftSelectAll() {
   });
 }
 
+function initializePOSelectAll() {
+  const selectAllCheckbox = document.getElementById("poSelectAll");
+  if (!selectAllCheckbox) return;
+
+  selectAllCheckbox.addEventListener("change", async function () {
+    const checkboxes = document.querySelectorAll(".po-checkbox");
+    checkboxes.forEach((cb) => {
+      cb.checked = this.checked;
+    });
+
+    updatePOSelectedText();
+
+    currentPage = 1;
+    await fetchStats();
+    await fetchProductionOrders(currentPage);
+
+    const activeViewBtn = document.querySelector(".view-btn.active");
+    if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+      renderGridView();
+    } else {
+      renderProductionTable();
+    }
+    updatePaginationControls();
+  });
+}
+
+function initializeBatchIdSelectAll() {
+  const selectAllCheckbox = document.getElementById("batchIdSelectAll");
+  if (!selectAllCheckbox) return;
+
+  selectAllCheckbox.addEventListener("change", async function () {
+    const checkboxes = document.querySelectorAll(".batch-checkbox");
+    checkboxes.forEach((cb) => {
+      cb.checked = this.checked;
+    });
+
+    updateBatchIdSelectedText();
+
+    currentPage = 1;
+    await fetchStats();
+    await fetchProductionOrders(currentPage);
+
+    const activeViewBtn = document.querySelector(".view-btn.active");
+    if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+      renderGridView();
+    } else {
+      renderProductionTable();
+    }
+    updatePaginationControls();
+  });
+}
+
 // Update select all state based on individual checkboxes
 function updateSelectAllState() {
   const selectAllProcessAreaCheckbox = document.getElementById(
@@ -1128,6 +1421,10 @@ function updateSelectAllState() {
   );
   const selectAllStatusCheckbox = document.getElementById("statusSelectAll");
   const statusCheckboxes = document.querySelectorAll(".status-checkbox");
+  const selectAllPOCheckbox = document.getElementById("poSelectAll");
+  const poCheckboxes = document.querySelectorAll(".po-checkbox");
+  const selectAllBatchCheckbox = document.getElementById("batchIdSelectAll");
+  const batchCheckboxes = document.querySelectorAll(".batch-checkbox");
 
   if (selectAllProcessAreaCheckbox || processAreaCheckboxes.length !== 0) {
     const allChecked = Array.from(processAreaCheckboxes).every(
@@ -1146,6 +1443,20 @@ function updateSelectAllState() {
 
     selectAllStatusCheckbox.checked = allChecked;
     selectAllStatusCheckbox.indeterminate = someChecked && !allChecked;
+  }
+  if (selectAllPOCheckbox || poCheckboxes.length !== 0) {
+    const allChecked = Array.from(poCheckboxes).every((cb) => cb.checked);
+    const someChecked = Array.from(poCheckboxes).some((cb) => cb.checked);
+
+    selectAllPOCheckbox.checked = allChecked;
+    selectAllPOCheckbox.indeterminate = someChecked && !allChecked;
+  }
+  if (selectAllBatchCheckbox || batchCheckboxes.length !== 0) {
+    const allChecked = Array.from(batchCheckboxes).every((cb) => cb.checked);
+    const someChecked = Array.from(batchCheckboxes).some((cb) => cb.checked);
+
+    selectAllBatchCheckbox.checked = allChecked;
+    selectAllBatchCheckbox.indeterminate = someChecked && !allChecked;
   }
 }
 
@@ -1168,6 +1479,16 @@ function getSelectedShifts() {
   return Array.from(checkboxes).map((cb) => cb.value);
 }
 
+function getSelectedPOs() {
+  const checkboxes = document.querySelectorAll(".po-checkbox:checked");
+  return Array.from(checkboxes).map((cb) => cb.value);
+}
+
+function getSelectedBatchIds() {
+  const checkboxes = document.querySelectorAll(".batch-checkbox:checked");
+  return Array.from(checkboxes).map((cb) => cb.value);
+}
+
 async function fetchProductionOrders(page = 1) {
   try {
     // Get filter values
@@ -1177,6 +1498,8 @@ async function fetchProductionOrders(page = 1) {
     const selectedProcessAreas = getSelectedProcessAreas();
     const selectedStatuses = getSelectedStatuses();
     const selectedShifts = getSelectedShifts();
+    const selectedPOs = getSelectedPOs();
+    const selectedBatchIds = getSelectedBatchIds();
 
     // Determine which endpoint to use based on filters
     const hasFilters =
@@ -1185,7 +1508,9 @@ async function fetchProductionOrders(page = 1) {
       dateTo ||
       selectedProcessAreas.length > 0 ||
       selectedStatuses.length > 0 ||
-      selectedShifts.length > 0;
+      selectedShifts.length > 0 ||
+      selectedPOs.length > 0 ||
+      selectedBatchIds.length > 0;
     const endpoint = hasFilters
       ? "/api/production-orders/search"
       : "/api/production-orders";
@@ -1214,6 +1539,12 @@ async function fetchProductionOrders(page = 1) {
       }
       if (selectedShifts.length > 0) {
         params.append("shifts", selectedShifts.join(","));
+      }
+      if (selectedPOs.length > 0) {
+        params.append("pos", selectedPOs.join(","));
+      }
+      if (selectedBatchIds.length > 0) {
+        params.append("batchIds", selectedBatchIds.join(","));
       }
     }
 

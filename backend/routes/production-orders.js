@@ -8,15 +8,23 @@ router.get("/filters", async (req, res) => {
     const result = await pool.request().query(`
       SELECT DISTINCT ProcessArea FROM ProductionOrders WHERE ProcessArea IS NOT NULL AND LTRIM(RTRIM(ProcessArea)) <> '';
       SELECT DISTINCT Shift FROM ProductionOrders WHERE Shift IS NOT NULL AND LTRIM(RTRIM(Shift)) <> '';
+      SELECT DISTINCT ProductionOrderNumber FROM ProductionOrders WHERE ProductionOrderNumber IS NOT NULL AND LTRIM(RTRIM(ProductionOrderNumber)) <> '' ORDER BY ProductionOrderNumber DESC;
+      SELECT DISTINCT BatchId FROM Batches WHERE BatchId IS NOT NULL AND LTRIM(RTRIM(BatchId)) <> '' ORDER BY BatchId DESC;
     `);
 
     // MSSQL returns multiple recordsets for multiple queries
     const processAreas = result.recordsets[0].map((row) => row.ProcessArea);
     const shifts = result.recordsets[1].map((row) => row.Shift);
+    const productionOrderNumbers = result.recordsets[2].map(
+      (row) => row.ProductionOrderNumber,
+    );
+    const batchIds = result.recordsets[3].map((row) => row.BatchId);
 
     res.json({
       processAreas,
       shifts,
+      productionOrderNumbers,
+      batchIds,
     });
   } catch (error) {
     console.error("❌ Lỗi khi lấy filters:", error.message);
@@ -74,6 +82,9 @@ router.get("/stats/search", async (req, res) => {
     const dateTo = req.query.dateTo || "";
     const processAreas = req.query.processAreas || "";
     const shifts = req.query.shifts || "";
+    const productionOrderNumbers =
+      req.query.pos || req.query.productionOrderNumbers || "";
+    const batchIds = req.query.batchIds || "";
 
     const request = getPool().request();
     const where = [];
@@ -120,21 +131,52 @@ router.get("/stats/search", async (req, res) => {
       where.push(`po.Shift IN (${arr.map((_, i) => `@sh${i}`).join(",")})`);
     }
 
+    if (productionOrderNumbers.trim()) {
+      const arr = productionOrderNumbers
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+
+      arr.forEach((v, i) => request.input(`po${i}`, sql.NVarChar, v));
+      where.push(
+        `po.ProductionOrderNumber IN (${arr.map((_, i) => `@po${i}`).join(",")})`,
+      );
+    }
+
+    if (batchIds.trim()) {
+      const arr = batchIds
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+
+      arr.forEach((v, i) => request.input(`batch${i}`, sql.NVarChar, v));
+      where.push(`b.BatchId IN (${arr.map((_, i) => `@batch${i}`).join(",")})`);
+    }
+
     const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
     const result = await request.query(`
       WITH RunningPO AS (
         SELECT DISTINCT ProductionOrderNumber
         FROM MESMaterialConsumption
+      ),
+      FilteredPO AS (
+        SELECT DISTINCT
+          po.ProductionOrderNumber,
+          po.Status,
+          CASE WHEN r.ProductionOrderNumber IS NOT NULL THEN 1 ELSE 0 END AS IsRunning
+        FROM ProductionOrders po
+        LEFT JOIN RunningPO r
+          ON r.ProductionOrderNumber = po.ProductionOrderNumber
+        LEFT JOIN Batches b
+          ON b.ProductionOrderId = po.ProductionOrderId
+        ${whereClause}
       )
       SELECT
         COUNT(*) AS total,
-        SUM(CASE WHEN po.Status = 2 THEN 1 ELSE 0 END) AS completed,
-        SUM(CASE WHEN r.ProductionOrderNumber IS NOT NULL THEN 1 ELSE 0 END) AS inProgress
-      FROM ProductionOrders po
-      LEFT JOIN RunningPO r
-        ON r.ProductionOrderNumber = po.ProductionOrderNumber
-      ${whereClause}
+        SUM(CASE WHEN Status = 2 THEN 1 ELSE 0 END) AS completed,
+        SUM(CASE WHEN IsRunning = 1 THEN 1 ELSE 0 END) AS inProgress
+      FROM FilteredPO
     `);
 
     const stats = result.recordset[0];
@@ -289,7 +331,11 @@ router.get("/search", async (req, res) => {
       processAreas = "",
       statuses = "",
       shifts = "",
+      pos = "",
+      batchIds = "",
     } = req.query;
+
+    const productionOrderNumbers = pos || "";
 
     const request = pool.request();
     let where = [];
@@ -331,6 +377,24 @@ router.get("/search", async (req, res) => {
       const ps = arr.map((_, i) => `@sh${i}`).join(",");
       arr.forEach((v, i) => request.input(`sh${i}`, sql.NVarChar, v));
       where.push(`po.Shift IN (${ps})`);
+    }
+
+    /* ================= PRODUCTION ORDER NUMBERS (POs) ================= */
+    if (productionOrderNumbers.trim()) {
+      const arr = productionOrderNumbers.split(",").map((v) => v.trim());
+      const ps = arr.map((_, i) => `@po${i}`).join(",");
+      arr.forEach((v, i) => request.input(`po${i}`, sql.NVarChar, v));
+      where.push(`po.ProductionOrderNumber IN (${ps})`);
+    }
+
+    /* ================= BATCH IDs (JOIN Batches QUA EXISTS) ================= */
+    if (batchIds.trim()) {
+      const arr = batchIds.split(",").map((v) => v.trim());
+      const ps = arr.map((_, i) => `@batch${i}`).join(",");
+      arr.forEach((v, i) => request.input(`batch${i}`, sql.NVarChar, v));
+      where.push(
+        `EXISTS (SELECT 1 FROM Batches b WHERE b.ProductionOrderId = po.ProductionOrderId AND b.BatchId IN (${ps}))`,
+      );
     }
 
     /* ================= STATUS (LOGIC GỐC – QUAN TRỌNG) ================= */
