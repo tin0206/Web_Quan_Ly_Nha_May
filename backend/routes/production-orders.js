@@ -121,36 +121,14 @@ router.get("/stats/search", async (req, res) => {
       );
     }
 
-    if (shifts.trim()) {
-      const arr = shifts
-        .split(",")
-        .map((x) => x.trim())
-        .filter(Boolean);
-
-      arr.forEach((v, i) => request.input(`sh${i}`, sql.NVarChar, v));
-      where.push(`po.Shift IN (${arr.map((_, i) => `@sh${i}`).join(",")})`);
-    }
-
-    if (productionOrderNumbers.trim()) {
-      const arr = productionOrderNumbers
-        .split(",")
-        .map((x) => x.trim())
-        .filter(Boolean);
-
-      arr.forEach((v, i) => request.input(`po${i}`, sql.NVarChar, v));
-      where.push(
-        `po.ProductionOrderNumber IN (${arr.map((_, i) => `@po${i}`).join(",")})`,
-      );
-    }
-
     if (batchIds.trim()) {
-      const arr = batchIds
-        .split(",")
-        .map((x) => x.trim())
-        .filter(Boolean);
+      const arr = batchIds.split(",").map((v) => v.trim());
 
-      arr.forEach((v, i) => request.input(`batch${i}`, sql.NVarChar, v));
-      where.push(`b.BatchId IN (${arr.map((_, i) => `@batch${i}`).join(",")})`);
+      if (arr.length > 0) {
+        const ps = arr.map((_, i) => `@batch${i}`).join(",");
+        arr.forEach((v, i) => request.input(`batch${i}`, sql.NVarChar, v));
+        where.push(`b.BatchId IN (${ps})`);
+      }
     }
 
     const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
@@ -390,11 +368,15 @@ router.get("/search", async (req, res) => {
     /* ================= BATCH IDs (JOIN Batches QUA EXISTS) ================= */
     if (batchIds.trim()) {
       const arr = batchIds.split(",").map((v) => v.trim());
-      const ps = arr.map((_, i) => `@batch${i}`).join(",");
-      arr.forEach((v, i) => request.input(`batch${i}`, sql.NVarChar, v));
-      where.push(
-        `EXISTS (SELECT 1 FROM Batches b WHERE b.ProductionOrderId = po.ProductionOrderId AND b.BatchId IN (${ps}))`,
-      );
+
+      // Tìm PO có ít nhất 1 BatchId nằm trong danh sách chọn
+      if (arr.length > 0) {
+        const ps = arr.map((_, i) => `@batch${i}`).join(",");
+        arr.forEach((v, i) => request.input(`batch${i}`, sql.NVarChar, v));
+        where.push(
+          `EXISTS (SELECT 1 FROM Batches b WHERE b.ProductionOrderId = po.ProductionOrderId AND b.BatchId IN (${ps}))`,
+        );
+      }
     }
 
     /* ================= STATUS (LOGIC GỐC – QUAN TRỌNG) ================= */

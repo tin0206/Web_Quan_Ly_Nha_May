@@ -663,8 +663,11 @@ function renderProductionTable() {
       btn.addEventListener("click", function (e) {
         e.preventDefault();
         const row = this.closest("tr");
-        const orderNumber =
-          row.querySelector(".area-badge div")?.textContent || "Unknown";
+        if (!row) return;
+        // Lấy Mã Lệnh SX từ cột đầu tiên của hàng
+        const firstCell = row.querySelector("td");
+        const orderNumber = firstCell ? firstCell.textContent.trim() : "";
+        if (!orderNumber) return;
         viewOrder(orderNumber);
       });
     });
@@ -983,8 +986,6 @@ function populateBatchIds() {
   const sortedBatchIds = [...allBatchIds].sort();
 
   if (sortedBatchIds.length === 0) {
-    optionsContainer.innerHTML =
-      '<span style="color: #888;">Không có Batch nào để chọn</span>';
     return;
   }
 
@@ -1275,8 +1276,8 @@ function updatePOSelectedText() {
   if (selected.length === 0) {
     selectedText.textContent = "Select POs...";
     selectedText.style.color = "#999";
-  } else if (selected.length <= 2) {
-    selectedText.textContent = selected.join(", ");
+  } else if (selected.length === 1) {
+    selectedText.textContent = selected[0];
     selectedText.style.color = "#333";
   } else {
     selectedText.textContent = `${selected.length} selected`;
