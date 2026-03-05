@@ -37,23 +37,17 @@ router.get("/filters", async (req, res) => {
 
 router.get("/stats", async (req, res) => {
   try {
-    // Optimized stats query - avoid full table scan on MESMaterialConsumption
+    // Stats dựa trên cột Status của ProductionOrders
     const statsResult = await getPool().request().query(`
-      WITH RunningPO AS (
-        SELECT DISTINCT ProductionOrderNumber
-        FROM MESMaterialConsumption
-      )
       SELECT
         COUNT(*) AS total,
-        SUM(CASE WHEN po.Status = 2 THEN 1 ELSE 0 END) AS completed,
-        SUM(CASE WHEN r.ProductionOrderNumber IS NOT NULL THEN 1 ELSE 0 END) AS inProgress
-      FROM ProductionOrders po
-      LEFT JOIN RunningPO r
-        ON r.ProductionOrderNumber = po.ProductionOrderNumber;
+        SUM(CASE WHEN Status = 2 THEN 1 ELSE 0 END) AS completed,
+        SUM(CASE WHEN Status = 1 THEN 1 ELSE 0 END) AS inProgress,
+        SUM(CASE WHEN Status = -1 THEN 1 ELSE 0 END) AS stopped
+      FROM ProductionOrders;
     `);
 
     const stats = statsResult.recordset[0];
-    const stopped = stats.total - (stats.inProgress || 0);
 
     res.json({
       success: true,
@@ -62,7 +56,7 @@ router.get("/stats", async (req, res) => {
         total: stats.total,
         inProgress: stats.inProgress || 0,
         completed: stats.completed || 0,
-        stopped: stopped,
+        stopped: stats.stopped || 0,
       },
     });
   } catch (error) {
@@ -82,6 +76,7 @@ router.get("/stats/search", async (req, res) => {
     const dateTo = req.query.dateTo || "";
     const processAreas = req.query.processAreas || "";
     const shifts = req.query.shifts || "";
+    const statuses = req.query.statuses || "";
     const productionOrderNumbers =
       req.query.pos || req.query.productionOrderNumbers || "";
     const batchIds = req.query.batchIds || "";
@@ -121,6 +116,45 @@ router.get("/stats/search", async (req, res) => {
       );
     }
 
+    /* ================= SHIFT ================= */
+    if (shifts.trim()) {
+      const arr = shifts.split(",").map((v) => v.trim());
+      const ps = arr.map((_, i) => `@sh${i}`).join(",");
+      arr.forEach((v, i) => request.input(`sh${i}`, sql.NVarChar, v));
+      where.push(`po.Shift IN (${ps})`);
+    }
+
+    let statusCondition = "";
+    if (statuses.trim()) {
+      const arr = statuses
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const conds = [];
+      if (arr.includes("Đang chạy")) {
+        conds.push("po.Status = 1");
+      }
+      if (arr.includes("Đang chờ")) {
+        conds.push("po.Status = -1");
+      }
+
+      if (conds.length === 1) {
+        statusCondition = conds[0];
+      } else if (conds.length > 1) {
+        statusCondition = `(${conds.join(" OR ")})`;
+      }
+    }
+
+    if (productionOrderNumbers.trim()) {
+      request.input(
+        "poSearch",
+        sql.NVarChar,
+        `%${productionOrderNumbers.trim()}%`,
+      );
+      where.push("po.ProductionOrderNumber LIKE @poSearch");
+    }
+
     if (batchIds.trim()) {
       const arr = batchIds.split(",").map((v) => v.trim());
 
@@ -131,21 +165,17 @@ router.get("/stats/search", async (req, res) => {
       }
     }
 
-    const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const whereClause =
+      where.length || statusCondition
+        ? `WHERE ${[...where, statusCondition].filter(Boolean).join(" AND ")}`
+        : "";
 
     const result = await request.query(`
-      WITH RunningPO AS (
-        SELECT DISTINCT ProductionOrderNumber
-        FROM MESMaterialConsumption
-      ),
-      FilteredPO AS (
+      WITH FilteredPO AS (
         SELECT DISTINCT
           po.ProductionOrderNumber,
-          po.Status,
-          CASE WHEN r.ProductionOrderNumber IS NOT NULL THEN 1 ELSE 0 END AS IsRunning
+          po.Status
         FROM ProductionOrders po
-        LEFT JOIN RunningPO r
-          ON r.ProductionOrderNumber = po.ProductionOrderNumber
         LEFT JOIN Batches b
           ON b.ProductionOrderId = po.ProductionOrderId
         ${whereClause}
@@ -153,12 +183,12 @@ router.get("/stats/search", async (req, res) => {
       SELECT
         COUNT(*) AS total,
         SUM(CASE WHEN Status = 2 THEN 1 ELSE 0 END) AS completed,
-        SUM(CASE WHEN IsRunning = 1 THEN 1 ELSE 0 END) AS inProgress
+        SUM(CASE WHEN Status = 1 THEN 1 ELSE 0 END) AS inProgress,
+        SUM(CASE WHEN Status = -1 THEN 1 ELSE 0 END) AS stopped
       FROM FilteredPO
     `);
 
     const stats = result.recordset[0];
-    const stopped = stats.total - (stats.inProgress || 0);
 
     res.json({
       success: true,
@@ -167,7 +197,7 @@ router.get("/stats/search", async (req, res) => {
         total: stats.total || 0,
         inProgress: stats.inProgress || 0,
         completed: stats.completed || 0,
-        stopped,
+        stopped: stats.stopped || 0,
       },
     });
   } catch (error) {
@@ -217,14 +247,10 @@ router.get("/", async (req, res) => {
           po.Plant,
           po.Shopfloor,
           po.ProcessArea,
+          po.Status,
 
           pm.ItemName,
           rd.RecipeName,
-
-          CASE
-            WHEN mmc.ProductionOrderNumber IS NOT NULL THEN 1
-            ELSE 0
-          END AS Status,
 
           ISNULL(mmc.MaxBatchCode, 0) AS CurrentBatch,
           ISNULL(b.TotalBatches, 0) AS TotalBatches
@@ -359,10 +385,12 @@ router.get("/search", async (req, res) => {
 
     /* ================= PRODUCTION ORDER NUMBERS (POs) ================= */
     if (productionOrderNumbers.trim()) {
-      const arr = productionOrderNumbers.split(",").map((v) => v.trim());
-      const ps = arr.map((_, i) => `@po${i}`).join(",");
-      arr.forEach((v, i) => request.input(`po${i}`, sql.NVarChar, v));
-      where.push(`po.ProductionOrderNumber IN (${ps})`);
+      request.input(
+        "poSearch",
+        sql.NVarChar,
+        `%${productionOrderNumbers.trim()}%`,
+      );
+      where.push("po.ProductionOrderNumber LIKE @poSearch");
     }
 
     /* ================= BATCH IDs (JOIN Batches QUA EXISTS) ================= */
@@ -381,21 +409,23 @@ router.get("/search", async (req, res) => {
 
     /* ================= STATUS (LOGIC GỐC – QUAN TRỌNG) ================= */
     let statusCondition = "";
-
     if (statuses.trim()) {
-      const arr = statuses.split(",").map((s) => s.trim());
-      const conds = [];
+      const arr = statuses
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
 
+      const conds = [];
       if (arr.includes("Đang chạy")) {
-        conds.push("mmc.ProductionOrderNumber IS NOT NULL");
+        conds.push("po.Status = 1");
       }
       if (arr.includes("Đang chờ")) {
-        conds.push("mmc.ProductionOrderNumber IS NULL");
+        conds.push("po.Status = -1");
       }
 
       if (conds.length === 1) {
         statusCondition = conds[0];
-      } else if (conds.length === 2) {
+      } else if (conds.length > 1) {
         statusCondition = `(${conds.join(" OR ")})`;
       }
     }
@@ -441,14 +471,10 @@ router.get("/search", async (req, res) => {
         po.Plant,
         po.Shopfloor,
         po.Shift,
+        po.Status,
 
         pm.ItemName,
         rd.RecipeName,
-
-        CASE
-          WHEN mmc.ProductionOrderNumber IS NOT NULL THEN 1
-          ELSE 0
-        END AS Status,
 
         ISNULL(mmc.MaxBatch, 0) AS CurrentBatch,
         ISNULL(b.TotalBatches, 0) AS TotalBatches
