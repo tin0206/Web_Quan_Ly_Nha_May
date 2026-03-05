@@ -367,7 +367,8 @@ function renderRecipeTable(recipes) {
       <td>${g.versionsCount} items</td>
       <td>${g.productCode}</td>
       <td>${g.productName}</td>
-      <td style="max-width: 300px;">${g.code} - ${g.recipeName}</td>
+      <td style="max-width: 300px;">${g.code}</td>
+      <td style="max-width: 300px;">${g.recipeName}</td>
       <td>${g.versionsCount} versions</td>
       <td style="text-align:center">
         <span class="status-badge status-${g.status === "Active" ? "success" : "inactive"}">
