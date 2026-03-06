@@ -639,10 +639,6 @@ router.get("/:id", async (req, res) => {
         rd.RecipeName,
         MAX(rd.RecipeDetailsId) AS RecipeDetailsId,
 
-        CASE 
-          WHEN COUNT(mc.Id) > 0 THEN 1 ELSE 0 
-        END AS HasMESData,
-
         MAX(mc.BatchCode) AS CurrentBatch,
         COUNT(DISTINCT b.BatchNumber) AS TotalBatches
 
@@ -713,7 +709,6 @@ router.get("/:id", async (req, res) => {
           : order.RecipeCode,
 
       RecipeDetailsId: order.RecipeDetailsId || null,
-      Status: order.HasMESData ? 1 : 0,
       CurrentBatch: order.CurrentBatch || null,
       TotalBatches: order.TotalBatches || 0,
       ProductQuantity: order.ProductQuantity ?? null,

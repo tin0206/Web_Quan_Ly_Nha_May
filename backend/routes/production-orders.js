@@ -132,10 +132,10 @@ router.get("/stats/search", async (req, res) => {
         .filter(Boolean);
 
       const conds = [];
-      if (arr.includes("Đang chạy")) {
+      if (arr.includes("Bình thường")) {
         conds.push("po.Status = 1");
       }
-      if (arr.includes("Đang chờ")) {
+      if (arr.includes("Đã hủy")) {
         conds.push("po.Status = -1");
       }
 
@@ -416,10 +416,10 @@ router.get("/search", async (req, res) => {
         .filter(Boolean);
 
       const conds = [];
-      if (arr.includes("Đang chạy")) {
+      if (arr.includes("Bình thường")) {
         conds.push("po.Status = 1");
       }
-      if (arr.includes("Đang chờ")) {
+      if (arr.includes("Đã hủy")) {
         conds.push("po.Status = -1");
       }
 

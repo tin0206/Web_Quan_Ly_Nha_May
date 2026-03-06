@@ -39,8 +39,6 @@ async function fetchOrderDetail() {
         order.LotNumber || "-";
       document.getElementById("detailQuantity").textContent =
         (order.Quantity || 0) + " " + (order.UnitOfMeasurement || "");
-      document.getElementById("detailCurrentBatch").textContent =
-        `${order.CurrentBatch || 0}/${order.TotalBatches || 0}`;
       document.getElementById("detailPlannedStart").textContent =
         formatDate(order.PlannedStart) || "-";
       document.getElementById("detailPlannedEnd").textContent =
@@ -52,7 +50,6 @@ async function fetchOrderDetail() {
           (parseInt(order.TotalBatches) || 1)) *
           100,
       );
-      document.getElementById("detailProgress").textContent = progress + "%";
       document.getElementById("detailStatus").textContent =
         getStatusText(order.Status) || "-";
       document.getElementById("detailPlant").textContent = order.Plant || "-";
@@ -101,14 +98,10 @@ function formatDateTime(dateString) {
 function getStatusText(status) {
   if (typeof status === "number") {
     switch (status) {
-      case 0:
-        return "Đang chờ";
       case 1:
-        return "Đang chạy";
-      case 2:
-        return "Hoàn thành";
+        return "Bình thường";
       default:
-        return "Không xác định";
+        return "Đã hủy";
     }
   }
   return String(status);

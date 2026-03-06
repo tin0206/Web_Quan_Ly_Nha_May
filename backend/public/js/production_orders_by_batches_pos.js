@@ -130,8 +130,8 @@ function populateStatusOptions() {
 
   // Danh sách trạng thái cố định
   const statusList = [
-    { value: "Đang chạy", label: "Đang chạy" },
-    { value: "Đang chờ", label: "Đang chờ" },
+    { value: "Binh thuong", label: "Bình thường" },
+    { value: "Đã hủy", label: "Đã hủy" },
   ];
 
   optionsContainer.innerHTML = "";
@@ -379,9 +379,9 @@ function getStatusText(status) {
   if (typeof status === "number") {
     switch (status) {
       case 1:
-        return "Đang chạy";
+        return "Bình thường";
       default:
-        return "Đang chờ";
+        return "Đã hủy";
     }
   }
   return String(status);
@@ -1448,6 +1448,8 @@ function viewOrder(orderNumber) {
   document.getElementById("viewStatus").textContent =
     getStatusText(order.Status) || "-";
   document.getElementById("viewPlant").textContent = order.Plant || "-";
+  document.getElementById("viewProcessArea").textContent =
+    order.ProcessArea || "-";
   document.getElementById("viewShopfloor").textContent = order.Shopfloor || "-";
 
   openModal("viewModal");
