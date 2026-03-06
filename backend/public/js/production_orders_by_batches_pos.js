@@ -461,6 +461,11 @@ function renderGridView() {
             </div>
 
             <div class="grid-section">
+              <div class="grid-section-label">Tổng số batch</div>
+              <div class="grid-section-value">${order.batches.length || 0} batch${order.batches.length !== 1 ? "es" : ""}</div>
+            </div>
+
+            <div class="grid-section">
               <div class="grid-section-label">Ca</div>
               <div class="grid-section-value">${order.Shift || "-"}</div>
             </div>
@@ -548,6 +553,9 @@ function renderProductionTable() {
           ${formatDate(order.PlannedStart) || "N/A"}
         </div>
         ${order.Quantity || 0} ${order.UnitOfMeasurement || ""}
+      </td>
+      <td style="text-align: center">
+        ${order.batches.length || 0} batch${order.batches.length !== 1 ? "es" : ""}
       </td>
       <td style="text-align: center">
         <span class="status-badge status-${getStatusType(
@@ -1470,10 +1478,10 @@ function viewOrder(orderNumber) {
         .map(
           (b) => `
           <tr>
-            <td>${b.BatchNumber ?? "-"}</td>
-            <td style="text-align: right;">${
-              (b.Quantity ?? 0) + " " + (b.UnitOfMeasurement || "")
-            }</td>
+            <td style="text-align: center;">${b.BatchNumber ?? "-"}</td>
+            <td style="text-align: center;">${b.Quantity ?? "-"}</td>
+            <td style="text-align: center;">${b.UnitOfMeasurement ?? "-"}</td>
+            <td style="text-align: center;">${b.Status ?? "-"}</td>
           </tr>
         `,
         )
