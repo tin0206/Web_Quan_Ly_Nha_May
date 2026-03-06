@@ -1452,5 +1452,34 @@ function viewOrder(orderNumber) {
     order.ProcessArea || "-";
   document.getElementById("viewShopfloor").textContent = order.Shopfloor || "-";
 
+  // Render batches table
+  const batchesBody = document.getElementById("viewBatchesBody");
+  if (batchesBody) {
+    const batches = Array.isArray(order.batches) ? order.batches : [];
+
+    if (batches.length === 0) {
+      batchesBody.innerHTML = `
+        <tr>
+          <td colspan="2" style="text-align: center; color: #999; padding: 8px 0;">
+            Không có batch
+          </td>
+        </tr>
+      `;
+    } else {
+      batchesBody.innerHTML = batches
+        .map(
+          (b) => `
+          <tr>
+            <td>${b.BatchNumber ?? "-"}</td>
+            <td style="text-align: right;">${
+              (b.Quantity ?? 0) + " " + (b.UnitOfMeasurement || "")
+            }</td>
+          </tr>
+        `,
+        )
+        .join("");
+    }
+  }
+
   openModal("viewModal");
 }
