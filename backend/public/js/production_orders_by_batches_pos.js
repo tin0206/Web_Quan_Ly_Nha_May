@@ -113,7 +113,6 @@ async function fetchFilterMetadata() {
   if (!res.ok) return;
 
   const data = await res.json();
-  console.log("Filter metadata:", data);
   allProcessAreas = data.processAreas || [];
   allShifts = data.shifts || [];
   allProductionOrderNumbers = data.productionOrderNumbers || [];
@@ -1271,6 +1270,7 @@ async function fetchProductionOrders(page = 1) {
 
     if (response.ok) {
       const data = await response.json();
+      console.log("Fetched production orders:", data);
       productionOrders = data.data.map((po) => new ProductionOrder(po));
       totalRecords = data.total;
       totalPages = data.totalPages || Math.ceil(totalRecords / pageSize);

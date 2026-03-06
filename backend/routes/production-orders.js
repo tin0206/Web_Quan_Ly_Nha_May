@@ -558,7 +558,45 @@ router.get("/v2", async (req, res) => {
       FETCH NEXT ${limit} ROWS ONLY
     `);
 
-    const data = result.recordset.map((row) => ({
+    const v2Rows = result.recordset;
+
+    // Lấy thêm danh sách batches cho từng ProductionOrderId
+    const v2PoIds = Array.from(
+      new Set(v2Rows.map((r) => r.ProductionOrderId).filter(Boolean)),
+    );
+
+    let v2BatchesByPoId = {};
+
+    if (v2PoIds.length > 0) {
+      const batchReq = pool.request();
+      const inParams = v2PoIds
+        .map((id, idx) => {
+          const paramName = `poId${idx}`;
+          batchReq.input(paramName, sql.Int, id);
+          return `@${paramName}`;
+        })
+        .join(",");
+
+      const batchesResult = await batchReq.query(`
+        SELECT
+          BatchId,
+          ProductionOrderId,
+          BatchNumber,
+          Quantity,
+          UnitOfMeasurement,
+          Status
+        FROM Batches
+        WHERE ProductionOrderId IN (${inParams})
+      `);
+
+      v2BatchesByPoId = batchesResult.recordset.reduce((acc, b) => {
+        if (!acc[b.ProductionOrderId]) acc[b.ProductionOrderId] = [];
+        acc[b.ProductionOrderId].push(b);
+        return acc;
+      }, {});
+    }
+
+    const data = v2Rows.map((row) => ({
       ...row,
       ProductCode: row.ItemName
         ? `${row.ProductCode} - ${row.ItemName}`
@@ -567,6 +605,7 @@ router.get("/v2", async (req, res) => {
         row.RecipeName && row.RecipeCode
           ? `${row.RecipeCode} - ${row.RecipeName}`
           : row.RecipeCode,
+      batches: v2BatchesByPoId[row.ProductionOrderId] || [],
     }));
 
     res.json({
@@ -979,8 +1018,46 @@ router.get("/search-v2", async (req, res) => {
 
     const result = await request.query(sqlQuery);
 
+    const rows = result.recordset;
+
+    // Lấy thêm danh sách batches cho từng ProductionOrderId
+    const poIds = Array.from(
+      new Set(rows.map((r) => r.ProductionOrderId).filter(Boolean)),
+    );
+
+    let batchesByPoId = {};
+
+    if (poIds.length > 0) {
+      const batchReq = pool.request();
+      const inParams = poIds
+        .map((id, idx) => {
+          const paramName = `poId${idx}`;
+          batchReq.input(paramName, sql.Int, id);
+          return `@${paramName}`;
+        })
+        .join(",");
+
+      const batchesResult = await batchReq.query(`
+        SELECT
+          BatchId,
+          ProductionOrderId,
+          BatchNumber,
+          Quantity,
+          UnitOfMeasurement,
+          Status
+        FROM Batches
+        WHERE ProductionOrderId IN (${inParams})
+      `);
+
+      batchesByPoId = batchesResult.recordset.reduce((acc, b) => {
+        if (!acc[b.ProductionOrderId]) acc[b.ProductionOrderId] = [];
+        acc[b.ProductionOrderId].push(b);
+        return acc;
+      }, {});
+    }
+
     /* ================= FORMAT ================= */
-    const data = result.recordset.map((o) => ({
+    const data = rows.map((o) => ({
       ...o,
       ProductCode: o.ItemName
         ? `${o.ProductCode} - ${o.ItemName}`
@@ -989,6 +1066,7 @@ router.get("/search-v2", async (req, res) => {
         o.RecipeName && o.RecipeCode
           ? `${o.RecipeCode} - ${o.RecipeName}`
           : o.RecipeCode,
+      batches: batchesByPoId[o.ProductionOrderId] || [],
     }));
 
     res.json({
