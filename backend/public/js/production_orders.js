@@ -116,8 +116,8 @@ function populateStatusOptions() {
 
   // Danh sách trạng thái cố định
   const statusList = [
-    { value: "Bình thường", label: "Bình thường" },
-    { value: "Đã hủy", label: "Đã hủy" },
+    { value: "Đang chạy", label: "Đang chạy" },
+    { value: "Đang chờ", label: "Đang chờ" },
   ];
 
   optionsContainer.innerHTML = "";
@@ -270,6 +270,7 @@ function initializeEventListeners() {
                 <th>Process Area</th>
                 <th>Shift</th>
                 <th style="text-align: center">Ngày Bắt Đầu / Số Lượng</th>
+                <th style="text-align: center">Tiến độ</th>
                 <th style="text-align: center">Trạng Thái</th>
                 <th style="text-align: center">Thao Tác</th>
               </tr>
@@ -364,9 +365,9 @@ function getStatusText(status) {
   if (typeof status === "number") {
     switch (status) {
       case 1:
-        return "Bình thường";
+        return "Đang chạy";
       default:
-        return "Đã hủy";
+        return "Đang chờ";
     }
   }
   return String(status);
@@ -388,6 +389,50 @@ function formatDate(dateString) {
 // Get truncated name with ellipsis if longer than 25 chars
 function getTruncatedName(name, maxLength = 100) {
   return name.length > maxLength ? name.substring(0, maxLength) + "..." : name;
+}
+
+// Get progress status based on status code
+function getProgressStatus(status) {
+  switch (status) {
+    case 0:
+      return "cancelled"; // Error/Cancelled
+    case 1:
+      return "running"; // Running/In Progress
+    case 2:
+      return "completing"; // Completed
+    case -1:
+      return "pending"; // Pending
+    default:
+      return "stop";
+  }
+}
+
+// Render progress bar HTML based on CurrentBatch and TotalBatches
+function renderProgressBar(currentBatch, totalBatches, progressStatus) {
+  // Convert to integers
+  const current = parseInt(currentBatch) || 0;
+  const total = parseInt(totalBatches) || 0;
+
+  // Calculate progress percentage
+  const progress = total === 0 ? 0 : Math.round((current / total) * 100);
+
+  const progressGradient =
+    progressStatus === "running"
+      ? "linear-gradient(90deg, #ffa726 0%, #f57c00 100%)"
+      : progressStatus === "stop"
+        ? "linear-gradient(90deg, #bdbdbd 0%, #9e9e9e 100%)"
+        : progressStatus === "cancelled"
+          ? "linear-gradient(90deg, #389cf7 0%, #389cf9 100%)"
+          : progressStatus === "completing"
+            ? "linear-gradient(90deg, #26a69a 0%, #009688 100%)"
+            : "linear-gradient(90deg, #bdbdbd 0%, #9e9e9e 100%)"; // pending
+
+  return `
+    <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+      <span style="font-size: 12px; font-weight: 700; color: white; min-width: 32px; background: ${progressGradient}; padding: 2px 8px; border-radius: 12px; text-align: center;">${progress}%</span>
+      <span style="font-size: 12px; color: #666;">${current}/${total}</span>
+    </div>
+  `;
 }
 
 // Render production grid view from data
@@ -459,6 +504,15 @@ function renderGridView() {
             </div>
 
             <div class="grid-section">
+              <div class="grid-section-label">Batch hiện tại</div>
+              <div class="grid-section-value">${
+                order.CurrentBatch !== null && order.CurrentBatch !== undefined
+                  ? order.CurrentBatch
+                  : "N/A"
+              }</div>
+            </div>
+
+            <div class="grid-section">
               <div class="grid-section-label">LỊCH TRÌNH</div>
               <div class="grid-schedule">
                 <span class="schedule-start">${
@@ -468,6 +522,22 @@ function renderGridView() {
                   formatDate(order.PlannedEnd) || "N/A"
                 }</span>
               </div>
+            </div>
+
+            <div class="grid-section">
+              <div class="grid-section-label">TIẾN ĐỘ</div>
+              <div class="grid-progress">
+                <div class="progress-bar" style="width: ${Math.round(
+                  ((parseInt(order.CurrentBatch) || 0) /
+                    (parseInt(order.TotalBatches) || 1)) *
+                    100,
+                )}%"></div>
+              </div>
+              <div class="progress-text">${Math.round(
+                ((parseInt(order.CurrentBatch) || 0) /
+                  (parseInt(order.TotalBatches) || 1)) *
+                  100,
+              )}%</div>
             </div>
           </div>
 
@@ -539,6 +609,13 @@ function renderProductionTable() {
           ${formatDate(order.PlannedStart) || "N/A"}
         </div>
         ${order.Quantity || 0} ${order.UnitOfMeasurement || ""}
+      </td>
+      <td>
+        ${renderProgressBar(
+          order.CurrentBatch,
+          order.TotalBatches,
+          getProgressStatus(order.Status),
+        )}
       </td>
       <td style="text-align: center">
         <span class="status-badge status-${getStatusType(
@@ -1332,11 +1409,19 @@ function viewOrder(orderNumber) {
   document.getElementById("viewPlannedEnd").textContent =
     formatDate(order.PlannedEnd) || "-";
   document.getElementById("viewShift").textContent = order.Shift || "-";
+  document.getElementById("viewCurrentBatch").textContent =
+    `${order.CurrentBatch || 0}/${order.TotalBatches || 0}`;
+  const progress = Math.round(
+    ((parseInt(order.CurrentBatch) || 0) /
+      (parseInt(order.TotalBatches) || 1)) *
+      100,
+  );
+  document.getElementById("viewProgress").textContent = progress + "%";
   document.getElementById("viewStatus").textContent =
     getStatusText(order.Status) || "-";
+  document.getElementById("viewPlant").textContent = order.Plant || "-";
   document.getElementById("viewProcessArea").textContent =
     order.ProcessArea || "-";
-  document.getElementById("viewPlant").textContent = order.Plant || "-";
   document.getElementById("viewShopfloor").textContent = order.Shopfloor || "-";
 
   openModal("viewModal");

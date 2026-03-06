@@ -109,7 +109,7 @@ function restoreFiltersFromSession(state) {
 
 // Fetch filter metadata (process areas and shifts)
 async function fetchFilterMetadata() {
-  const res = await fetch(`${API_ROUTE}/api/production-orders/filters`);
+  const res = await fetch(`${API_ROUTE}/api/production-orders/filters-v2`);
   if (!res.ok) return;
 
   const data = await res.json();
@@ -681,8 +681,8 @@ async function fetchStats() {
     selectedShifts.length > 0 ||
     poText;
   const endpoint = hasFilters
-    ? "/api/production-orders/stats/search"
-    : "/api/production-orders/stats";
+    ? "/api/production-orders/stats-v2/search"
+    : "/api/production-orders/stats-v2";
 
   try {
     // Build query params from filters
@@ -1226,8 +1226,8 @@ async function fetchProductionOrders(page = 1) {
       selectedShifts.length > 0 ||
       poText;
     const endpoint = hasFilters
-      ? "/api/production-orders/search"
-      : "/api/production-orders";
+      ? "/api/production-orders/search-v2"
+      : "/api/production-orders/v2";
 
     // Build query parameters
     const params = new URLSearchParams({

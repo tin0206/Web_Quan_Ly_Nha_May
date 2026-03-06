@@ -100,7 +100,7 @@
           </div>
           <div class="stat-card">
             <div class="stat-header">
-              <span>Bình thường</span>
+              <span>Đang chạy</span>
               <div class="stat-icon" id="progress-icon">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -128,7 +128,7 @@
           </div>
           <div class="stat-card">
             <div class="stat-header">
-              <span>Đã hủy</span>
+              <span>Đang chờ</span>
               <div class="stat-icon" id="stopped-icon">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -200,7 +200,6 @@
             style="
               padding-left: 20px;
               display: flex;
-              flex-wrap: wrap;
               gap: 10px;
               align-items: center;
             "
@@ -529,6 +528,7 @@
               <th>Process Area</th>
               <th>Shift</th>
               <th style="text-align: center">Ngày Bắt Đầu / Số Lượng</th>
+              <th style="text-align: center">Tiến độ</th>
               <th style="text-align: center">Trạng Thái</th>
               <th style="text-align: center">Thao Tác</th>
             </tr>
@@ -623,6 +623,14 @@
             <div class="modal-field">
               <label>Ca làm</label>
               <p id="viewShift">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Batch hiện tại</label>
+              <p id="viewCurrentBatch">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Tiến độ</label>
+              <p id="viewProgress">-</p>
             </div>
             <div class="modal-field">
               <label>Trạng thái</label>
