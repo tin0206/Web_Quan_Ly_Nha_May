@@ -3,10 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-    />
     <title>Quản Lý Nhà Máy - <%= process.env.PLANTCODE %></title>
     <style>
       * {
@@ -151,7 +147,17 @@
         <!-- Card 1: Production Orders -->
         <a href="/production-orders" class="card">
           <div class="card-icon">
-            <i class="fa-solid fa-industry"></i>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="42"
+              height="42"
+              viewBox="0 0 640 640"
+              fill="#FFFFFF"
+            >
+              <path
+                d="M96 96C78.3 96 64 110.3 64 128L64 496C64 522.5 85.5 544 112 544L528 544C554.5 544 576 522.5 576 496L576 216.2C576 198 556.6 186.5 540.6 195.1L384 279.4L384 216.2C384 198 364.6 186.5 348.6 195.1L192 279.4L192 128C192 110.3 177.7 96 160 96L96 96z"
+              />
+            </svg>
           </div>
           <div class="card-title">Trạng Thái Sản Xuất</div>
           <div class="card-description">
@@ -162,7 +168,17 @@
         <!-- Card 2: Production Orders -->
         <a href="/production-orders-by-batches-pos" class="card">
           <div class="card-icon">
-            <i class="fa-solid fa-industry"></i>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="42"
+              height="42"
+              viewBox="0 0 640 640"
+              fill="#FFFFFF"
+            >
+              <path
+                d="M96 96C78.3 96 64 110.3 64 128L64 496C64 522.5 85.5 544 112 544L528 544C554.5 544 576 522.5 576 496L576 216.2C576 198 556.6 186.5 540.6 195.1L384 279.4L384 216.2C384 198 364.6 186.5 348.6 195.1L192 279.4L192 128C192 110.3 177.7 96 160 96L96 96z"
+              />
+            </svg>
           </div>
           <div class="card-title">Lệnh Sản Xuất</div>
           <div class="card-description">Quản lý lệnh sản xuất</div>
@@ -171,7 +187,17 @@
         <!-- Card 3: Recipes -->
         <a href="/recipes" class="card">
           <div class="card-icon">
-            <i class="fa-solid fa-flask"></i>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="42"
+              height="42"
+              viewBox="0 0 640 640"
+              fill="#FFFFFF"
+            >
+              <path
+                d="M384 64L224 64C206.3 64 192 78.3 192 96C192 113.7 206.3 128 224 128L224 279.5L103.5 490.3C98.6 499 96 508.7 96 518.7C96 550.4 121.6 576 153.3 576L486.7 576C518.3 576 544 550.4 544 518.7C544 508.7 541.4 498.9 536.5 490.3L416 279.5L416 128C433.7 128 448 113.7 448 96C448 78.3 433.7 64 416 64L384 64zM288 279.5L288 128L352 128L352 279.5C352 290.6 354.9 301.6 360.4 311.3L402 384L238 384L279.6 311.3C285.1 301.6 288 290.7 288 279.5z"
+              />
+            </svg>
           </div>
           <div class="card-title">Công Thức</div>
           <div class="card-description">
@@ -182,7 +208,17 @@
         <!-- Card 4: Products -->
         <a href="/products" class="card">
           <div class="card-icon">
-            <i class="fa-solid fa-box"></i>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="42"
+              height="42"
+              viewBox="0 0 640 640"
+              fill="#FFFFFF"
+            >
+              <path
+                d="M465.4 192L431.1 144L209 144L174.7 192L465.4 192zM96 212.5C96 199.2 100.2 186.2 107.9 175.3L156.9 106.8C168.9 90 188.3 80 208.9 80L431 80C451.7 80 471.1 90 483.1 106.8L532 175.3C539.8 186.2 543.9 199.2 543.9 212.5L544 480C544 515.3 515.3 544 480 544L160 544C124.7 544 96 515.3 96 480L96 212.5z"
+              />
+            </svg>
           </div>
           <div class="card-title">Sản Phẩm</div>
           <div class="card-description">
@@ -193,7 +229,17 @@
         <!-- Card 5: Materials -->
         <a href="/materials" class="card">
           <div class="card-icon">
-            <i class="fa-solid fa-layer-group"></i>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="42"
+              height="42"
+              viewBox="0 0 640 640"
+              fill="#FFFFFF"
+            >
+              <path
+                d="M296.5 69.2C311.4 62.3 328.6 62.3 343.5 69.2L562.1 170.2C570.6 174.1 576 182.6 576 192C576 201.4 570.6 209.9 562.1 213.8L343.5 314.8C328.6 321.7 311.4 321.7 296.5 314.8L77.9 213.8C69.4 209.8 64 201.3 64 192C64 182.7 69.4 174.1 77.9 170.2L296.5 69.2zM112.1 282.4L276.4 358.3C304.1 371.1 336 371.1 363.7 358.3L528 282.4L562.1 298.2C570.6 302.1 576 310.6 576 320C576 329.4 570.6 337.9 562.1 341.8L343.5 442.8C328.6 449.7 311.4 449.7 296.5 442.8L77.9 341.8C69.4 337.8 64 329.3 64 320C64 310.7 69.4 302.1 77.9 298.2L112 282.4zM77.9 426.2L112 410.4L276.3 486.3C304 499.1 335.9 499.1 363.6 486.3L527.9 410.4L562 426.2C570.5 430.1 575.9 438.6 575.9 448C575.9 457.4 570.5 465.9 562 469.8L343.4 570.8C328.5 577.7 311.3 577.7 296.4 570.8L77.9 469.8C69.4 465.8 64 457.3 64 448C64 438.7 69.4 430.1 77.9 426.2z"
+              />
+            </svg>
           </div>
           <div class="card-title">ConsumptionLog</div>
           <div class="card-description">
