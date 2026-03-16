@@ -109,11 +109,10 @@ function restoreFiltersFromSession(state) {
 
 // Fetch filter metadata (process areas and shifts)
 async function fetchFilterMetadata() {
-  const res = await fetch(`${API_ROUTE}/api/production-orders/filters`);
+  const res = await fetch(`${API_ROUTE}/api/production-orders/filters-v2`);
   if (!res.ok) return;
 
   const data = await res.json();
-  console.log("Filter metadata:", data);
   allProcessAreas = data.processAreas || [];
   allShifts = data.shifts || [];
   allProductionOrderNumbers = data.productionOrderNumbers || [];
@@ -130,8 +129,8 @@ function populateStatusOptions() {
 
   // Danh sách trạng thái cố định
   const statusList = [
-    { value: "Đang chạy", label: "Đang chạy" },
-    { value: "Đang chờ", label: "Đang chờ" },
+    { value: "Binh thuong", label: "Bình thường" },
+    { value: "Đã hủy", label: "Đã hủy" },
   ];
 
   optionsContainer.innerHTML = "";
@@ -379,9 +378,9 @@ function getStatusText(status) {
   if (typeof status === "number") {
     switch (status) {
       case 1:
-        return "Đang chạy";
+        return "Bình thường";
       default:
-        return "Đang chờ";
+        return "Đã hủy";
     }
   }
   return String(status);
@@ -459,6 +458,11 @@ function renderGridView() {
             <div class="grid-section">
               <div class="grid-section-label">LÔ SX</div>
               <div class="grid-section-value">${order.LotNumber || "0 / 0"}</div>
+            </div>
+
+            <div class="grid-section">
+              <div class="grid-section-label">Tổng số batch</div>
+              <div class="grid-section-value">${order.batches.length || 0} batch${order.batches.length !== 1 ? "es" : ""}</div>
             </div>
 
             <div class="grid-section">
@@ -549,6 +553,9 @@ function renderProductionTable() {
           ${formatDate(order.PlannedStart) || "N/A"}
         </div>
         ${order.Quantity || 0} ${order.UnitOfMeasurement || ""}
+      </td>
+      <td style="text-align: center">
+        ${order.batches.length || 0} batch${order.batches.length !== 1 ? "es" : ""}
       </td>
       <td style="text-align: center">
         <span class="status-badge status-${getStatusType(
@@ -681,8 +688,8 @@ async function fetchStats() {
     selectedShifts.length > 0 ||
     poText;
   const endpoint = hasFilters
-    ? "/api/production-orders/stats/search"
-    : "/api/production-orders/stats";
+    ? "/api/production-orders/stats-v2/search"
+    : "/api/production-orders/stats-v2";
 
   try {
     // Build query params from filters
@@ -1226,8 +1233,8 @@ async function fetchProductionOrders(page = 1) {
       selectedShifts.length > 0 ||
       poText;
     const endpoint = hasFilters
-      ? "/api/production-orders/search"
-      : "/api/production-orders";
+      ? "/api/production-orders/search-v2"
+      : "/api/production-orders/v2";
 
     // Build query parameters
     const params = new URLSearchParams({
@@ -1271,6 +1278,7 @@ async function fetchProductionOrders(page = 1) {
 
     if (response.ok) {
       const data = await response.json();
+      console.log("Fetched production orders:", data);
       productionOrders = data.data.map((po) => new ProductionOrder(po));
       totalRecords = data.total;
       totalPages = data.totalPages || Math.ceil(totalRecords / pageSize);
@@ -1448,7 +1456,38 @@ function viewOrder(orderNumber) {
   document.getElementById("viewStatus").textContent =
     getStatusText(order.Status) || "-";
   document.getElementById("viewPlant").textContent = order.Plant || "-";
+  document.getElementById("viewProcessArea").textContent =
+    order.ProcessArea || "-";
   document.getElementById("viewShopfloor").textContent = order.Shopfloor || "-";
+
+  // Render batches table
+  const batchesBody = document.getElementById("viewBatchesBody");
+  if (batchesBody) {
+    const batches = Array.isArray(order.batches) ? order.batches : [];
+
+    if (batches.length === 0) {
+      batchesBody.innerHTML = `
+        <tr>
+          <td colspan="2" style="text-align: center; color: #999; padding: 8px 0;">
+            Không có batch
+          </td>
+        </tr>
+      `;
+    } else {
+      batchesBody.innerHTML = batches
+        .map(
+          (b) => `
+          <tr>
+            <td style="text-align: center;">${b.BatchNumber ?? "-"}</td>
+            <td style="text-align: center;">${b.Quantity ?? "-"}</td>
+            <td style="text-align: center;">${b.UnitOfMeasurement ?? "-"}</td>
+            <td style="text-align: center;">${b.Status ?? "-"}</td>
+          </tr>
+        `,
+        )
+        .join("");
+    }
+  }
 
   openModal("viewModal");
 }

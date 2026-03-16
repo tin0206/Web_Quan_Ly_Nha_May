@@ -243,7 +243,6 @@
             style="
               padding-left: 20px;
               display: flex;
-              flex-wrap: wrap;
               gap: 10px;
               align-items: center;
             "
@@ -587,6 +586,7 @@
               <th>Process Area</th>
               <th>Shift</th>
               <th style="text-align: center">Ngày Bắt Đầu / Số Lượng</th>
+              <th style="text-align: center">Tiến độ</th>
               <th style="text-align: center">Trạng Thái</th>
               <th style="text-align: center">Thao Tác</th>
             </tr>
@@ -683,12 +683,24 @@
               <p id="viewShift">-</p>
             </div>
             <div class="modal-field">
+              <label>Batch hiện tại</label>
+              <p id="viewCurrentBatch">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Tiến độ</label>
+              <p id="viewProgress">-</p>
+            </div>
+            <div class="modal-field">
               <label>Trạng thái</label>
               <p id="viewStatus">-</p>
             </div>
             <div class="modal-field">
-              <label>Process Area</label>
+              <label>Plant</label>
               <p id="viewPlant">-</p>
+            </div>
+            <div class="modal-field">
+              <label>Process Area</label>
+              <p id="viewProcessArea">-</p>
             </div>
             <div class="modal-field">
               <label>Shop Floor</label>
