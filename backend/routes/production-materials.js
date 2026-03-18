@@ -10,9 +10,11 @@ router.get("/", async (req, res) => {
     const offset = (page - 1) * pageSize;
 
     const query = `
-      SELECT *
-      FROM MESMaterialConsumption
-      ORDER BY datetime DESC
+      SELECT mmc.*, po.Shift AS shift
+      FROM MESMaterialConsumption mmc
+      LEFT JOIN ProductionOrders po
+        ON mmc.productionOrderNumber = po.ProductionOrderNumber
+      ORDER BY mmc.datetime DESC
       OFFSET ${offset} ROWS FETCH NEXT ${pageSize} ROWS ONLY;
     `;
 
@@ -281,10 +283,12 @@ router.get("/search", async (req, res) => {
     const whereClause = buildSearchWhere(req, request);
 
     const query = `
-      SELECT *
-      FROM MESMaterialConsumption
+      SELECT mmc.*, po.Shift AS shift
+      FROM MESMaterialConsumption mmc
+      LEFT JOIN ProductionOrders po
+        ON mmc.productionOrderNumber = po.ProductionOrderNumber
       ${whereClause}
-      ORDER BY datetime DESC
+      ORDER BY mmc.datetime DESC
       OFFSET ${offset} ROWS FETCH NEXT ${pageSize} ROWS ONLY;
     `;
 

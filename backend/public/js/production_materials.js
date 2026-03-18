@@ -716,7 +716,6 @@ function renderTable(items) {
     renderGrid(items);
     return;
   }
-
   tbody.innerHTML = "";
   if (!items.length) return;
 
@@ -730,6 +729,7 @@ function renderTable(items) {
           <td>${r.quantity ?? "-"} ${r.unitOfMeasurement ?? ""}</td>
           <td style="text-align:center">${r.ingredientCode ?? "-"}</td>
           <td style="text-align:center">${r.lot || "-"}</td>
+          <td style="text-align:center">${r.shift || "-"}</td>
           <td style="text-align:center">${r.operator_ID ?? "-"}</td>
           <td style="text-align:center">${renderStatus(r.respone)}</td>
           <td>${formatDateTime(r.timestamp) ?? "-"}</td>
@@ -782,6 +782,7 @@ function renderGrid(items) {
             <div><b>Batch:</b> ${r.batchCode ?? "-"}</div>
             <div><b>Ingredient Code:</b> ${r.ingredientCode ?? "-"}</div>
             <div><b>Lot:</b> ${r.lot || "-"}</div>
+            <div><b>Shift:</b> ${r.shift || "-"}</div>
             <div><b>Qty:</b> ${qty}</div>
             <div><b>Operator:</b> ${r.operator_ID ?? "-"}</div>
             <div><b>Time:</b> ${formatDateTime(r.timestamp) ?? "-"}</div>
