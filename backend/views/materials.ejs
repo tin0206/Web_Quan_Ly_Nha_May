@@ -128,83 +128,30 @@
             "
           >
             <!-- PO filter -->
-            <label style="font-weight: 500; color: #666">Lệnh SX (PO):</label>
             <div
-              class="custom-multiselect"
-              style="position: relative; min-width: 300px"
+              style="
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                position: relative;
+              "
             >
-              <div
-                class="multiselect-input"
-                id="poInput"
-                style="
-                  padding: 8px 12px;
-                  border: 1px solid #ddd;
-                  border-radius: 4px;
-                  font-size: 14px;
-                  background: white;
-                  cursor: pointer;
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  min-height: 38px;
-                "
-              >
-                <span
-                  id="poSelectedText"
-                  class="selected-text"
-                  style="color: #999"
-                  >Select production orders...</span
-                >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </div>
-              <div
-                class="multiselect-dropdown"
-                id="poDropdown"
-                style="
-                  display: none;
-                  position: absolute;
-                  top: 100%;
-                  left: 0;
-                  right: 0;
-                  background: white;
-                  border: 1px solid #ddd;
-                  border-radius: 4px;
-                  margin-top: 4px;
-                  max-height: 250px;
-                  overflow-y: auto;
-                  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                  z-index: 1000;
-                "
-              >
-                <div style="padding: 8px; border-bottom: 1px solid #eee">
-                  <label
-                    style="
-                      display: flex;
-                      align-items: center;
-                      gap: 8px;
-                      cursor: pointer;
-                      font-weight: 500;
-                    "
-                  >
-                    <input
-                      type="checkbox"
-                      id="poSelectAll"
-                      style="cursor: pointer"
-                    />
-                    <span>[Select all]</span>
-                  </label>
-                </div>
-                <div id="poOptions" style="padding: 4px"></div>
+              <label style="font-weight: 500; color: #666">Lệnh SX (PO):</label>
+              <div style="position: relative; min-width: 300px">
+                <input
+                  type="text"
+                  id="poInput"
+                  list="poDatalist"
+                  placeholder="Nhập mã PO..."
+                  style="
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    min-width: 300px;
+                  "
+                />
+                <datalist id="poDatalist"></datalist>
               </div>
             </div>
 
@@ -218,83 +165,21 @@
               "
             >
               <label style="font-weight: 500; color: #666">Batch:</label>
-              <div
-                class="custom-multiselect"
-                style="position: relative; min-width: 220px"
-              >
-                <div
-                  class="multiselect-input"
+              <div style="position: relative; min-width: 220px">
+                <input
+                  type="text"
                   id="batchInput"
+                  list="batchDatalist"
+                  placeholder="Nhập batch code..."
                   style="
                     padding: 8px 12px;
                     border: 1px solid #ddd;
                     border-radius: 4px;
                     font-size: 14px;
-                    background: white;
-                    cursor: pointer;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    min-height: 38px;
+                    min-width: 220px;
                   "
-                >
-                  <span
-                    id="batchSelectedText"
-                    class="selected-text"
-                    style="color: #999"
-                    >Select batches...</span
-                  >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                </div>
-                <div
-                  class="multiselect-dropdown"
-                  id="batchDropdown"
-                  style="
-                    display: none;
-                    position: absolute;
-                    top: 100%;
-                    left: 0;
-                    right: 0;
-                    background: white;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    margin-top: 4px;
-                    max-height: 250px;
-                    overflow-y: auto;
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                    z-index: 1000;
-                  "
-                >
-                  <div style="padding: 8px; border-bottom: 1px solid #eee">
-                    <label
-                      style="
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                        cursor: pointer;
-                        font-weight: 500;
-                      "
-                    >
-                      <input
-                        type="checkbox"
-                        id="batchSelectAll"
-                        style="cursor: pointer"
-                      />
-                      <span>[Select all]</span>
-                    </label>
-                  </div>
-                  <div id="batchOptions" style="padding: 4px"></div>
-                </div>
+                />
+                <datalist id="batchDatalist"></datalist>
               </div>
             </div>
 
@@ -310,83 +195,21 @@
               <label style="font-weight: 500; color: #666"
                 >Ingredient Code:</label
               >
-              <div
-                class="custom-multiselect"
-                style="position: relative; min-width: 220px"
-              >
-                <div
-                  class="multiselect-input"
+              <div style="position: relative; min-width: 220px">
+                <input
+                  type="text"
                   id="ingredientInput"
+                  list="ingredientDatalist"
+                  placeholder="Nhập ingredient code..."
                   style="
                     padding: 8px 12px;
                     border: 1px solid #ddd;
                     border-radius: 4px;
                     font-size: 14px;
-                    background: white;
-                    cursor: pointer;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    min-height: 38px;
+                    min-width: 220px;
                   "
-                >
-                  <span
-                    id="ingredientSelectedText"
-                    class="selected-text"
-                    style="color: #999"
-                    >Select ingredients...</span
-                  >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                </div>
-                <div
-                  class="multiselect-dropdown"
-                  id="ingredientDropdown"
-                  style="
-                    display: none;
-                    position: absolute;
-                    top: 100%;
-                    left: 0;
-                    right: 0;
-                    background: white;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    margin-top: 4px;
-                    max-height: 250px;
-                    overflow-y: auto;
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                    z-index: 1000;
-                  "
-                >
-                  <div style="padding: 8px; border-bottom: 1px solid #eee">
-                    <label
-                      style="
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                        cursor: pointer;
-                        font-weight: 500;
-                      "
-                    >
-                      <input
-                        type="checkbox"
-                        id="ingredientSelectAll"
-                        style="cursor: pointer"
-                      />
-                      <span>[Select all]</span>
-                    </label>
-                  </div>
-                  <div id="ingredientOptions" style="padding: 4px"></div>
-                </div>
+                />
+                <datalist id="ingredientDatalist"></datalist>
               </div>
             </div>
 

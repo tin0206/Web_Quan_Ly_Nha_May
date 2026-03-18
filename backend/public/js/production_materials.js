@@ -60,25 +60,10 @@ function restoreSessionState() {
         const el = $("materialsDateTo");
         if (el) el.value = f.toDate;
       }
-      // Update selected text placeholders immediately
-      updateSelectedText(
-        state.pos,
-        "poSelectedText",
-        "Select production orders...",
-        1,
-      );
-      updateSelectedText(
-        state.batches,
-        "batchSelectedText",
-        "Select batches...",
-        6,
-      );
-      updateSelectedText(
-        state.ingredients,
-        "ingredientSelectedText",
-        "Select ingredients...",
-        1,
-      );
+      // Reflect restored filters to visible inputs
+      syncInputFromSet("poInput", state.pos);
+      syncInputFromSet("batchInput", state.batches);
+      syncInputFromSet("ingredientInput", state.ingredients);
       updateSelectedText(
         state.results,
         "resultSelectedText",
@@ -221,6 +206,78 @@ function renderOptions({
   updateSelectedText(selectedSet, selectedTextId, emptyText, displayLimit);
 }
 
+function parseInputValues(value) {
+  return String(value || "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
+function syncInputFromSet(inputId, selectedSet) {
+  const input = $(inputId);
+  if (!input) return;
+  input.value = Array.from(selectedSet).join(", ");
+}
+
+function renderDatalistOptions(datalistId, values, keyword = "") {
+  const datalist = $(datalistId);
+  if (!datalist) return;
+
+  const search = String(keyword || "")
+    .trim()
+    .toLowerCase();
+  const filtered = values
+    .filter((v) => String(v).toLowerCase().includes(search))
+    .slice(0, 120);
+
+  datalist.innerHTML = filtered
+    .map(
+      (v) => `<option value="${String(v).replace(/"/g, "&quot;")}"></option>`,
+    )
+    .join("");
+}
+
+function bindSearchableInput({
+  inputId,
+  datalistId,
+  selectedSet,
+  getValues,
+  onCommit,
+}) {
+  const input = $(inputId);
+  if (!input) return;
+
+  const commit = async () => {
+    const values = parseInputValues(input.value);
+    selectedSet.clear();
+    values.forEach((v) => selectedSet.add(v));
+    syncInputFromSet(inputId, selectedSet);
+    saveSessionFilters();
+    if (typeof onCommit === "function") await onCommit();
+    renderDatalistOptions(datalistId, getValues(), input.value);
+  };
+
+  input.addEventListener("focus", () => {
+    renderDatalistOptions(datalistId, getValues(), input.value);
+  });
+
+  input.addEventListener("input", () => {
+    renderDatalistOptions(datalistId, getValues(), input.value);
+  });
+
+  input.addEventListener("change", () => {
+    Promise.resolve(commit()).catch(() => {});
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      Promise.resolve(commit()).catch(() => {});
+      input.blur();
+    }
+  });
+}
+
 async function loadPOs() {
   const data = await fetchJSON(
     `${API_ROUTE}/api/production-materials/production-orders`,
@@ -231,36 +288,12 @@ async function loadPOs() {
       ? "NULL"
       : (r.productionOrderNumber ?? "NULL"),
   );
-  renderOptions({
-    containerId: "poOptions",
-    selectAllId: "poSelectAll",
-    selectedSet: state.pos,
-    items: productionOrders,
-    valueKey: "productionOrderNumber",
-    selectedTextId: "poSelectedText",
-    emptyText: "Select production orders...",
-    displayLimit: 1,
-    onChange: async () => {
-      // Reset dependent selections
-      state.batches.clear();
-      state.ingredients.clear();
-      updateSelectedText(
-        state.batches,
-        "batchSelectedText",
-        "Select batches...",
-        6,
-      );
-      updateSelectedText(
-        state.ingredients,
-        "ingredientSelectedText",
-        "Select ingredients...",
-        1,
-      );
-      await loadBatches();
-      await loadIngredients();
-      await queryAndRender(1);
-    },
-  });
+  syncInputFromSet("poInput", state.pos);
+  renderDatalistOptions(
+    "poDatalist",
+    productionOrders,
+    $("poInput")?.value || "",
+  );
 }
 
 async function loadBatches() {
@@ -296,28 +329,12 @@ async function loadBatches() {
   }
 
   batchCodes = items.map((r) => r.batchCode ?? "NULL");
-
-  renderOptions({
-    containerId: "batchOptions",
-    selectAllId: "batchSelectAll",
-    selectedSet: state.batches,
-    items: batchCodes,
-    valueKey: "batchCode",
-    selectedTextId: "batchSelectedText",
-    emptyText: "Select batches...",
-    displayLimit: 6,
-    onChange: async () => {
-      state.ingredients.clear();
-      updateSelectedText(
-        state.ingredients,
-        "ingredientSelectedText",
-        "Select ingredients...",
-        1,
-      );
-      await loadIngredients();
-      await queryAndRender(1);
-    },
-  });
+  syncInputFromSet("batchInput", state.batches);
+  renderDatalistOptions(
+    "batchDatalist",
+    batchCodes,
+    $("batchInput")?.value || "",
+  );
 }
 
 async function loadIngredients() {
@@ -358,20 +375,12 @@ async function loadIngredients() {
   }
 
   ingredientCodes = items.map((r) => r.ingredientCode ?? "NULL");
-
-  renderOptions({
-    containerId: "ingredientOptions",
-    selectAllId: "ingredientSelectAll",
-    selectedSet: state.ingredients,
-    items: ingredientCodes,
-    valueKey: "ingredientCode",
-    selectedTextId: "ingredientSelectedText",
-    emptyText: "Select ingredients...",
-    displayLimit: 1,
-    onChange: async () => {
-      await queryAndRender(1);
-    },
-  });
+  syncInputFromSet("ingredientInput", state.ingredients);
+  renderDatalistOptions(
+    "ingredientDatalist",
+    ingredientCodes,
+    $("ingredientInput")?.value || "",
+  );
 }
 
 function loadStatuses() {
@@ -392,11 +401,48 @@ function loadStatuses() {
 }
 
 function wireInteractions() {
-  // Toggle dropdowns
-  toggleDropdown("poInput", "poDropdown");
-  toggleDropdown("batchInput", "batchDropdown");
-  toggleDropdown("ingredientInput", "ingredientDropdown");
+  // Keep result filter as multiselect dropdown
   toggleDropdown("resultInput", "resultDropdown");
+
+  // Bind text-based contains search filters
+  bindSearchableInput({
+    inputId: "poInput",
+    datalistId: "poDatalist",
+    selectedSet: state.pos,
+    getValues: () => productionOrders,
+    onCommit: async () => {
+      state.batches.clear();
+      state.ingredients.clear();
+      syncInputFromSet("batchInput", state.batches);
+      syncInputFromSet("ingredientInput", state.ingredients);
+      await loadBatches();
+      await loadIngredients();
+      await queryAndRender(1);
+    },
+  });
+
+  bindSearchableInput({
+    inputId: "batchInput",
+    datalistId: "batchDatalist",
+    selectedSet: state.batches,
+    getValues: () => batchCodes,
+    onCommit: async () => {
+      state.ingredients.clear();
+      syncInputFromSet("ingredientInput", state.ingredients);
+      await loadIngredients();
+      await queryAndRender(1);
+    },
+  });
+
+  bindSearchableInput({
+    inputId: "ingredientInput",
+    datalistId: "ingredientDatalist",
+    selectedSet: state.ingredients,
+    getValues: () => ingredientCodes,
+    onCommit: async () => {
+      await queryAndRender(1);
+    },
+  });
 
   // Reload search when result/status changes
   const resultSelectedText = $("resultSelectedText");
@@ -448,33 +494,24 @@ function wireInteractions() {
       if (fromDate) fromDate.value = todayStr;
       if (toDate) toDate.value = todayStr;
 
-      // Reset selected-text placeholders and tooltips
-      const poSelected = $("poSelectedText");
-      if (poSelected) {
-        poSelected.textContent = "Chọn Production Order";
-        poSelected.title = "";
-      }
-      const batchSelected = $("batchSelectedText");
-      if (batchSelected) {
-        batchSelected.textContent = "Chọn Batch Code";
-        batchSelected.title = "";
-      }
-      const ingSelected = $("ingredientSelectedText");
-      if (ingSelected) {
-        ingSelected.textContent = "Chọn Ingredient Code";
-        ingSelected.title = "";
-      }
+      // Reset input filters
+      const poInput = $("poInput");
+      if (poInput) poInput.value = "";
+      const batchInput = $("batchInput");
+      if (batchInput) batchInput.value = "";
+      const ingredientInput = $("ingredientInput");
+      if (ingredientInput) ingredientInput.value = "";
+
+      // Reset result selected text
       const resSelected = $("resultSelectedText");
       if (resSelected) {
         resSelected.textContent = "Chọn Trạng thái";
         resSelected.title = "";
       }
 
-      // Uncheck all checkboxes in dropdowns
+      // Uncheck all checkboxes in result dropdown
       document
-        .querySelectorAll(
-          "#poDropdown input[type=checkbox], #batchDropdown input[type=checkbox], #ingredientDropdown input[type=checkbox], #resultDropdown input[type=checkbox]",
-        )
+        .querySelectorAll("#resultDropdown input[type=checkbox]")
         .forEach((cb) => (cb.checked = false));
 
       // Reload cascades so dependent options are repopulated
