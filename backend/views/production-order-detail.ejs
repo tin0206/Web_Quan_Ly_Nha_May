@@ -6,6 +6,10 @@
     <title>Chi tiết Production Order #<%= orderId %></title>
     <link rel="stylesheet" href="/css/main_style.css" />
     <link rel="stylesheet" href="/css/po_detail_style.css" />
+    <script>
+      window.PLANTCODE = "<%= process.env.PLANTCODE %>";
+      window.LINE = "<%= process.env.LINE %>";
+    </script>
     <script type="module" src="/js/production_order_detail.js" defer></script>
   </head>
   <body>

@@ -44,17 +44,13 @@ async function fetchOrderDetail() {
       document.getElementById("detailPlannedEnd").textContent =
         formatDate(order.PlannedEnd) || "-";
       document.getElementById("detailShift").textContent = order.Shift || "-";
-      // Calculate progress like modal view: (CurrentBatch / TotalBatches) * 100
-      const progress = Math.round(
-        ((parseInt(order.CurrentBatch) || 0) /
-          (parseInt(order.TotalBatches) || 1)) *
-          100,
-      );
       document.getElementById("detailStatus").textContent =
         getStatusText(order.Status) || "-";
-      document.getElementById("detailPlant").textContent = order.Plant || "-";
+      console.log(window.PLANTCODE, window.LINE);
+      document.getElementById("detailPlant").textContent =
+        window.PLANTCODE || "-";
       document.getElementById("detailShopfloor").textContent =
-        order.Shopfloor || "-";
+        window.LINE || "-";
       document.getElementById("detailProcessArea").textContent =
         order.ProcessArea || "-";
 
