@@ -262,6 +262,17 @@ function buildSearchWhere(req, request) {
     }
   }
 
+  // Shift (CSV) — joined from ProductionOrders
+  if (req.query.shift) {
+    const values = normalizeQueryValues(req.query.shift);
+    const realValues = values.filter((v) => v && v !== "NULL");
+    if (realValues.length) {
+      const placeholders = realValues.map((_, i) => `@shift${i}`);
+      realValues.forEach((v, i) => request.input(`shift${i}`, sql.NVarChar, v));
+      where.push(`po.Shift IN (${placeholders.join(",")})`);
+    }
+  }
+
   // Date range — column name: datetime
   const fromDateRaw = req.query.fromDate
     ? String(req.query.fromDate).trim()
@@ -352,7 +363,9 @@ router.get("/stats/search", async (req, res) => {
     const whereClause = buildSearchWhere(req, request);
     const query = `
       SELECT COUNT(*) AS total
-      FROM MESMaterialConsumption
+      FROM MESMaterialConsumption mmc
+      LEFT JOIN ProductionOrders po
+        ON mmc.productionOrderNumber = po.ProductionOrderNumber
       ${whereClause};
     `;
     const result = await request.query(query);

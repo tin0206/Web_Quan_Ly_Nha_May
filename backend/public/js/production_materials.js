@@ -5,12 +5,14 @@ let productionOrders = [];
 let batchCodes = [];
 let ingredientCodes = [];
 let results = ["Success", "Failed"];
+let shifts = [];
 
 const state = {
   pos: new Set(),
   batches: new Set(),
   ingredients: new Set(),
   results: new Set(),
+  shifts: new Set(),
 };
 
 // Session storage keys
@@ -26,6 +28,7 @@ function saveSessionFilters() {
       batches: Array.from(state.batches),
       ingredients: Array.from(state.ingredients),
       results: Array.from(state.results),
+      shifts: Array.from(state.shifts),
       fromDate,
       toDate,
     };
@@ -52,6 +55,7 @@ function restoreSessionState() {
         f.ingredients.forEach((v) => state.ingredients.add(v));
       if (Array.isArray(f.results))
         f.results.forEach((v) => state.results.add(v));
+      if (Array.isArray(f.shifts)) f.shifts.forEach((v) => state.shifts.add(v));
       if (f.fromDate) {
         const el = $("materialsDateFrom");
         if (el) el.value = f.fromDate;
@@ -69,6 +73,7 @@ function restoreSessionState() {
         "resultSelectedText",
         "Select results...",
       );
+      updateSelectedText(state.shifts, "shiftSelectedText", "Select shifts...");
     }
     const pageRaw = sessionStorage.getItem(STORAGE_PAGE_KEY);
     if (pageRaw) {
@@ -149,12 +154,8 @@ function renderOptions({
 
   // Build options
   items.forEach((item) => {
-    let value;
-    if (containerId === "resultOptions") {
-      value = item[valueKey];
-    } else {
-      value = item;
-    }
+    const value =
+      item && typeof item === "object" && valueKey ? item[valueKey] : item;
     const label = document.createElement("label");
     label.style.display = "flex";
     label.style.alignItems = "center";
@@ -400,7 +401,29 @@ function loadStatuses() {
     valueKey: "result",
     selectedTextId: "resultSelectedText",
     emptyText: "Select results...",
-    // no displayLimit for results
+    onChange: async () => {
+      await queryAndRender(1);
+    },
+  });
+}
+
+async function loadShifts() {
+  try {
+    const data = await fetchJSON(
+      `${API_ROUTE}/api/production-materials/shifts`,
+    );
+    shifts = (data.data || []).map((r) => r.shift).filter(Boolean);
+  } catch (_) {
+    shifts = [];
+  }
+  renderOptions({
+    containerId: "shiftOptions",
+    selectAllId: "shiftSelectAll",
+    selectedSet: state.shifts,
+    items: shifts.map((s) => ({ shift: s })),
+    valueKey: "shift",
+    selectedTextId: "shiftSelectedText",
+    emptyText: "Select shifts...",
     onChange: async () => {
       await queryAndRender(1);
     },
@@ -408,8 +431,9 @@ function loadStatuses() {
 }
 
 function wireInteractions() {
-  // Keep result filter as multiselect dropdown
+  // Keep result and shift filters as multiselect dropdowns
   toggleDropdown("resultInput", "resultDropdown");
+  toggleDropdown("shiftInput", "shiftDropdown");
 
   // Bind text-based contains search filters
   bindSearchableInput({
@@ -460,6 +484,15 @@ function wireInteractions() {
     observerResult.observe(resultSelectedText, { childList: true });
   }
 
+  // Reload search when shift changes
+  const shiftSelectedText = $("shiftSelectedText");
+  const observerShift = new MutationObserver(async () => {
+    await queryAndRender(1);
+  });
+  if (shiftSelectedText) {
+    observerShift.observe(shiftSelectedText, { childList: true });
+  }
+
   // Date inputs trigger search
   const fromEl = $("materialsDateFrom");
   const toEl = $("materialsDateTo");
@@ -495,6 +528,7 @@ function wireInteractions() {
       state.batches.clear();
       state.ingredients.clear();
       state.results.clear();
+      state.shifts.clear();
       const fromDate = $("materialsDateFrom");
       const toDate = $("materialsDateTo");
       // Reset to default: current day
@@ -521,11 +555,24 @@ function wireInteractions() {
         .querySelectorAll("#resultDropdown input[type=checkbox]")
         .forEach((cb) => (cb.checked = false));
 
+      // Reset shift selected text
+      const shiftSelected = $("shiftSelectedText");
+      if (shiftSelected) {
+        shiftSelected.textContent = "Select shifts...";
+        shiftSelected.title = "";
+      }
+
+      // Uncheck all checkboxes in shift dropdown
+      document
+        .querySelectorAll("#shiftDropdown input[type=checkbox]")
+        .forEach((cb) => (cb.checked = false));
+
       // Reload cascades so dependent options are repopulated
       loadPOs();
       loadBatches();
       loadIngredients();
       loadStatuses();
+      loadShifts();
       // Preserve current view (grid or table) on refresh
       // Do not force table; keep whatever the user selected
 
@@ -554,6 +601,7 @@ async function init() {
     restoreSessionState();
     wireInteractions();
     loadStatuses();
+    loadShifts();
     await loadPOs();
     await loadBatches();
     await loadIngredients();
@@ -603,6 +651,7 @@ function getFilters() {
   if (state.ingredients.size)
     params.set("ingredientCode", getCSV(state.ingredients));
   if (state.results.size) params.set("respone", getCSV(state.results));
+  if (state.shifts.size) params.set("shift", getCSV(state.shifts));
   if (fromDate) params.set("fromDate", fromDate);
   if (toDate) params.set("toDate", toDate);
   return params;
@@ -627,6 +676,7 @@ async function fetchTotal() {
     params.has("batchCode") ||
     params.has("ingredientCode") ||
     params.has("respone") ||
+    params.has("shift") ||
     params.has("fromDate") ||
     params.has("toDate");
   const base = hasFilters
