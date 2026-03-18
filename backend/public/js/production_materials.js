@@ -247,6 +247,8 @@ function bindSearchableInput({
   const input = $(inputId);
   if (!input) return;
 
+  let debounceTimer = null;
+
   const commit = async () => {
     const values = parseInputValues(input.value);
     selectedSet.clear();
@@ -257,21 +259,26 @@ function bindSearchableInput({
     renderDatalistOptions(datalistId, getValues(), input.value);
   };
 
+  const debouncedCommit = () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      Promise.resolve(commit()).catch(() => {});
+    }, 350);
+  };
+
   input.addEventListener("focus", () => {
     renderDatalistOptions(datalistId, getValues(), input.value);
   });
 
   input.addEventListener("input", () => {
     renderDatalistOptions(datalistId, getValues(), input.value);
-  });
-
-  input.addEventListener("change", () => {
-    Promise.resolve(commit()).catch(() => {});
+    debouncedCommit();
   });
 
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
+      clearTimeout(debounceTimer);
       Promise.resolve(commit()).catch(() => {});
       input.blur();
     }

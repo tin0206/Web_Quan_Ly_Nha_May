@@ -124,6 +124,27 @@ router.get("/ingredients", async (req, res) => {
   }
 });
 
+// 4) Distinct Shifts
+router.get("/shifts", async (req, res) => {
+  try {
+    const result = await getPool().request().query(`
+        SELECT DISTINCT Shift
+        FROM ProductionOrders
+        WHERE Shift IS NOT NULL AND LTRIM(RTRIM(Shift)) <> ''
+        ORDER BY Shift ASC
+    `);
+
+    res.json({
+      success: true,
+      message: "Success",
+      data: result.recordset.map((r) => ({ shift: r.Shift })),
+    });
+  } catch (error) {
+    console.error("❌ Lỗi lấy danh sách shifts:", error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 function normalizeQueryValues(q) {
   if (!q) return [];
 
@@ -158,9 +179,13 @@ function buildSearchWhere(req, request) {
     }
 
     if (realValues.length) {
-      const placeholders = realValues.map((_, i) => `@po${i}`);
-      realValues.forEach((v, i) => request.input(`po${i}`, sql.NVarChar, v));
-      conditions.push(`productionOrderNumber IN (${placeholders.join(",")})`);
+      const likeConds = realValues.map(
+        (_, i) => `productionOrderNumber LIKE @po${i}`,
+      );
+      realValues.forEach((v, i) =>
+        request.input(`po${i}`, sql.NVarChar, `%${v}%`),
+      );
+      conditions.push(`(${likeConds.join(" OR ")})`);
     }
 
     if (conditions.length) {
@@ -182,9 +207,11 @@ function buildSearchWhere(req, request) {
     }
 
     if (realValues.length) {
-      const placeholders = realValues.map((_, i) => `@bc${i}`);
-      realValues.forEach((v, i) => request.input(`bc${i}`, sql.NVarChar, v));
-      conditions.push(`batchCode IN (${placeholders.join(",")})`);
+      const likeConds = realValues.map((_, i) => `batchCode LIKE @bc${i}`);
+      realValues.forEach((v, i) =>
+        request.input(`bc${i}`, sql.NVarChar, `%${v}%`),
+      );
+      conditions.push(`(${likeConds.join(" OR ")})`);
     }
 
     if (conditions.length) {
@@ -206,9 +233,13 @@ function buildSearchWhere(req, request) {
     }
 
     if (realValues.length) {
-      const placeholders = realValues.map((_, i) => `@ing${i}`);
-      realValues.forEach((v, i) => request.input(`ing${i}`, sql.NVarChar, v));
-      conditions.push(`ingredientCode IN (${placeholders.join(",")})`);
+      const likeConds = realValues.map(
+        (_, i) => `ingredientCode LIKE @ing${i}`,
+      );
+      realValues.forEach((v, i) =>
+        request.input(`ing${i}`, sql.NVarChar, `%${v}%`),
+      );
+      conditions.push(`(${likeConds.join(" OR ")})`);
     }
 
     if (conditions.length) {
