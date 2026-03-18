@@ -73,17 +73,19 @@
             style="
               background: #fff;
               border-radius: 8px;
-              padding: 30px;
+              padding: 24px 30px;
               box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
               margin: 0 auto;
             "
           >
+            <!-- Always-visible summary row -->
             <div
               style="
                 display: grid;
-                grid-template-columns: 1fr 1fr 1fr 1fr;
+                grid-template-columns: 1fr 1fr 1fr auto;
                 gap: 20px;
                 text-align: left;
+                align-items: start;
               "
             >
               <div>
@@ -107,111 +109,218 @@
                 </p>
               </div>
               <div>
-                <label style="font-weight: bold; color: #666">Dây Chuyền</label>
-                <p
-                  style="margin: 5px 0; font-size: 16px"
-                  id="detailProductionLine"
-                >
-                  -
-                </p>
-              </div>
-              <div>
-                <label style="font-weight: bold; color: #666">Công Thức</label>
-                <div style="display: flex; align-items: center; gap: 8px">
-                  <p
-                    style="
-                      color: #5b4ce8;
-                      text-decoration: underline;
-                      cursor: pointer;
-                    "
-                    id="detailRecipeCode"
-                  >
-                    -
-                  </p>
-                </div>
-              </div>
-              <div>
-                <label style="font-weight: bold; color: #666"
-                  >Phiên Bản Công Thức</label
-                >
-                <div style="display: flex; align-items: center; gap: 8px">
-                  <p
-                    style="
-                      color: #5b4ce8;
-                      text-decoration: underline;
-                      cursor: pointer;
-                    "
-                    id="detailRecipeVersion"
-                  >
-                    -
-                  </p>
-                </div>
-              </div>
-              <div>
-                <label style="font-weight: bold; color: #666">Lô SX</label>
-                <p style="margin: 5px 0; font-size: 16px" id="detailLotNumber">
-                  -
-                </p>
-              </div>
-              <div>
-                <label style="font-weight: bold; color: #666">Số Lượng</label>
-                <p style="margin: 5px 0; font-size: 16px" id="detailQuantity">
-                  -
-                </p>
-              </div>
-              <div>
-                <label style="font-weight: bold; color: #666"
-                  >Ngày Bắt Đầu</label
-                >
-                <p
-                  style="margin: 5px 0; font-size: 16px"
-                  id="detailPlannedStart"
-                >
-                  -
-                </p>
-              </div>
-              <div>
-                <label style="font-weight: bold; color: #666"
-                  >Ngày Kết Thúc</label
-                >
-                <p style="margin: 5px 0; font-size: 16px" id="detailPlannedEnd">
-                  -
-                </p>
-              </div>
-              <div>
                 <label style="font-weight: bold; color: #666">Ca Làm</label>
                 <p style="margin: 5px 0; font-size: 16px" id="detailShift">-</p>
               </div>
-              <div>
-                <label style="font-weight: bold; color: #666">Trạng Thái</label>
-                <p style="margin: 5px 0; font-size: 16px" id="detailStatus">
-                  -
-                </p>
-              </div>
-              <div>
-                <label style="font-weight: bold; color: #666">Plant</label>
-                <p style="margin: 5px 0; font-size: 16px" id="detailPlant">-</p>
-              </div>
-              <div>
-                <label style="font-weight: bold; color: #666">Shop Floor</label>
-                <p style="margin: 5px 0; font-size: 16px" id="detailShopfloor">
-                  -
-                </p>
-              </div>
-              <div>
-                <label style="font-weight: bold; color: #666"
-                  >Process Area</label
+              <!-- Toggle expand button -->
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: flex-end;
+                  padding-top: 4px;
+                "
+              >
+                <button
+                  id="toggleOrderDetails"
+                  title="Mở rộng / Thu gọn"
+                  style="
+                    background: none;
+                    border: 1px solid #ddd;
+                    border-radius: 6px;
+                    padding: 6px 8px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #5b4ce8;
+                    transition:
+                      background 0.2s,
+                      border-color 0.2s;
+                  "
+                  onmouseover="
+                    this.style.background = '#f0eeff';
+                    this.style.borderColor = '#5b4ce8';
+                  "
+                  onmouseout="
+                    this.style.background = 'none';
+                    this.style.borderColor = '#ddd';
+                  "
                 >
-                <p
-                  style="margin: 5px 0; font-size: 16px"
-                  id="detailProcessArea"
-                >
-                  -
-                </p>
+                  <svg
+                    id="toggleOrderDetailsIcon"
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    style="transition: transform 0.25s ease"
+                  >
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Expandable extra fields -->
+            <div
+              id="orderDetailsExpanded"
+              style="
+                display: none;
+                margin-top: 20px;
+                padding-top: 20px;
+                border-top: 1px solid #eee;
+              "
+            >
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 1fr 1fr 1fr 1fr;
+                  gap: 20px;
+                  text-align: left;
+                "
+              >
+                <div>
+                  <label style="font-weight: bold; color: #666"
+                    >Dây Chuyền</label
+                  >
+                  <p
+                    style="margin: 5px 0; font-size: 16px"
+                    id="detailProductionLine"
+                  >
+                    -
+                  </p>
+                </div>
+                <div>
+                  <label style="font-weight: bold; color: #666"
+                    >Công Thức</label
+                  >
+                  <div style="display: flex; align-items: center; gap: 8px">
+                    <p
+                      style="
+                        color: #5b4ce8;
+                        text-decoration: underline;
+                        cursor: pointer;
+                        margin: 5px 0;
+                        font-size: 16px;
+                      "
+                      id="detailRecipeCode"
+                    >
+                      -
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <label style="font-weight: bold; color: #666"
+                    >Phiên Bản Công Thức</label
+                  >
+                  <div style="display: flex; align-items: center; gap: 8px">
+                    <p
+                      style="
+                        color: #5b4ce8;
+                        text-decoration: underline;
+                        cursor: pointer;
+                        margin: 5px 0;
+                        font-size: 16px;
+                      "
+                      id="detailRecipeVersion"
+                    >
+                      -
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <label style="font-weight: bold; color: #666">Lô SX</label>
+                  <p
+                    style="margin: 5px 0; font-size: 16px"
+                    id="detailLotNumber"
+                  >
+                    -
+                  </p>
+                </div>
+                <div>
+                  <label style="font-weight: bold; color: #666">Số Lượng</label>
+                  <p style="margin: 5px 0; font-size: 16px" id="detailQuantity">
+                    -
+                  </p>
+                </div>
+                <div>
+                  <label style="font-weight: bold; color: #666"
+                    >Ngày Bắt Đầu</label
+                  >
+                  <p
+                    style="margin: 5px 0; font-size: 16px"
+                    id="detailPlannedStart"
+                  >
+                    -
+                  </p>
+                </div>
+                <div>
+                  <label style="font-weight: bold; color: #666"
+                    >Ngày Kết Thúc</label
+                  >
+                  <p
+                    style="margin: 5px 0; font-size: 16px"
+                    id="detailPlannedEnd"
+                  >
+                    -
+                  </p>
+                </div>
+                <div>
+                  <label style="font-weight: bold; color: #666"
+                    >Trạng Thái</label
+                  >
+                  <p style="margin: 5px 0; font-size: 16px" id="detailStatus">
+                    -
+                  </p>
+                </div>
+                <div>
+                  <label style="font-weight: bold; color: #666">Plant</label>
+                  <p style="margin: 5px 0; font-size: 16px" id="detailPlant">
+                    -
+                  </p>
+                </div>
+                <div>
+                  <label style="font-weight: bold; color: #666"
+                    >Shop Floor</label
+                  >
+                  <p
+                    style="margin: 5px 0; font-size: 16px"
+                    id="detailShopfloor"
+                  >
+                    -
+                  </p>
+                </div>
+                <div>
+                  <label style="font-weight: bold; color: #666"
+                    >Process Area</label
+                  >
+                  <p
+                    style="margin: 5px 0; font-size: 16px"
+                    id="detailProcessArea"
+                  >
+                    -
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
+        <script>
+          document
+            .getElementById("toggleOrderDetails")
+            .addEventListener("click", function () {
+              const expanded = document.getElementById("orderDetailsExpanded");
+              const icon = document.getElementById("toggleOrderDetailsIcon");
+              const isOpen = expanded.style.display !== "none";
+              expanded.style.display = isOpen ? "none" : "block";
+              icon.style.transform = isOpen ? "rotate(0deg)" : "rotate(180deg)";
+            });
+        </script>
         <div
           id="tabsBar"
           style="
