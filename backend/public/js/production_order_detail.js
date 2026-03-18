@@ -194,7 +194,7 @@ tabMaterials.addEventListener("click", function () {
 let currentPage = 1;
 let materialsCurrentPage = 1;
 const batchesPerPage = 10;
-const materialsPerPage = 10;
+const materialsPerPage = 20;
 let materialsTotalPages = 1;
 let materialsTotalCount = 0;
 let materials_planned_batch = [];
