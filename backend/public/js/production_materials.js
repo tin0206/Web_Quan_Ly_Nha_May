@@ -287,8 +287,9 @@ function bindSearchableInput({
 }
 
 async function loadPOs() {
+  const dateQS = getDateParams();
   const data = await fetchJSON(
-    `${API_ROUTE}/api/production-materials/production-orders`,
+    `${API_ROUTE}/api/production-materials/production-orders${dateQS ? `?${dateQS}` : ""}`,
   );
   const items = data.data || [];
   productionOrders = items.map((r) =>
@@ -306,10 +307,11 @@ async function loadPOs() {
 
 async function loadBatches() {
   const pos = Array.from(state.pos);
+  const dateQS = getDateParams();
   let items = [];
   if (pos.length === 0) {
     const data = await fetchJSON(
-      `${API_ROUTE}/api/production-materials/batch-codes`,
+      `${API_ROUTE}/api/production-materials/batch-codes${dateQS ? `?${dateQS}` : ""}`,
     );
     items = data.data || [];
   } else {
@@ -317,10 +319,10 @@ async function loadBatches() {
     const seen = new Set();
     for (const po of pos) {
       try {
+        const qs = [`productionOrderNumber=${encodeURIComponent(po)}`];
+        if (dateQS) qs.push(dateQS);
         const data = await fetchJSON(
-          `${API_ROUTE}/api/production-materials/batch-codes?productionOrderNumber=${encodeURIComponent(
-            po,
-          )}`,
+          `${API_ROUTE}/api/production-materials/batch-codes?${qs.join("&")}`,
         );
         for (const r of data.data || []) {
           if (!seen.has(r.batchCode)) {
@@ -348,11 +350,12 @@ async function loadBatches() {
 async function loadIngredients() {
   const pos = Array.from(state.pos);
   const batches = Array.from(state.batches);
+  const dateQS = getDateParams();
   let items = [];
 
   if (pos.length === 0 && batches.length === 0) {
     const data = await fetchJSON(
-      `${API_ROUTE}/api/production-materials/ingredients`,
+      `${API_ROUTE}/api/production-materials/ingredients${dateQS ? `?${dateQS}` : ""}`,
     );
     items = data.data || [];
   } else {
@@ -364,6 +367,7 @@ async function loadIngredients() {
         const qs = [];
         if (po) qs.push(`productionOrderNumber=${encodeURIComponent(po)}`);
         if (bc) qs.push(`batchCode=${encodeURIComponent(bc)}`);
+        if (dateQS) qs.push(dateQS);
         const url = `${API_ROUTE}/api/production-materials/ingredients${qs.length ? `?${qs.join("&")}` : ""}`;
         try {
           const data = await fetchJSON(url);
@@ -409,8 +413,9 @@ function loadStatuses() {
 
 async function loadShifts() {
   try {
+    const dateQS = getDateParams();
     const data = await fetchJSON(
-      `${API_ROUTE}/api/production-materials/shifts`,
+      `${API_ROUTE}/api/production-materials/shifts${dateQS ? `?${dateQS}` : ""}`,
     );
     shifts = (data.data || []).map((r) => r.shift).filter(Boolean);
   } catch (_) {
@@ -511,8 +516,20 @@ function wireInteractions() {
   }
   [fromEl, toEl].forEach((el) => {
     if (el)
-      el.addEventListener("change", () => {
+      el.addEventListener("change", async () => {
+        // Reset dependent filters when date range changes
+        state.pos.clear();
+        state.batches.clear();
+        state.ingredients.clear();
+        syncInputFromSet("poInput", state.pos);
+        syncInputFromSet("batchInput", state.batches);
+        syncInputFromSet("ingredientInput", state.ingredients);
+
         saveSessionFilters();
+        await loadPOs();
+        await loadBatches();
+        await loadIngredients();
+        await loadShifts();
         queryAndRender(1);
       });
   });
@@ -637,6 +654,15 @@ function formatDate(dateString) {
 }
 
 // ------- Search + Table + Stats -------
+
+function getDateParams() {
+  const fromDate = $("materialsDateFrom")?.value || "";
+  const toDate = $("materialsDateTo")?.value || "";
+  const qs = [];
+  if (fromDate) qs.push(`fromDate=${encodeURIComponent(fromDate)}`);
+  if (toDate) qs.push(`toDate=${encodeURIComponent(toDate)}`);
+  return qs.join("&");
+}
 
 function getCSV(set) {
   return Array.from(set).join(",");

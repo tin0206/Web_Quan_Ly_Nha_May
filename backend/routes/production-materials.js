@@ -26,15 +26,61 @@ router.get("/", async (req, res) => {
   }
 });
 
+// Helper: apply fromDate/toDate filter to WHERE array
+function applyDateFilter(req, request, where, tableAlias) {
+  const col = tableAlias ? `${tableAlias}.datetime` : "datetime";
+  const fromDateRaw = req.query.fromDate
+    ? String(req.query.fromDate).trim()
+    : "";
+  const toDateRaw = req.query.toDate ? String(req.query.toDate).trim() : "";
+
+  function normalizeDateBoundary(str, boundary) {
+    if (!str) return null;
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(str);
+    try {
+      if (isDateOnly) {
+        return new Date(
+          str + (boundary === "start" ? "T00:00:00" : "T23:59:59.999"),
+        );
+      }
+      return new Date(str);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  const fromDate = normalizeDateBoundary(fromDateRaw, "start");
+  const toDate = normalizeDateBoundary(toDateRaw, "end");
+
+  if (fromDate && toDate) {
+    request.input("fromDate", sql.DateTime, fromDate);
+    request.input("toDate", sql.DateTime, toDate);
+    where.push(`${col} BETWEEN @fromDate AND @toDate`);
+  } else if (fromDate) {
+    request.input("fromDate", sql.DateTime, fromDate);
+    where.push(`${col} >= @fromDate`);
+  } else if (toDate) {
+    request.input("toDate", sql.DateTime, toDate);
+    where.push(`${col} <= @toDate`);
+  }
+}
+
 // 1) Distinct Production Order Numbers
 router.get("/production-orders", async (req, res) => {
   try {
-    const result = await getPool().request().query(`
+    const request = getPool().request();
+    const where = [];
+    applyDateFilter(req, request, where);
+    const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+    const query = `
         SELECT DISTINCT productionOrderNumber
         FROM MESMaterialConsumption
+        ${whereClause}
         ORDER BY productionOrderNumber ASC
-    `);
+    `;
 
+    const result = await request.query(query);
     res.json({
       success: true,
       message: "Success",
@@ -61,11 +107,14 @@ router.get("/batch-codes", async (req, res) => {
       where.push("productionOrderNumber = @po");
     }
 
+    applyDateFilter(req, request, where);
+
     const query = `
         SELECT batchCode
         FROM (
-        SELECT DISTINCT batchCode
-        FROM MESMaterialConsumption
+            SELECT DISTINCT batchCode
+            FROM MESMaterialConsumption
+            WHERE ${where.join(" AND ")}
         ) t
         ORDER BY CAST(batchCode AS INT) ASC;
     `;
@@ -104,6 +153,8 @@ router.get("/ingredients", async (req, res) => {
       where.push("batchCode = @bc");
     }
 
+    applyDateFilter(req, request, where);
+
     const query = `
         SELECT DISTINCT ingredientCode
         FROM MESMaterialConsumption
@@ -127,12 +178,31 @@ router.get("/ingredients", async (req, res) => {
 // 4) Distinct Shifts
 router.get("/shifts", async (req, res) => {
   try {
-    const result = await getPool().request().query(`
-        SELECT DISTINCT Shift
-        FROM ProductionOrders
-        WHERE Shift IS NOT NULL AND LTRIM(RTRIM(Shift)) <> ''
-        ORDER BY Shift ASC
-    `);
+    const request = getPool().request();
+    const dateWhere = [];
+    applyDateFilter(req, request, dateWhere, "mmc");
+
+    let query;
+    if (dateWhere.length) {
+      query = `
+          SELECT DISTINCT po.Shift
+          FROM ProductionOrders po
+          INNER JOIN MESMaterialConsumption mmc
+            ON po.ProductionOrderNumber = mmc.productionOrderNumber
+          WHERE po.Shift IS NOT NULL AND LTRIM(RTRIM(po.Shift)) <> ''
+            AND ${dateWhere.join(" AND ")}
+          ORDER BY po.Shift ASC
+      `;
+    } else {
+      query = `
+          SELECT DISTINCT Shift
+          FROM ProductionOrders
+          WHERE Shift IS NOT NULL AND LTRIM(RTRIM(Shift)) <> ''
+          ORDER BY Shift ASC
+      `;
+    }
+
+    const result = await request.query(query);
 
     res.json({
       success: true,
