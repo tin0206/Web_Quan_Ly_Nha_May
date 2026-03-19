@@ -5,9 +5,25 @@ const { getPool, sql } = require("../db");
 router.get("/filters", async (req, res) => {
   try {
     const pool = getPool();
-    const result = await pool.request().query(`
-      SELECT DISTINCT ProcessArea FROM ProductionOrders WHERE ProcessArea IS NOT NULL AND LTRIM(RTRIM(ProcessArea)) <> '';
-      SELECT DISTINCT Shift FROM ProductionOrders WHERE Shift IS NOT NULL AND LTRIM(RTRIM(Shift)) <> '';
+    const { dateFrom = "", dateTo = "" } = req.query;
+
+    const request = pool.request();
+    const where = [];
+
+    if (dateFrom) {
+      request.input("dateFrom", sql.DateTime2, new Date(dateFrom));
+      where.push(`PlannedStart >= @dateFrom`);
+    }
+    if (dateTo) {
+      request.input("dateTo", sql.DateTime2, new Date(dateTo));
+      where.push(`PlannedStart < DATEADD(day, 1, @dateTo)`);
+    }
+
+    const whereClause = where.length ? `AND ${where.join(" AND ")}` : "";
+
+    const result = await request.query(`
+      SELECT DISTINCT ProcessArea FROM ProductionOrders WHERE ProcessArea IS NOT NULL AND LTRIM(RTRIM(ProcessArea)) <> '' ${whereClause};
+      SELECT DISTINCT Shift FROM ProductionOrders WHERE Shift IS NOT NULL AND LTRIM(RTRIM(Shift)) <> '' ${whereClause};
     `);
 
     // MSSQL returns multiple recordsets for multiple queries
@@ -30,10 +46,26 @@ router.get("/filters", async (req, res) => {
 router.get("/filters-v2", async (req, res) => {
   try {
     const pool = getPool();
-    const result = await pool.request().query(`
-      SELECT DISTINCT ProcessArea FROM ProductionOrders WHERE ProcessArea IS NOT NULL AND LTRIM(RTRIM(ProcessArea)) <> '';
-      SELECT DISTINCT Shift FROM ProductionOrders WHERE Shift IS NOT NULL AND LTRIM(RTRIM(Shift)) <> '';
-      SELECT DISTINCT ProductionOrderNumber FROM ProductionOrders WHERE ProductionOrderNumber IS NOT NULL AND LTRIM(RTRIM(ProductionOrderNumber)) <> '' ORDER BY ProductionOrderNumber DESC;
+    const { dateFrom = "", dateTo = "" } = req.query;
+
+    const request = pool.request();
+    const where = [];
+
+    if (dateFrom) {
+      request.input("dateFrom", sql.DateTime2, new Date(dateFrom));
+      where.push(`PlannedStart >= @dateFrom`);
+    }
+    if (dateTo) {
+      request.input("dateTo", sql.DateTime2, new Date(dateTo));
+      where.push(`PlannedStart < DATEADD(day, 1, @dateTo)`);
+    }
+
+    const whereClause = where.length ? `AND ${where.join(" AND ")}` : "";
+
+    const result = await request.query(`
+      SELECT DISTINCT ProcessArea FROM ProductionOrders WHERE ProcessArea IS NOT NULL AND LTRIM(RTRIM(ProcessArea)) <> '' ${whereClause};
+      SELECT DISTINCT Shift FROM ProductionOrders WHERE Shift IS NOT NULL AND LTRIM(RTRIM(Shift)) <> '' ${whereClause};
+      SELECT DISTINCT ProductionOrderNumber FROM ProductionOrders WHERE ProductionOrderNumber IS NOT NULL AND LTRIM(RTRIM(ProductionOrderNumber)) <> '' ${whereClause} ORDER BY ProductionOrderNumber DESC;
     `);
 
     // MSSQL returns multiple recordsets for multiple queries

@@ -109,7 +109,16 @@ function restoreFiltersFromSession(state) {
 
 // Fetch filter metadata (process areas and shifts)
 async function fetchFilterMetadata() {
-  const res = await fetch(`${API_ROUTE}/api/production-orders/filters-v2`);
+  const dateFrom = document.getElementById("dateFrom")?.value || "";
+  const dateTo = document.getElementById("dateTo")?.value || "";
+  const params = new URLSearchParams();
+  if (dateFrom) params.append("dateFrom", dateFrom);
+  if (dateTo) params.append("dateTo", dateTo);
+  const qs = params.toString();
+
+  const res = await fetch(
+    `${API_ROUTE}/api/production-orders/filters-v2${qs ? `?${qs}` : ""}`,
+  );
   if (!res.ok) return;
 
   const data = await res.json();
@@ -626,16 +635,51 @@ function initializeSearch() {
     }, 300);
   };
 
+  const handleDateChange = async () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async () => {
+      // Clear stale filter selections when date range changes
+      document
+        .querySelectorAll(".process-area-checkbox")
+        .forEach((cb) => (cb.checked = false));
+      document
+        .querySelectorAll(".shift-checkbox")
+        .forEach((cb) => (cb.checked = false));
+      const poInput = document.getElementById("poTextInput");
+      if (poInput) poInput.value = "";
+      poFilterText = "";
+      updateProcessAreaSelectedText();
+      updateShiftSelectedText();
+      updateSelectAllState();
+
+      // Reload filter lists scoped to the new date range
+      await fetchFilterMetadata();
+
+      await fetchStats();
+      saveCurrentState();
+      currentPage = 1;
+      await fetchProductionOrders(currentPage);
+
+      const activeViewBtn = document.querySelector(".view-btn.active");
+      if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+        renderGridView();
+      } else {
+        renderProductionTable();
+      }
+      updatePaginationControls();
+    }, 300);
+  };
+
   if (searchInput) {
     searchInput.addEventListener("input", handleFilterChange);
   }
 
   if (dateFromInput) {
-    dateFromInput.addEventListener("change", handleFilterChange);
+    dateFromInput.addEventListener("change", handleDateChange);
   }
 
   if (dateToInput) {
-    dateToInput.addEventListener("change", handleFilterChange);
+    dateToInput.addEventListener("change", handleDateChange);
   }
 
   if (resetFilterBtn) {
@@ -820,8 +864,6 @@ function populateShifts() {
   const sortedShifts = [...allShifts].sort();
 
   if (sortedShifts.length === 0) {
-    optionsContainer.innerHTML =
-      '<span style="color: #888;">Không có ca nào để chọn</span>';
     return;
   }
 
