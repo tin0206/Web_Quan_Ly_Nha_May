@@ -46,11 +46,6 @@ async function fetchOrderDetail() {
       document.getElementById("detailShift").textContent = order.Shift || "-";
       document.getElementById("detailStatus").textContent =
         getStatusText(order.Status) || "-";
-      console.log(window.PLANTCODE, window.LINE);
-      document.getElementById("detailPlant").textContent =
-        window.PLANTCODE || "-";
-      document.getElementById("detailShopfloor").textContent =
-        window.LINE || "-";
       document.getElementById("detailProcessArea").textContent =
         order.ProcessArea || "-";
 

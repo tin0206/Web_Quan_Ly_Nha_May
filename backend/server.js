@@ -79,7 +79,7 @@ app.get("/products", (req, res) => {
 
 // Render materials page
 app.get("/materials", (req, res) => {
-  res.render("materials", { title: "Quản lý Nguyên vật liệu" });
+  res.render("materials", { title: "ConsumptionLog" });
 });
 
 // Render production order detail page

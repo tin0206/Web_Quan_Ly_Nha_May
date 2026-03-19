@@ -6,10 +6,6 @@
     <title>Chi tiết Production Order #<%= orderId %></title>
     <link rel="stylesheet" href="/css/main_style.css" />
     <link rel="stylesheet" href="/css/po_detail_style.css" />
-    <script>
-      window.PLANTCODE = "<%= process.env.PLANTCODE %>";
-      window.LINE = "<%= process.env.LINE %>";
-    </script>
     <script type="module" src="/js/production_order_detail.js" defer></script>
   </head>
   <body>
@@ -275,23 +271,6 @@
                     >Trạng Thái</label
                   >
                   <p style="margin: 5px 0; font-size: 16px" id="detailStatus">
-                    -
-                  </p>
-                </div>
-                <div>
-                  <label style="font-weight: bold; color: #666">Plant</label>
-                  <p style="margin: 5px 0; font-size: 16px" id="detailPlant">
-                    -
-                  </p>
-                </div>
-                <div>
-                  <label style="font-weight: bold; color: #666"
-                    >Shop Floor</label
-                  >
-                  <p
-                    style="margin: 5px 0; font-size: 16px"
-                    id="detailShopfloor"
-                  >
                     -
                   </p>
                 </div>
