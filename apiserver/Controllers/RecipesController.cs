@@ -19,44 +19,7 @@ public class RecipesController : ControllerBase
         => new SqlConnection(_config.GetConnectionString("DefaultConnection"));
 
     // =========================
-    // 1. GET /stats
-    // =========================
-    [HttpGet("stats")]
-    public async Task<IActionResult> GetStats()
-    {
-        try
-        {
-            var sql = @"
-            SELECT
-                (SELECT COUNT(*) FROM RecipeDetails) as total,
-                (SELECT COUNT(*) FROM RecipeDetails WHERE RecipeStatus = 'Active') as active,
-                (SELECT COUNT(DISTINCT Version) FROM RecipeDetails) as totalVersions
-            ";
-
-            using var conn = Connection;
-            var stats = await conn.QueryFirstOrDefaultAsync(sql);
-
-            return Ok(new
-            {
-                success = true,
-                message = "Success",
-                stats = new
-                {
-                    total = stats?.total ?? 0,
-                    active = stats?.active ?? 0,
-                    totalVersions = stats?.totalVersions ?? 0,
-                    draft = 0
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { success = false, message = ex.Message });
-        }
-    }
-
-    // =========================
-    // 2. GET /stats/search
+    // 1. GET /stats/search
     // =========================
     [HttpGet("stats/search")]
     public async Task<IActionResult> GetStatsSearch(
@@ -139,33 +102,7 @@ public class RecipesController : ControllerBase
     }
 
     // =========================
-    // 3. GET /
-    // =========================
-    [HttpGet]
-    public async Task<IActionResult> GetAll()
-    {
-        try
-        {
-            var sql = @"SELECT * FROM RecipeDetails ORDER BY RecipeDetailsId DESC";
-
-            using var conn = Connection;
-            var data = (await conn.QueryAsync(sql)).ToList();
-
-            return Ok(new
-            {
-                success = true,
-                data,
-                count = data.Count
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { success = false, error = ex.Message });
-        }
-    }
-
-    // =========================
-    // 4. GET /search
+    // 2. GET /search
     // =========================
     [HttpGet("search")]
     public async Task<IActionResult> Search(

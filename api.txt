@@ -16,10 +16,8 @@ po-detail:
 - /:id: get Done
 
 recipes:
-- /stats: get
-- /stats/search: get
-- /: get
-- /search: get
+- /stats/search: get Done
+- /search: get Done
 
 recipe-detail:
 - /:id: get
@@ -46,3 +44,4 @@ Done:
 production_orders.js
 production_orders_by_batches_pos.js
 production_order_detail.js
+production_recipes.js

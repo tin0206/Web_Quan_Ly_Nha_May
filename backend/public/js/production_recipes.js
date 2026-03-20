@@ -1,6 +1,6 @@
 import { Recipe } from "../js/models/Recipes.js";
 
-const API_ROUTE = window.location.origin;
+const API_ROUTE = "http://localhost:5075";
 
 // Pagination/filter/search state
 let filterStatus = ""; // legacy single status (kept for backward compatibility)
@@ -521,32 +521,6 @@ function ensureRecipeModal() {
   });
 }
 
-async function showRecipeModal(recipe) {
-  const response = await fetch(
-    `${API_ROUTE}/api/production-recipes/${recipe.RecipeDetailsId}`,
-  );
-  if (response.ok) {
-    const data = await response.json();
-  }
-
-  ensureRecipeModal();
-  const modal = document.getElementById("recipeDetailModal");
-  const content = document.getElementById("modalRecipeContent");
-  if (!modal || !content || !recipe) return;
-  content.innerHTML = `
-    <div class='modal-row'><span class='modal-label'>ID:</span><span class='modal-value'>${recipe.RecipeDetailsId || ""}</span></div>
-    <div class='modal-row'><span class='modal-label'>Mã Công Thức:</span><span class='modal-value'>${recipe.RecipeCode || ""}</span></div>
-    <div class='modal-row'><span class='modal-label'>Tên Công Thức:</span><span class='modal-value'>${recipe.RecipeName || ""}</span></div>
-    <div class='modal-row'><span class='modal-label'>Phiên Bản:</span><span class='modal-value'>${recipe.Version || ""}</span></div>
-    <div class='modal-row'><span class='modal-label'>Mã Sản Phẩm:</span><span class='modal-value'>${recipe.ProductCode || ""}</span></div>
-    <div class='modal-row'><span class='modal-label'>Tên Sản Phẩm:</span><span class='modal-value'>${recipe.ProductName || ""}</span></div>
-    <div class='modal-row'><span class='modal-label'>Trạng Thái:</span><span class='modal-value'>${recipe.RecipeStatus || ""}</span></div>
-    <div class='modal-row'><span class='modal-label'>Ngày Cập Nhật:</span><span class='modal-value'>${formatDateTime(recipe.timestamp) || ""}</span></div>
-  `;
-  modal.style.display = "flex";
-}
-window.showRecipeModal = showRecipeModal;
-
 // Group modal (list recipes within the same RecipeCode)
 function ensureRecipeGroupModal() {
   if (!document.getElementById("recipeGroupModal")) {
@@ -737,15 +711,12 @@ document.addEventListener("DOMContentLoaded", function () {
 // Fetch stats and update stat cards
 async function fetchAndDisplayRecipeStats() {
   try {
-    // Choose stats endpoint based on filters
-    let endpoint = `${API_ROUTE}/api/production-recipes/stats`;
     const params = new URLSearchParams();
     const statuses = getSelectedStatuses();
     if (statuses.length > 0) params.append("statuses", statuses.join(","));
     if (filterSearch) params.append("search", filterSearch);
-    if (statuses.length > 0 || filterSearch) {
-      endpoint = `${API_ROUTE}/api/production-recipes/stats/search?${params.toString()}`;
-    }
+    let endpoint = `${API_ROUTE}/api/recipes/stats/search?${params.toString()}`;
+    console.log("Fetching stats with endpoint:", endpoint);
     const res = await fetch(endpoint);
     const data = await res.json();
     if (data.success && data.stats) {
@@ -762,7 +733,7 @@ async function fetchAndDisplayRecipeStats() {
 // Fetch paginated/filtered recipes
 async function fetchAndDisplayRecipes() {
   try {
-    let url = `${API_ROUTE}/api/production-recipes/search?page=${currentPage}&limit=${pageSize}`;
+    let url = `${API_ROUTE}/api/recipes/search?page=${currentPage}&limit=${pageSize}`;
     const statuses = getSelectedStatuses();
     if (statuses.length > 0)
       url += `&statuses=${encodeURIComponent(statuses.join(","))}`;

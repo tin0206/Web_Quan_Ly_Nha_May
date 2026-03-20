@@ -2,37 +2,6 @@ const express = require("express");
 const router = express.Router();
 const { getPool, sql } = require("../db");
 
-// API để lấy thống kê recipes
-router.get("/stats", async (req, res) => {
-  try {
-    const statsResult = await getPool().request().query(`
-      SELECT
-        (SELECT COUNT(*) FROM RecipeDetails) as total,
-        (SELECT COUNT(*) FROM RecipeDetails WHERE RecipeStatus = 'Active') as active,
-        (SELECT COUNT(DISTINCT Version) FROM RecipeDetails) as totalVersions
-    `);
-
-    const stats = statsResult.recordset[0];
-
-    res.json({
-      success: true,
-      message: "Success",
-      stats: {
-        total: stats.total || 0,
-        active: stats.active || 0,
-        totalVersions: stats.totalVersions || 0,
-        draft: stats.draft || 0,
-      },
-    });
-  } catch (error) {
-    console.error("❌ Lỗi khi lấy thống kê recipes: ", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Lỗi: " + error.message,
-    });
-  }
-});
-
 // API thống kê có lọc theo từ khóa và trạng thái
 router.get("/stats/search", async (req, res) => {
   try {
@@ -94,29 +63,6 @@ router.get("/stats/search", async (req, res) => {
   } catch (error) {
     console.error("❌ Lỗi khi lấy thống kê recipes (search): ", error.message);
     res.status(500).json({ success: false, message: "Lỗi: " + error.message });
-  }
-});
-
-// API để lấy tất cả RecipeDetails
-router.get("/", async (req, res) => {
-  try {
-    const pool = getPool();
-    const result = await pool.request().query(`
-      SELECT * FROM RecipeDetails
-        ORDER BY RecipeDetailsId DESC
-    `);
-
-    res.json({
-      success: true,
-      data: result.recordset,
-      count: result.recordset.length,
-    });
-  } catch (error) {
-    console.error("Error fetching RecipeDetails:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
   }
 });
 
