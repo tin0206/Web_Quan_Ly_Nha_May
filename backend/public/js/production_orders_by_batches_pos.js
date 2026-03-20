@@ -117,7 +117,7 @@ async function fetchFilterMetadata() {
   const qs = params.toString();
 
   const res = await fetch(
-    `${API_ROUTE}/api/production-orders/filters-v2${qs ? `?${qs}` : ""}`,
+    `${API_ROUTE}/api/productionorders/filters-v2${qs ? `?${qs}` : ""}`,
   );
   if (!res.ok) return;
 
@@ -125,7 +125,6 @@ async function fetchFilterMetadata() {
   allProcessAreas = data.processAreas || [];
   allShifts = data.shifts || [];
   allProductionOrderNumbers = data.productionOrderNumbers || [];
-
   populateProcessAreas();
   populateShifts();
   updatePODatalist("");
@@ -896,22 +895,61 @@ function populateShifts() {
   initializeShiftSelectAll();
 }
 // Update PO datalist suggestions based on current text
-function updatePODatalist(filterText = "") {
-  const datalist = document.getElementById("poDatalist");
-  if (!datalist) return;
+function updatePODatalist(filterText = "", forceShow = false) {
+  const dropdown = document.getElementById("poSuggestionDropdown");
+  if (!dropdown) return;
 
   const search = filterText.toLowerCase();
-  const filtered = allProductionOrderNumbers
-    .filter((po) => po.toLowerCase().includes(search))
-    .sort();
+  const filtered = (
+    filterText
+      ? allProductionOrderNumbers.filter((po) =>
+          po.toLowerCase().includes(search),
+        )
+      : allProductionOrderNumbers
+  ).sort();
 
-  datalist.innerHTML = "";
+  dropdown.innerHTML = "";
+
+  if (filtered.length === 0 || (!filterText && !forceShow)) {
+    dropdown.style.display = "none";
+    return;
+  }
 
   filtered.forEach((po) => {
-    const option = document.createElement("option");
-    option.value = po;
-    datalist.appendChild(option);
+    const item = document.createElement("div");
+    item.textContent = po;
+    item.style.cssText =
+      "padding: 7px 12px; cursor: pointer; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;";
+    item.addEventListener("mouseenter", function () {
+      this.style.background = "#f0f4ff";
+    });
+    item.addEventListener("mouseleave", function () {
+      this.style.background = "transparent";
+    });
+    item.addEventListener("mousedown", async function (e) {
+      e.preventDefault();
+      const poInput = document.getElementById("poTextInput");
+      if (poInput) {
+        poInput.value = po;
+        poFilterText = po;
+      }
+      dropdown.style.display = "none";
+      currentPage = 1;
+      saveCurrentState();
+      await fetchStats();
+      await fetchProductionOrders(currentPage);
+      const activeViewBtn = document.querySelector(".view-btn.active");
+      if (activeViewBtn && activeViewBtn.getAttribute("data-view") === "grid") {
+        renderGridView();
+      } else {
+        renderProductionTable();
+      }
+      updatePaginationControls();
+    });
+    dropdown.appendChild(item);
   });
+
+  dropdown.style.display = "block";
 }
 
 // Initialize custom multi-select dropdown
@@ -969,10 +1007,8 @@ function initializeShiftDropdown() {
 // Initialize PO text input with autocomplete and server-side filtering
 function initializePOTextFilter() {
   const poInput = document.getElementById("poTextInput");
+  const dropdown = document.getElementById("poSuggestionDropdown");
   if (!poInput) return;
-
-  // Khởi tạo datalist lần đầu nếu đã có metadata
-  updatePODatalist("");
 
   let debounceTimer;
 
@@ -995,6 +1031,30 @@ function initializePOTextFilter() {
       }
       updatePaginationControls();
     }, 300);
+  });
+
+  poInput.addEventListener("focus", function () {
+    updatePODatalist(this.value.trim(), true);
+  });
+
+  poInput.addEventListener("click", function () {
+    updatePODatalist(this.value.trim(), true);
+  });
+
+  poInput.addEventListener("blur", function () {
+    setTimeout(() => {
+      if (dropdown) dropdown.style.display = "none";
+    }, 200);
+  });
+
+  document.addEventListener("click", (e) => {
+    if (
+      dropdown &&
+      !e.target.closest("#poTextInput") &&
+      !e.target.closest("#poSuggestionDropdown")
+    ) {
+      dropdown.style.display = "none";
+    }
   });
 }
 
@@ -1320,7 +1380,6 @@ async function fetchProductionOrders(page = 1) {
 
     if (response.ok) {
       const data = await response.json();
-      console.log("Fetched production orders:", data);
       productionOrders = data.data.map((po) => new ProductionOrder(po));
       totalRecords = data.total;
       totalPages = data.totalPages || Math.ceil(totalRecords / pageSize);
@@ -1347,6 +1406,20 @@ async function fetchProductionOrders(page = 1) {
         });
         allShifts = Array.from(shiftsSet);
         populateShifts();
+      }
+
+      if (page === 1 && allProductionOrderNumbers.length === 0) {
+        const poNumbersSet = new Set();
+        productionOrders.forEach((order) => {
+          if (
+            order.ProductionOrderNumber &&
+            order.ProductionOrderNumber.trim() !== ""
+          ) {
+            poNumbersSet.add(order.ProductionOrderNumber);
+          }
+        });
+        allProductionOrderNumbers = Array.from(poNumbersSet);
+        updatePODatalist(poFilterText, !!poFilterText);
       }
 
       updatePaginationControls();

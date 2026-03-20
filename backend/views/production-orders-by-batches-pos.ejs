@@ -522,20 +522,40 @@
               "
             >
               <label style="font-weight: 500; color: #666">POs:</label>
-              <input
-                type="text"
-                id="poTextInput"
-                list="poDatalist"
-                placeholder="Nhập mã PO..."
-                style="
-                  padding: 8px 12px;
-                  border: 1px solid #ddd;
-                  border-radius: 4px;
-                  font-size: 14px;
-                  min-width: 250px;
-                "
-              />
-              <datalist id="poDatalist"></datalist>
+              <div style="position: relative; min-width: 250px">
+                <input
+                  type="text"
+                  id="poTextInput"
+                  placeholder="Nhập mã PO..."
+                  autocomplete="off"
+                  style="
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    width: 100%;
+                    box-sizing: border-box;
+                  "
+                />
+                <div
+                  id="poSuggestionDropdown"
+                  style="
+                    display: none;
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background: #fff;
+                    border: 1px solid #ddd;
+                    border-top: none;
+                    border-radius: 0 0 4px 4px;
+                    max-height: 220px;
+                    overflow-y: auto;
+                    z-index: 1000;
+                    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+                  "
+                ></div>
+              </div>
             </div>
           </div>
           <div class="view-controls">
