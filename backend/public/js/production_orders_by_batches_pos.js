@@ -1,6 +1,6 @@
 import { ProductionOrder } from "./models/ProductionOrder.js";
 
-const API_ROUTE = window.location.origin;
+const API_ROUTE = "http://localhost:5075";
 
 let productionOrders = [];
 let currentPage = 1;
@@ -117,7 +117,7 @@ async function fetchFilterMetadata() {
   const qs = params.toString();
 
   const res = await fetch(
-    `${API_ROUTE}/api/production-orders/filters-v2${qs ? `?${qs}` : ""}`,
+    `${API_ROUTE}/api/productionorders/filtersv2${qs ? `?${qs}` : ""}`,
   );
   if (!res.ok) return;
 
@@ -730,9 +730,7 @@ async function fetchStats() {
     selectedStatuses.length > 0 ||
     selectedShifts.length > 0 ||
     poText;
-  const endpoint = hasFilters
-    ? "/api/production-orders/stats-v2/search"
-    : "/api/production-orders/stats-v2";
+  const endpoint = "/api/productionorders/stats-v2/search";
 
   try {
     // Build query params from filters
@@ -1334,9 +1332,7 @@ async function fetchProductionOrders(page = 1) {
       selectedStatuses.length > 0 ||
       selectedShifts.length > 0 ||
       poText;
-    const endpoint = hasFilters
-      ? "/api/production-orders/search-v2"
-      : "/api/production-orders/v2";
+    const endpoint = "/api/productionorders/searchv2";
 
     // Build query parameters
     const params = new URLSearchParams({
@@ -1367,7 +1363,6 @@ async function fetchProductionOrders(page = 1) {
         params.append("pos", poText);
       }
     }
-
     const response = await fetch(
       `${API_ROUTE}${endpoint}?${params.toString()}`,
       {

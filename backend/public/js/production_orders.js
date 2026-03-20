@@ -784,9 +784,7 @@ async function fetchStats() {
     selectedProcessAreas.length > 0 ||
     selectedStatuses.length > 0 ||
     selectedShifts.length > 0;
-  const endpoint = hasFilters
-    ? "/api/productionorders/stats/search"
-    : "/api/productionorders/stats";
+  const endpoint = "/api/productionorders/stats/search";
 
   try {
     // Build query params from filters
@@ -1233,9 +1231,7 @@ async function fetchProductionOrders(page = 1) {
       selectedProcessAreas.length > 0 ||
       selectedStatuses.length > 0 ||
       selectedShifts.length > 0;
-    const endpoint = hasFilters
-      ? "/api/productionorders/search"
-      : "/api/productionorders";
+    const endpoint = "/api/productionorders/search";
 
     // Build query parameters
     const params = new URLSearchParams({
@@ -1275,6 +1271,7 @@ async function fetchProductionOrders(page = 1) {
     );
 
     if (response.ok) {
+      console.log(`${API_ROUTE}${endpoint}?${params.toString()}`);
       const data = await response.json();
       console.log("Fetched production orders:", data);
       productionOrders = data.data.map((po) => new ProductionOrder(po));

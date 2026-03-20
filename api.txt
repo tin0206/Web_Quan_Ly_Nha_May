@@ -1,14 +1,10 @@
 pos:
 - /filters: get Done
-- /filters-v2: get
-- /stats: get Done
-- /stats-v2: get
+- /filters-v2: get Done
 - /stats/search: get Done
-- /stats-v2/search: get
-- /: get Done
-- /v2: get
+- /stats-v2/search: get Done
 - /search: get Done
-- /search-v2: get
+- /search-v2: get Done
 
 po-detail:
 - /batches: get
