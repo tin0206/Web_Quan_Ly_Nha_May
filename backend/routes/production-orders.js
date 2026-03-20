@@ -164,93 +164,103 @@ router.get("/stats-v2", async (req, res) => {
 // API: Get stats with filters (searchQuery, dateFrom, dateTo, processAreas)
 router.get("/stats/search", async (req, res) => {
   try {
-    const searchQuery = req.query.searchQuery || "";
-    const dateFrom = req.query.dateFrom || "";
-    const dateTo = req.query.dateTo || "";
-    const processAreas = req.query.processAreas || "";
-    const shifts = req.query.shifts || "";
+    const {
+      searchQuery = "",
+      dateFrom = "",
+      dateTo = "",
+      processAreas = "",
+      shifts = "",
+      statuses = "",
+    } = req.query;
 
     const request = getPool().request();
     const where = [];
 
+    // 1. Đồng bộ Search (Dùng @q cho giống /search)
     if (searchQuery.trim()) {
-      request.input("search", sql.NVarChar, `%${searchQuery.trim()}%`);
-      where.push(`(
-        po.ProductionOrderNumber LIKE @search OR
-        po.ProductCode LIKE @search OR
-        po.ProductionLine LIKE @search OR
-        po.RecipeCode LIKE @search
-      )`);
+      request.input("q", sql.NVarChar, `%${searchQuery.trim()}%`);
+      where.push(
+        `(po.ProductionOrderNumber LIKE @q OR po.ProductCode LIKE @q OR po.ProductionLine LIKE @q OR po.RecipeCode LIKE @q)`,
+      );
     }
 
+    // 2. Đồng bộ Date
     if (dateFrom) {
       request.input("dateFrom", sql.DateTime2, new Date(dateFrom));
       where.push(`po.PlannedStart >= @dateFrom`);
     }
-
     if (dateTo) {
       request.input("dateTo", sql.DateTime2, new Date(dateTo));
       where.push(`po.PlannedStart < DATEADD(DAY, 1, @dateTo)`);
     }
 
-    if (processAreas.trim()) {
-      const arr = processAreas
-        .split(",")
-        .map((x) => x.trim())
-        .filter(Boolean);
+    // 3. Đồng bộ Area & Shift
+    const addInClause = (input, field, paramPrefix) => {
+      if (input.trim()) {
+        const arr = input
+          .split(",")
+          .map((v) => v.trim())
+          .filter(Boolean);
+        const ps = arr.map((_, i) => `@${paramPrefix}${i}`).join(",");
+        arr.forEach((v, i) =>
+          request.input(`${paramPrefix}${i}`, sql.NVarChar, v),
+        );
+        where.push(`${field} IN (${ps})`);
+      }
+    };
+    addInClause(processAreas, "po.ProcessArea", "pa");
+    addInClause(shifts, "po.Shift", "sh");
 
-      arr.forEach((v, i) => request.input(`pa${i}`, sql.NVarChar, v));
-      where.push(
-        `po.ProcessArea IN (${arr.map((_, i) => `@pa${i}`).join(",")})`,
-      );
+    // 4. QUAN TRỌNG: Thêm logic Status để khớp với /search
+    let statusCondition = "";
+    if (statuses.trim()) {
+      const arr = statuses.split(",").map((s) => s.trim());
+      const conds = [];
+      if (arr.includes("Đang chạy"))
+        conds.push("mmc.ProductionOrderNumber IS NOT NULL");
+      if (arr.includes("Đang chờ"))
+        conds.push("mmc.ProductionOrderNumber IS NULL");
+      if (conds.length === 1) statusCondition = conds[0];
+      else if (conds.length === 2) statusCondition = `(${conds.join(" OR ")})`;
     }
 
-    if (shifts.trim()) {
-      const arr = shifts
-        .split(",")
-        .map((x) => x.trim())
-        .filter(Boolean);
+    const whereClause =
+      where.length || statusCondition
+        ? `WHERE ${[...where, statusCondition].filter(Boolean).join(" AND ")}`
+        : "";
 
-      arr.forEach((v, i) => request.input(`sh${i}`, sql.NVarChar, v));
-      where.push(`po.Shift IN (${arr.map((_, i) => `@sh${i}`).join(",")})`);
-    }
-
-    const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
-
+    // 5. Query dùng LEFT JOIN y hệt /search để kết quả COUNT chính xác
     const result = await request.query(`
-      WITH RunningPO AS (
-        SELECT DISTINCT ProductionOrderNumber
-        FROM MESMaterialConsumption
-      )
       SELECT
         COUNT(*) AS total,
         SUM(CASE WHEN po.Status = 2 THEN 1 ELSE 0 END) AS completed,
-        SUM(CASE WHEN r.ProductionOrderNumber IS NOT NULL THEN 1 ELSE 0 END) AS inProgress
+        SUM(CASE WHEN mmc.ProductionOrderNumber IS NOT NULL THEN 1 ELSE 0 END) AS inProgress
       FROM ProductionOrders po
-      LEFT JOIN RunningPO r
-        ON r.ProductionOrderNumber = po.ProductionOrderNumber
+      LEFT JOIN (
+        SELECT DISTINCT ProductionOrderNumber FROM MESMaterialConsumption
+      ) mmc ON po.ProductionOrderNumber = mmc.ProductionOrderNumber
       ${whereClause}
     `);
 
-    const stats = result.recordset[0];
-    const stopped = stats.total - (stats.inProgress || 0);
+    const stats = result.recordset[0] || {
+      total: 0,
+      completed: 0,
+      inProgress: 0,
+    };
+    const total = stats.total || 0;
+    const inProgress = stats.inProgress || 0;
 
     res.json({
       success: true,
-      message: "Success",
       stats: {
-        total: stats.total || 0,
-        inProgress: stats.inProgress || 0,
+        total,
+        inProgress,
         completed: stats.completed || 0,
-        stopped,
+        stopped: total - inProgress, // Stopped bây giờ sẽ khớp vì total đã được lọc
       },
     });
   } catch (error) {
-    console.error("❌ Lỗi khi lấy thống kê có filter:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Lỗi: " + error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

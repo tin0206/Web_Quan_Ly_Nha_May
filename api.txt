@@ -1,13 +1,13 @@
 pos:
 - /filters: get Done
 - /filters-v2: get
-- /stats: get
+- /stats: get Done
 - /stats-v2: get
-- /stats/search: get
+- /stats/search: get Done
 - /stats-v2/search: get
-- /: get
+- /: get Done
 - /v2: get
-- /search: get
+- /search: get Done
 - /search-v2: get
 
 po-detail:

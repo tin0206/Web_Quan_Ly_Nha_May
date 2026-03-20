@@ -186,87 +186,119 @@ namespace YourProject.Controllers
         // =====================================================
         [HttpGet("stats/search")]
         public async Task<IActionResult> StatsSearch(
-            string searchQuery = "",
-            string dateFrom = "",
-            string dateTo = "",
-            string processAreas = "",
-            string shifts = ""
+            [FromQuery] string searchQuery = "",
+            [FromQuery] string dateFrom = "",
+            [FromQuery] string dateTo = "",
+            [FromQuery] string processAreas = "",
+            [FromQuery] string shifts = "",
+            [FromQuery] string statuses = ""
         )
         {
-            using var conn = Connection;
-
-            var where = new List<string>();
-            var p = new DynamicParameters();
-
-            if (!string.IsNullOrWhiteSpace(searchQuery))
+            try 
             {
-                where.Add(@"(
-                    po.ProductionOrderNumber LIKE @q OR
-                    po.ProductCode LIKE @q OR
-                    po.ProductionLine LIKE @q OR
-                    po.RecipeCode LIKE @q
-                )");
-                p.Add("q", $"%{searchQuery}%");
-            }
+                using var conn = Connection;
+                var where = new List<string>();
+                var p = new DynamicParameters();
 
-            if (!string.IsNullOrEmpty(dateFrom))
-            {
-                where.Add("po.PlannedStart >= @dateFrom");
-                p.Add("dateFrom", DateTime.Parse(dateFrom));
-            }
-
-            if (!string.IsNullOrEmpty(dateTo))
-            {
-                where.Add("po.PlannedStart < DATEADD(DAY,1,@dateTo)");
-                p.Add("dateTo", DateTime.Parse(dateTo));
-            }
-
-            if (!string.IsNullOrWhiteSpace(processAreas))
-            {
-                var arr = processAreas.Split(',');
-                where.Add("po.ProcessArea IN @pa");
-                p.Add("pa", arr);
-            }
-
-            if (!string.IsNullOrWhiteSpace(shifts))
-            {
-                var arr = shifts.Split(',');
-                where.Add("po.Shift IN @sh");
-                p.Add("sh", arr);
-            }
-
-            string whereClause = where.Count > 0
-                ? "WHERE " + string.Join(" AND ", where)
-                : "";
-
-            var stats = await conn.QueryFirstAsync($@"
-                WITH RunningPO AS (
-                    SELECT DISTINCT ProductionOrderNumber 
-                    FROM MESMaterialConsumption
-                )
-                SELECT
-                    COUNT(*) total,
-                    SUM(CASE WHEN po.Status = 2 THEN 1 ELSE 0 END) completed,
-                    SUM(CASE WHEN r.ProductionOrderNumber IS NOT NULL THEN 1 ELSE 0 END) inProgress
-                FROM ProductionOrders po
-                LEFT JOIN RunningPO r
-                    ON r.ProductionOrderNumber = po.ProductionOrderNumber
-                {whereClause}
-            ", p);
-
-            int stopped = stats.total - (stats.inProgress ?? 0);
-
-            return Ok(new
-            {
-                success = true,
-                stats = new
+                // 1. Search (Đã đồng bộ param @q)
+                if (!string.IsNullOrWhiteSpace(searchQuery))
                 {
-                    total = stats.total,
-                    inProgress = stats.inProgress ?? 0,
-                    completed = stats.completed ?? 0,
-                    stopped
+                    where.Add(@"(
+                        po.ProductionOrderNumber LIKE @q OR
+                        po.ProductCode LIKE @q OR
+                        po.ProductionLine LIKE @q OR
+                        po.RecipeCode LIKE @q
+                    )");
+                    p.Add("q", $"%{searchQuery.Trim()}%");
                 }
-            });
+
+                // 2. Date (SỬA LẠI: Dùng .Date để giống Node.js)
+                if (!string.IsNullOrEmpty(dateFrom) && DateTime.TryParse(dateFrom, out DateTime df))
+                {
+                    where.Add("po.PlannedStart >= @dateFrom");
+                    p.Add("dateFrom", df.Date); // Lấy 00:00:00
+                }
+
+                if (!string.IsNullOrEmpty(dateTo) && DateTime.TryParse(dateTo, out DateTime dt))
+                {
+                    where.Add("po.PlannedStart < DATEADD(DAY, 1, @dateTo)");
+                    p.Add("dateTo", dt.Date); // Lấy 00:00:00
+                }
+
+                // 3. Area & Shift
+                if (!string.IsNullOrWhiteSpace(processAreas))
+                {
+                    var arr = processAreas.Split(',').Select(x => x.Trim()).Where(x => !string.IsNullOrEmpty(x)).ToArray();
+                    where.Add("po.ProcessArea IN @pa");
+                    p.Add("pa", arr);
+                }
+
+                if (!string.IsNullOrWhiteSpace(shifts))
+                {
+                    var arr = shifts.Split(',').Select(x => x.Trim()).Where(x => !string.IsNullOrEmpty(x)).ToArray();
+                    where.Add("po.Shift IN @sh");
+                    p.Add("sh", arr);
+                }
+
+                // 4. Status logic (Đồng bộ mmc logic)
+                string statusCondition = "";
+                if (!string.IsNullOrWhiteSpace(statuses))
+                {
+                    var arr = statuses.Split(',').Select(s => s.Trim()).ToList();
+                    var conds = new List<string>();
+
+                    // Chú ý: Ở đây dùng alias 'r' như trong câu SQL bên dưới
+                    if (arr.Contains("Đang chạy"))
+                        conds.Add("r.ProductionOrderNumber IS NOT NULL");
+
+                    if (arr.Contains("Đang chờ"))
+                        conds.Add("r.ProductionOrderNumber IS NULL");
+
+                    if (conds.Count == 1) statusCondition = conds[0];
+                    else if (conds.Count == 2) statusCondition = $"({string.Join(" OR ", conds)})";
+                }
+
+                // 5. Build WHERE Clause
+                var allConditions = where.ToList();
+                if (!string.IsNullOrEmpty(statusCondition)) allConditions.Add(statusCondition);
+
+                string whereClause = allConditions.Count > 0 ? "WHERE " + string.Join(" AND ", allConditions) : "";
+
+                // 6. Query (Sửa kiểu dynamic để tránh lỗi runtime)
+                var result = await conn.QueryFirstAsync<dynamic>($@"
+                    SELECT
+                        COUNT(*) as total,
+                        SUM(CASE WHEN po.Status = 2 THEN 1 ELSE 0 END) as completed,
+                        SUM(CASE WHEN r.ProductionOrderNumber IS NOT NULL THEN 1 ELSE 0 END) as inProgress
+                    FROM ProductionOrders po
+                    LEFT JOIN (
+                        SELECT DISTINCT ProductionOrderNumber 
+                        FROM MESMaterialConsumption
+                    ) r ON r.ProductionOrderNumber = po.ProductionOrderNumber
+                    {whereClause}
+                ", p);
+
+                // Chuyển đổi an toàn từ dynamic
+                int total = result.total ?? 0;
+                int inProgress = result.inProgress ?? 0;
+                int completed = result.completed ?? 0;
+
+                return Ok(new
+                {
+                    success = true,
+                    stats = new
+                    {
+                        total,
+                        inProgress,
+                        completed,
+                        stopped = total - inProgress
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
         }
 
         // =====================================================
@@ -433,15 +465,232 @@ namespace YourProject.Controllers
         // 🔹 SEARCH
         // =====================================================
         [HttpGet("search")]
-        public async Task<IActionResult> Search(string searchQuery = "")
+        public async Task<IActionResult> Search(
+            string? searchQuery = "",
+            string? dateFrom = "",
+            string? dateTo = "",
+            string? processAreas = "",
+            string? shifts = "",
+            string? statuses = "",
+            int page = 1,
+            int limit = 20,
+            int total = 0
+        )
         {
             using var conn = Connection;
-            var data = await conn.QueryAsync(@"
-                SELECT * FROM ProductionOrders
-                WHERE ProductionOrderNumber LIKE @q
-            ", new { q = $"%{searchQuery}%" });
 
-            return Ok(new { success = true, data });
+            page = Math.Max(1, page);
+            limit = Math.Min(100, Math.Max(1, limit));
+            int offset = (page - 1) * limit;
+
+            var where = new List<string>();
+            var p = new DynamicParameters();
+
+            /* ================= SEARCH ================= */
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                where.Add(@"(
+                    po.ProductionOrderNumber LIKE @q OR
+                    po.ProductCode LIKE @q OR
+                    po.ProductionLine LIKE @q OR
+                    po.RecipeCode LIKE @q
+                )");
+                p.Add("q", $"%{searchQuery.Trim()}%");
+            }
+
+            /* ================= DATE (INDEX SAFE) ================= */
+            if (!string.IsNullOrEmpty(dateFrom) && DateTime.TryParse(dateFrom, out var df))
+            {
+                where.Add("po.PlannedStart >= @dateFrom");
+                p.Add("dateFrom", df.Date);
+            }
+
+            if (!string.IsNullOrEmpty(dateTo) && DateTime.TryParse(dateTo, out var dt))
+            {
+                where.Add("po.PlannedStart < DATEADD(DAY, 1, @dateTo)");
+                p.Add("dateTo", dt.Date);
+            }
+
+            /* ================= PROCESS AREA ================= */
+            if (!string.IsNullOrWhiteSpace(processAreas))
+            {
+                var arr = processAreas.Split(',')
+                    .Select(x => x.Trim())
+                    .Where(x => !string.IsNullOrEmpty(x))
+                    .ToArray();
+
+                if (arr.Any())
+                {
+                    where.Add("po.ProcessArea IN @pa");
+                    p.Add("pa", arr);
+                }
+            }
+
+            /* ================= SHIFT ================= */
+            if (!string.IsNullOrWhiteSpace(shifts))
+            {
+                var arr = shifts.Split(',')
+                    .Select(x => x.Trim())
+                    .Where(x => !string.IsNullOrEmpty(x))
+                    .ToArray();
+
+                if (arr.Any())
+                {
+                    where.Add("po.Shift IN @sh");
+                    p.Add("sh", arr);
+                }
+            }
+
+            /* ================= STATUS ================= */
+            string statusCondition = "";
+
+            if (!string.IsNullOrWhiteSpace(statuses))
+            {
+                var arr = statuses.Split(',')
+                    .Select(s => s.Trim())
+                    .ToList();
+
+                var conds = new List<string>();
+
+                if (arr.Contains("Đang chạy"))
+                    conds.Add("mmc.ProductionOrderNumber IS NOT NULL");
+
+                if (arr.Contains("Đang chờ"))
+                    conds.Add("mmc.ProductionOrderNumber IS NULL");
+
+                if (conds.Count == 1)
+                    statusCondition = conds[0];
+                else if (conds.Count == 2)
+                    statusCondition = "(" + string.Join(" OR ", conds) + ")";
+            }
+
+            if (!string.IsNullOrEmpty(statusCondition))
+                where.Add(statusCondition);
+
+            string whereClause = where.Count > 0
+                ? "WHERE " + string.Join(" AND ", where)
+                : "";
+
+            /* ================= COUNT ================= */
+            if (page == 1 || total == 0)
+            {
+                total = await conn.ExecuteScalarAsync<int>($@"
+                    SELECT COUNT(*)
+                    FROM ProductionOrders po
+                    LEFT JOIN (
+                        SELECT DISTINCT ProductionOrderNumber
+                        FROM MESMaterialConsumption
+                    ) mmc
+                    ON po.ProductionOrderNumber = mmc.ProductionOrderNumber
+                    {whereClause}
+                ", p, commandTimeout: 60);
+            }
+
+            /* ================= MAIN QUERY ================= */
+            p.Add("offset", offset);
+            p.Add("limit", limit);
+
+            var data = await conn.QueryAsync($@"
+                SELECT
+                    po.ProductionOrderId,
+                    po.ProductionOrderNumber,
+                    po.ProductionLine,
+                    po.ProductCode,
+                    po.RecipeCode,
+                    po.RecipeVersion,
+                    po.LotNumber,
+                    po.ProcessArea,
+                    po.PlannedStart,
+                    po.PlannedEnd,
+                    po.Quantity,
+                    po.UnitOfMeasurement,
+                    po.Plant,
+                    po.Shopfloor,
+                    po.Shift,
+
+                    pm.ItemName,
+                    rd.RecipeName,
+
+                    CASE 
+                        WHEN mmc.ProductionOrderNumber IS NOT NULL THEN 1 
+                        ELSE 0 
+                    END AS Status,
+
+                    ISNULL(mmc.MaxBatch, 0) AS CurrentBatch,
+                    ISNULL(b.TotalBatches, 0) AS TotalBatches
+
+                FROM ProductionOrders po
+
+                LEFT JOIN ProductMasters pm
+                    ON po.ProductCode = pm.ItemCode
+
+                LEFT JOIN RecipeDetails rd
+                    ON po.RecipeCode = rd.RecipeCode
+                    AND po.RecipeVersion = rd.Version
+
+                LEFT JOIN (
+                    SELECT ProductionOrderNumber, MAX(BatchCode) AS MaxBatch
+                    FROM MESMaterialConsumption
+                    GROUP BY ProductionOrderNumber
+                ) mmc
+                    ON po.ProductionOrderNumber = mmc.ProductionOrderNumber
+
+                LEFT JOIN (
+                    SELECT ProductionOrderId, COUNT(*) AS TotalBatches
+                    FROM Batches
+                    GROUP BY ProductionOrderId
+                ) b
+                    ON po.ProductionOrderId = b.ProductionOrderId
+
+                {whereClause}
+                ORDER BY po.ProductionOrderId DESC
+                OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+            ", p, commandTimeout: 60);
+
+            /* ================= FORMAT ================= */
+            var result = data.Select(o => new
+            {
+                o.ProductionOrderId,
+                o.ProductionOrderNumber,
+                o.ProductionLine,
+
+                ProductCode = o.ItemName != null
+                    ? $"{o.ProductCode} - {o.ItemName}"
+                    : o.ProductCode,
+
+                RecipeCode = (o.RecipeName != null && o.RecipeCode != null)
+                    ? $"{o.RecipeCode} - {o.RecipeName}"
+                    : o.RecipeCode,
+
+                o.RecipeVersion,
+                o.LotNumber,
+                o.ProcessArea,
+                o.PlannedStart,
+                o.PlannedEnd,
+                o.Quantity,
+                o.UnitOfMeasurement,
+                o.Plant,
+                o.Shopfloor,
+                o.Shift,
+
+                o.ItemName,
+                o.RecipeName,
+
+                o.Status,
+                o.CurrentBatch,
+                o.TotalBatches
+            });
+
+            return Ok(new
+            {
+                success = true,
+                message = "Success",
+                total,
+                totalPages = (int)Math.Ceiling((double)total / limit),
+                page,
+                limit,
+                data = result
+            });
         }
 
         // =====================================================

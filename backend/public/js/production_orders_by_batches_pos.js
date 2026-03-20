@@ -117,7 +117,7 @@ async function fetchFilterMetadata() {
   const qs = params.toString();
 
   const res = await fetch(
-    `${API_ROUTE}/api/productionorders/filters-v2${qs ? `?${qs}` : ""}`,
+    `${API_ROUTE}/api/production-orders/filters-v2${qs ? `?${qs}` : ""}`,
   );
   if (!res.ok) return;
 
