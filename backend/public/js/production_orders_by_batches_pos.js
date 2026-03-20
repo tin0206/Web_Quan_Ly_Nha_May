@@ -730,7 +730,7 @@ async function fetchStats() {
     selectedStatuses.length > 0 ||
     selectedShifts.length > 0 ||
     poText;
-  const endpoint = "/api/productionorders/stats-v2/search";
+  const endpoint = "/api/productionorders/statsv2/search";
 
   try {
     // Build query params from filters

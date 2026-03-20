@@ -62,7 +62,7 @@ namespace YourProject.Controllers
         // =====================================================
         // 🔹 FILTERS V2
         // =====================================================
-        [HttpGet("filtersV2")]
+        [HttpGet("filtersv2")]
         public async Task<IActionResult> FiltersV2([FromQuery] string dateFrom = "", [FromQuery] string dateTo = "")
         {
             try 
@@ -247,7 +247,7 @@ namespace YourProject.Controllers
         // =====================================================
         // 🔥 STATS V2 SEARCH (FULL MATCH NODE)
         // =====================================================
-        [HttpGet("stats-v2/search")]
+        [HttpGet("statsv2/search")]
         public async Task<IActionResult> StatsSearchV2(
             string searchQuery = "",
             string dateFrom = "",
@@ -298,7 +298,7 @@ namespace YourProject.Controllers
                     .Where(x => !string.IsNullOrEmpty(x))
                     .ToArray();
 
-                if (arr.Any())
+                if (arr.Length > 0)
                 {
                     where.Add("po.ProcessArea IN @pa");
                     p.Add("pa", arr);
@@ -314,7 +314,7 @@ namespace YourProject.Controllers
                     .Where(x => !string.IsNullOrEmpty(x))
                     .ToArray();
 
-                if (arr.Any())
+                if (arr.Length > 0)
                 {
                     where.Add("po.Shift IN @sh");
                     p.Add("sh", arr);
@@ -337,7 +337,7 @@ namespace YourProject.Controllers
                     .Where(x => !string.IsNullOrEmpty(x))
                     .ToArray();
 
-                if (arr.Any())
+                if (arr.Length > 0)
                 {
                     where.Add("b.BatchId IN @batchIds");
                     p.Add("batchIds", arr);
@@ -375,7 +375,7 @@ namespace YourProject.Controllers
             if (!string.IsNullOrEmpty(statusCondition))
                 allConditions.Add(statusCondition);
 
-            string whereClause = allConditions.Any()
+            string whereClause = allConditions.Count > 0
                 ? "WHERE " + string.Join(" AND ", allConditions)
                 : "";
 
@@ -404,10 +404,10 @@ namespace YourProject.Controllers
                 message = "Success",
                 stats = new
                 {
-                    total = stats.total ?? 0,
-                    inProgress = stats.inProgress ?? 0,
-                    completed = stats.completed ?? 0,
-                    stopped = stats.stopped ?? 0
+                    total = (int)(stats.total ?? 0),
+                    inProgress = (int)(stats.inProgress ?? 0),
+                    completed = (int)(stats.completed ?? 0),
+                    stopped = (int)(stats.stopped ?? 0)
                 }
             });
         }
@@ -470,7 +470,7 @@ namespace YourProject.Controllers
                     .Where(x => !string.IsNullOrEmpty(x))
                     .ToArray();
 
-                if (arr.Any())
+                if (arr.Length > 0)
                 {
                     where.Add("po.ProcessArea IN @pa");
                     p.Add("pa", arr);
@@ -704,7 +704,7 @@ namespace YourProject.Controllers
                     .Where(x => !string.IsNullOrEmpty(x))
                     .ToList();
 
-                if (arr.Any())
+                if (arr.Count > 0)
                 {
                     var ps = new List<string>();
 
@@ -727,7 +727,7 @@ namespace YourProject.Controllers
                     .Where(x => !string.IsNullOrEmpty(x))
                     .ToList();
 
-                if (arr.Any())
+                if (arr.Count > 0)
                 {
                     var ps = new List<string>();
 
@@ -757,7 +757,7 @@ namespace YourProject.Controllers
                     .Where(x => !string.IsNullOrEmpty(x))
                     .ToList();
 
-                if (arr.Any())
+                if (arr.Count > 0)
                 {
                     var ps = new List<string>();
 
@@ -807,7 +807,7 @@ namespace YourProject.Controllers
             if (!string.IsNullOrEmpty(statusCondition))
                 allConditions.Add(statusCondition);
 
-            string whereClause = allConditions.Any()
+            string whereClause = allConditions.Count > 0
                 ? "WHERE " + string.Join(" AND ", allConditions)
                 : "";
 
@@ -870,7 +870,7 @@ namespace YourProject.Controllers
 
             var batches = new List<dynamic>();
 
-            if (poIds.Any())
+            if (poIds.Count > 0)
             {
                 batches = (await conn.QueryAsync(@"
                     SELECT *
