@@ -106,7 +106,7 @@ async function fetchFilterMetadata() {
   const qs = params.toString();
 
   const res = await fetch(
-    `${API_ROUTE}/api/production-orders/filters${qs ? `?${qs}` : ""}`,
+    `${API_ROUTE}/api/productionorders/filters${qs ? `?${qs}` : ""}`,
   );
   if (!res.ok) return;
 
@@ -913,8 +913,6 @@ function populateShifts() {
   const sortedShifts = [...allShifts].sort();
 
   if (sortedShifts.length === 0) {
-    optionsContainer.innerHTML =
-      '<span style="color: #888;">Không có ca nào để chọn</span>';
     return;
   }
 

@@ -23,36 +23,32 @@ namespace YourProject.Controllers
         // 🔹 FILTERS
         // =====================================================
         [HttpGet("filters")]
-        public async Task<IActionResult> Filters(string dateFrom = "", string dateTo = "")
+        public async Task<IActionResult> Filters([FromQuery] string dateFrom = "", [FromQuery] string dateTo = "")
         {
             using var conn = Connection;
-
             var where = new List<string>();
             var p = new DynamicParameters();
 
-            if (!string.IsNullOrEmpty(dateFrom))
+            if (!string.IsNullOrEmpty(dateFrom) && DateTime.TryParse(dateFrom, out DateTime df))
             {
                 where.Add("PlannedStart >= @dateFrom");
-                p.Add("dateFrom", DateTime.Parse(dateFrom));
+                // .Date đảm bảo giá trị là 00:00:00 của ngày đó, không bị lệch múi giờ
+                p.Add("dateFrom", df.Date); 
             }
 
-            if (!string.IsNullOrEmpty(dateTo))
+            if (!string.IsNullOrEmpty(dateTo) && DateTime.TryParse(dateTo, out DateTime dt))
             {
-                where.Add("PlannedStart < DATEADD(day,1,@dateTo)");
-                p.Add("dateTo", DateTime.Parse(dateTo));
+                where.Add("PlannedStart < DATEADD(day, 1, @dateTo)");
+                p.Add("dateTo", dt.Date);
             }
 
-            string whereClause = where.Count > 0
-                ? "AND " + string.Join(" AND ", where)
-                : "";
+            string whereClause = where.Count > 0 ? "AND " + string.Join(" AND ", where) : "";
 
             var multi = await conn.QueryMultipleAsync($@"
-                SELECT DISTINCT ProcessArea 
-                FROM ProductionOrders 
+                SELECT DISTINCT ProcessArea FROM ProductionOrders 
                 WHERE ProcessArea IS NOT NULL AND LTRIM(RTRIM(ProcessArea)) <> '' {whereClause};
 
-                SELECT DISTINCT Shift 
-                FROM ProductionOrders 
+                SELECT DISTINCT Shift FROM ProductionOrders 
                 WHERE Shift IS NOT NULL AND LTRIM(RTRIM(Shift)) <> '' {whereClause};
             ", p);
 
@@ -66,53 +62,66 @@ namespace YourProject.Controllers
         // =====================================================
         // 🔹 FILTERS V2
         // =====================================================
-        [HttpGet("filters-v2")]
-        public async Task<IActionResult> FiltersV2(string dateFrom = "", string dateTo = "")
+        [HttpGet("filtersV2")]
+        public async Task<IActionResult> FiltersV2([FromQuery] string dateFrom = "", [FromQuery] string dateTo = "")
         {
-            using var conn = Connection;
-
-            var where = new List<string>();
-            var p = new DynamicParameters();
-
-            if (!string.IsNullOrEmpty(dateFrom))
+            try 
             {
-                where.Add("PlannedStart >= @dateFrom");
-                p.Add("dateFrom", DateTime.Parse(dateFrom));
+                using var conn = Connection;
+                var where = new List<string>();
+                var p = new DynamicParameters();
+
+                // 1. Xử lý dateFrom: Lấy từ 00:00:00 của ngày được chọn
+                if (!string.IsNullOrEmpty(dateFrom) && DateTime.TryParse(dateFrom, out DateTime df))
+                {
+                    where.Add("PlannedStart >= @dateFrom");
+                    p.Add("dateFrom", df.Date); 
+                }
+
+                // 2. Xử lý dateTo: Kết hợp với DATEADD(day, 1, ...) để lấy hết ngày cuối
+                if (!string.IsNullOrEmpty(dateTo) && DateTime.TryParse(dateTo, out DateTime dt))
+                {
+                    where.Add("PlannedStart < DATEADD(day, 1, @dateTo)");
+                    p.Add("dateTo", dt.Date);
+                }
+
+                // Tạo chuỗi WHERE động
+                string whereClause = where.Count > 0 
+                    ? " AND " + string.Join(" AND ", where) 
+                    : "";
+
+                // 3. Truy vấn đa kết quả (QueryMultiple)
+                // Lưu ý: Thêm ORDER BY cho ProductionOrderNumber để danh sách trả về dễ nhìn hơn
+                var sql = $@"
+                    SELECT DISTINCT ProcessArea 
+                    FROM ProductionOrders 
+                    WHERE ProcessArea IS NOT NULL AND LTRIM(RTRIM(ProcessArea)) <> '' {whereClause};
+
+                    SELECT DISTINCT Shift 
+                    FROM ProductionOrders 
+                    WHERE Shift IS NOT NULL AND LTRIM(RTRIM(Shift)) <> '' {whereClause};
+
+                    SELECT DISTINCT ProductionOrderNumber
+                    FROM ProductionOrders
+                    WHERE ProductionOrderNumber IS NOT NULL AND LTRIM(RTRIM(ProductionOrderNumber)) <> '' {whereClause}
+                    ORDER BY ProductionOrderNumber DESC;";
+
+                using var multi = await conn.QueryMultipleAsync(sql, p);
+
+                // 4. Đọc dữ liệu theo đúng thứ tự SELECT ở trên
+                return Ok(new
+                {
+                    processAreas = await multi.ReadAsync<string>(),
+                    shifts = await multi.ReadAsync<string>(),
+                    productionOrderNumbers = await multi.ReadAsync<string>()
+                });
             }
-
-            if (!string.IsNullOrEmpty(dateTo))
+            catch (Exception ex)
             {
-                where.Add("PlannedStart < DATEADD(day,1,@dateTo)");
-                p.Add("dateTo", DateTime.Parse(dateTo));
+                // In lỗi ra Console để bạn dễ debug
+                Console.WriteLine($"❌ Lỗi trong FiltersV2: {ex.Message}");
+                return StatusCode(500, new { success = false, message = "Lỗi hệ thống: " + ex.Message });
             }
-
-            string whereClause = where.Count > 0
-                ? "AND " + string.Join(" AND ", where)
-                : "";
-
-            var multi = await conn.QueryMultipleAsync($@"
-                SELECT DISTINCT ProcessArea 
-                FROM ProductionOrders 
-                WHERE ProcessArea IS NOT NULL AND LTRIM(RTRIM(ProcessArea)) <> '' {whereClause};
-
-                SELECT DISTINCT Shift 
-                FROM ProductionOrders 
-                WHERE Shift IS NOT NULL AND LTRIM(RTRIM(Shift)) <> '' {whereClause};
-
-                SELECT DISTINCT ProductionOrderNumber
-                FROM ProductionOrders
-                WHERE ProductionOrderNumber IS NOT NULL 
-                  AND LTRIM(RTRIM(ProductionOrderNumber)) <> ''
-                  {whereClause}
-                ORDER BY ProductionOrderNumber DESC;
-            ", p);
-
-            return Ok(new
-            {
-                processAreas = await multi.ReadAsync<string>(),
-                shifts = await multi.ReadAsync<string>(),
-                productionOrderNumbers = await multi.ReadAsync<string>()
-            });
         }
 
         // =====================================================

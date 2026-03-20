@@ -1,0 +1,48 @@
+pos:
+- /filters: get Done
+- /filters-v2: get
+- /stats: get
+- /stats-v2: get
+- /stats/search: get
+- /stats-v2/search: get
+- /: get
+- /v2: get
+- /search: get
+- /search-v2: get
+
+po-detail:
+- /batches: get
+- /ingredients-by-product: get
+- /material-consumptions: post
+- /material-consumptions-exclude-batches: post
+- /batch-codes-with-materials: get
+- /product-masters-by-codes: post
+- /recipe-versions: get
+- /:id: get
+
+recipes:
+- /stats: get
+- /stats/search: get
+- /: get
+- /search: get
+
+recipe-detail:
+- /:id: get
+
+materials:
+- /: get
+- /production-orders: get
+- /batch-codes: get
+- /ingredients: get
+- /shifts: get
+- /search: get
+- /stats: get
+- /stats/search: get
+
+products:
+- /stats: get
+- /stats/search: get
+- /: get
+- /search: get
+- /types: get
+- /:id: get
