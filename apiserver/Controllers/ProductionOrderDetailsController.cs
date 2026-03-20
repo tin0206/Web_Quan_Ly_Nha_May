@@ -79,64 +79,334 @@ public class ProductionOrderDetailsController : ControllerBase
     // 3. MATERIAL CONSUMPTIONS (FULL)
     // =========================
     [HttpPost("material-consumptions")]
-    public async Task<IActionResult> GetMaterialConsumptions(string productionOrderNumber, int page = 1, int limit = 20)
+public async Task<IActionResult> GetMaterialConsumptions(
+    [FromQuery] string productionOrderNumber,
+    [FromQuery] int page = 1,
+    [FromQuery] int limit = 20)
+{
+    try
     {
         if (string.IsNullOrWhiteSpace(productionOrderNumber))
-            return BadRequest(new { success = false });
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "productionOrderNumber là bắt buộc"
+            });
+        }
+
+        page = Math.Max(1, page);
+        limit = Math.Min(100, Math.Max(1, limit));
 
         var from = (page - 1) * limit + 1;
         var to = page * limit;
 
-        var sql = @"-- FULL QUERY GIỮ NGUYÊN
+        using var conn = Connection;
+
+        var sql = @"
         ;WITH BatchCTE AS (
-            SELECT b.BatchNumber AS batchCode,
-                   ROW_NUMBER() OVER (ORDER BY b.BatchNumber) AS rn
+            SELECT
+                b.BatchNumber AS batchCode,
+                ROW_NUMBER() OVER (ORDER BY b.BatchNumber) AS rn
             FROM Batches b
-            JOIN ProductionOrders po ON po.ProductionOrderId = b.ProductionOrderId
+            JOIN ProductionOrders po
+                ON po.ProductionOrderId = b.ProductionOrderId
             WHERE po.ProductionOrderNumber = @prodOrderNum
         ),
         PagedBatch AS (
-            SELECT batchCode FROM BatchCTE WHERE rn BETWEEN @from AND @to
+            SELECT batchCode
+            FROM BatchCTE
+            WHERE rn BETWEEN @from AND @to
+        ),
+        RecipeIngredient AS (
+            SELECT DISTINCT
+                i.IngredientCode,
+                pm.ItemName
+            FROM ProductionOrders po
+            JOIN RecipeDetails rd
+                ON rd.ProductCode = po.ProductCode
+               AND rd.Version = po.RecipeVersion
+            JOIN Processes p ON p.RecipeDetailsId = rd.RecipeDetailsId
+            JOIN Ingredients i ON i.ProcessId = p.ProcessId
+            LEFT JOIN ProductMasters pm ON pm.ItemCode = i.IngredientCode
+            WHERE po.ProductionOrderNumber = @prodOrderNum
+        ),
+        ExtraIngredient AS (
+            SELECT DISTINCT
+                mc.ingredientCode AS IngredientCode,
+                pm.ItemName
+            FROM MESMaterialConsumption mc
+            JOIN PagedBatch pb
+                ON pb.batchCode = mc.batchCode
+            LEFT JOIN RecipeIngredient r
+                ON r.IngredientCode = mc.ingredientCode
+            LEFT JOIN ProductMasters pm
+                ON pm.ItemCode = mc.ingredientCode
+            WHERE mc.productionOrderNumber = @prodOrderNum
+              AND r.IngredientCode IS NULL
         )
-        SELECT * FROM PagedBatch";
 
-        using var conn = Connection;
-        var data = await conn.QueryAsync(sql, new { prodOrderNum = productionOrderNumber, from, to });
+        SELECT
+            pb.batchCode,
+            r.IngredientCode,
+            r.ItemName,
+            mc.id,
+            mc.lot,
+            mc.quantity,
+            COALESCE(mc.unitOfMeasurement, ing.UnitOfMeasurement) AS unitOfMeasurement,
+            mc.datetime,
+            mc.operator_ID,
+            mc.supplyMachine,
+            mc.count,
+            mc.request,
+            mc.respone,
+            mc.status1,
+            mc.timestamp
+        FROM PagedBatch pb
+        CROSS JOIN RecipeIngredient r
+        LEFT JOIN MESMaterialConsumption mc
+            ON mc.productionOrderNumber = @prodOrderNum
+           AND mc.batchCode = pb.batchCode
+           AND mc.ingredientCode = r.IngredientCode
+        LEFT JOIN Ingredients ing
+            ON ing.IngredientCode = r.IngredientCode
 
-        return Ok(new { success = true, page, limit, data });
+        UNION ALL
+
+        SELECT
+            mc.batchCode,
+            e.IngredientCode,
+            e.ItemName,
+            mc.id,
+            mc.lot,
+            mc.quantity,
+            mc.unitOfMeasurement,
+            mc.datetime,
+            mc.operator_ID,
+            mc.supplyMachine,
+            mc.count,
+            mc.request,
+            mc.respone,
+            mc.status1,
+            mc.timestamp
+        FROM MESMaterialConsumption mc
+        JOIN PagedBatch pb
+            ON pb.batchCode = mc.batchCode
+        JOIN ExtraIngredient e
+            ON e.IngredientCode = mc.ingredientCode
+        WHERE mc.productionOrderNumber = @prodOrderNum
+
+        ORDER BY batchCode, IngredientCode
+        ";
+
+        var rows = await conn.QueryAsync(sql, new
+        {
+            prodOrderNum = productionOrderNumber.Trim(),
+            from,
+            to
+        });
+
+        var data = rows.Select(row => new
+        {
+            id = row.id,
+            batchCode = row.batchCode,
+            ingredientCode = row.ItemName != null
+                ? $"{row.IngredientCode} - {row.ItemName}"
+                : row.IngredientCode,
+            lot = row.lot ?? "",
+            quantity = row.quantity,
+            unitOfMeasurement = row.unitOfMeasurement ?? "",
+            datetime = row.datetime,
+            operator_ID = row.operator_ID,
+            supplyMachine = row.supplyMachine,
+            count = row.count ?? 0,
+            request = row.request,
+            respone = row.respone,
+            status1 = row.status1,
+            timestamp = row.timestamp
+        });
+
+        return Ok(new
+        {
+            success = true,
+            message = "Lấy danh sách tiêu hao vật liệu thành công",
+            page,
+            limit,
+            data
+        });
     }
+    catch (Exception ex)
+    {
+        Console.WriteLine("❌ material-consumptions error: " + ex.Message);
+
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "Lỗi Server: " + ex.Message
+        });
+    }
+}
 
     // =========================
     // 4. EXCLUDE BATCHES
     // =========================
     [HttpPost("material-consumptions-exclude-batches")]
-    public async Task<IActionResult> GetExclude(
-        string productionOrderNumber,
-        int page = 1,
-        int limit = 20,
-        [FromBody] List<string>? batchCodes = null)
+public async Task<IActionResult> GetExclude(
+    [FromQuery] string productionOrderNumber,
+    [FromQuery] int page = 1,
+    [FromQuery] int limit = 20,
+    [FromBody] List<dynamic>? batchCodesWithMaterials = null)
+{
+    try
     {
+        if (string.IsNullOrWhiteSpace(productionOrderNumber))
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "productionOrderNumber là bắt buộc"
+            });
+        }
+
+        page = Math.Max(1, page);
+        limit = Math.Min(100, Math.Max(1, limit));
         var offset = (page - 1) * limit;
 
-        var sql = @"
-        SELECT *
-        FROM MESMaterialConsumption
-        WHERE ProductionOrderNumber = @prodOrderNum
-          AND (batchCode IS NULL OR batchCode IN @batchCodes)
-        ORDER BY id DESC
-        OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY";
-
         using var conn = Connection;
-        var data = await conn.QueryAsync(sql, new
+        var p = new DynamicParameters();
+
+        p.Add("prodOrderNum", productionOrderNumber.Trim());
+
+        var batchNumbers = new List<string>();
+
+        if (batchCodesWithMaterials != null && batchCodesWithMaterials.Any())
         {
-            prodOrderNum = productionOrderNumber,
-            batchCodes = batchCodes ?? new List<string>(),
-            offset,
-            limit
+            batchNumbers = batchCodesWithMaterials
+                .Select(b => (string)b.BatchNumber)
+                .ToList();
+        }
+
+        string batchFilterSql = "";
+
+        if (batchNumbers.Any())
+        {
+            var ps = new List<string>();
+
+            for (int i = 0; i < batchNumbers.Count; i++)
+            {
+                var key = $"batch{i}";
+                ps.Add("@" + key);
+                p.Add(key, batchNumbers[i]);
+            }
+
+            batchFilterSql = $" OR mc.batchCode IN ({string.Join(",", ps)})";
+        }
+
+        /* ===== COUNT ===== */
+        var countSql = $@"
+        SELECT COUNT(*) 
+        FROM MESMaterialConsumption mc
+        WHERE mc.ProductionOrderNumber = @prodOrderNum
+          AND (
+            mc.batchCode IS NULL
+            {batchFilterSql}
+          )";
+
+        var totalCount = await conn.ExecuteScalarAsync<int>(countSql, p);
+
+        if (totalCount == 0)
+        {
+            return Ok(new
+            {
+                success = true,
+                message = "Không có dữ liệu",
+                page,
+                limit,
+                totalCount = 0,
+                totalPages = 0,
+                data = new List<object>()
+            });
+        }
+
+        /* ===== DATA ===== */
+        p.Add("offset", offset);
+        p.Add("limit", limit);
+
+        var dataSql = $@"
+        SELECT
+            mc.id,
+            mc.productionOrderNumber,
+            mc.batchCode,
+            mc.ingredientCode,
+            pm.ItemName,
+            mc.lot,
+            mc.quantity,
+            mc.unitOfMeasurement,
+            mc.datetime,
+            mc.operator_ID,
+            mc.supplyMachine,
+            mc.count,
+            mc.request,
+            mc.respone,
+            mc.status1,
+            mc.timestamp
+        FROM MESMaterialConsumption mc
+        LEFT JOIN ProductMasters pm
+            ON pm.ItemCode = mc.ingredientCode
+        WHERE mc.ProductionOrderNumber = @prodOrderNum
+          AND (
+            mc.batchCode IS NULL
+            {batchFilterSql}
+          )
+        ORDER BY mc.id DESC
+        OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+        ";
+
+        var rows = await conn.QueryAsync(dataSql, p);
+
+        var data = rows.Select(row => new
+        {
+            id = row.id,
+            productionOrderNumber = row.productionOrderNumber,
+            batchCode = row.batchCode,
+            ingredientCode = row.ItemName != null
+                ? $"{row.ingredientCode} - {row.ItemName}"
+                : row.ingredientCode,
+            lot = row.lot,
+            quantity = row.quantity,
+            unitOfMeasurement = row.unitOfMeasurement,
+            datetime = row.datetime,
+            operator_ID = row.operator_ID,
+            supplyMachine = row.supplyMachine,
+            count = row.count ?? 0,
+            request = row.request,
+            respone = row.respone,
+            status1 = row.status1,
+            timestamp = row.timestamp
         });
 
-        return Ok(new { success = true, data });
+        return Ok(new
+        {
+            success = true,
+            message = "Lấy danh sách tiêu hao vật liệu (không thuộc batch) thành công",
+            page,
+            limit,
+            totalCount,
+            totalPages = (int)Math.Ceiling((double)totalCount / limit),
+            data
+        });
     }
+    catch (Exception ex)
+    {
+        Console.WriteLine("❌ exclude-batches error: " + ex.Message);
+
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "Lỗi Server: " + ex.Message
+        });
+    }
+}
 
     // =========================
     // 5. BATCH CODES
@@ -154,23 +424,7 @@ public class ProductionOrderDetailsController : ControllerBase
     }
 
     // =========================
-    // 6. PRODUCT MASTER
-    // =========================
-    [HttpPost("product-masters-by-codes")]
-    public async Task<IActionResult> GetProductMasters([FromBody] List<string> itemCodes)
-    {
-        var sql = @"SELECT ItemCode, ItemName 
-                    FROM ProductMasters 
-                    WHERE ItemCode IN @Codes";
-
-        using var conn = Connection;
-        var data = await conn.QueryAsync(sql, new { Codes = itemCodes });
-
-        return Ok(new { success = true, data });
-    }
-
-    // =========================
-    // 7. RECIPE
+    // 6. RECIPE
     // =========================
     [HttpGet("recipe-versions")]
     public async Task<IActionResult> GetRecipe(string recipeCode, string? version)
@@ -191,19 +445,166 @@ public class ProductionOrderDetailsController : ControllerBase
     }
 
     // =========================
-    // 8. GET BY ID
+    // 7. GET BY ID
     // =========================
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var sql = @"SELECT * FROM ProductionOrders WHERE ProductionOrderId = @id";
+        try
+        {
+            // ❗ Validate giống Node
+            if (id <= 0)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "ID đơn hàng không hợp lệ"
+                });
+            }
 
-        using var conn = Connection;
-        var data = await conn.QueryFirstOrDefaultAsync(sql, new { id });
+            using var conn = Connection;
 
-        if (data == null)
-            return NotFound(new { success = false });
+            var sql = @"
+                SELECT
+                    po.ProductionOrderId,
+                    po.ProductionLine,
+                    po.ProductCode,
+                    po.ProductionOrderNumber,
+                    po.RecipeCode,
+                    po.RecipeVersion,
+                    po.Shift,
+                    po.PlannedStart,
+                    po.PlannedEnd,
+                    po.Quantity,
+                    po.UnitOfMeasurement,
+                    po.LotNumber,
+                    po.timestamp,
+                    po.Plant,
+                    po.Shopfloor,
+                    po.ProcessArea,
+                    po.Status,
 
-        return Ok(new { success = true, data });
+                    pm.ItemName,
+                    ing.PlanQuantity AS ProductQuantity,
+
+                    rd.RecipeName,
+                    MAX(rd.RecipeDetailsId) AS RecipeDetailsId,
+
+                    MAX(mc.BatchCode) AS CurrentBatch,
+                    COUNT(DISTINCT b.BatchNumber) AS TotalBatches
+
+                FROM ProductionOrders po
+
+                LEFT JOIN ProductMasters pm 
+                    ON po.ProductCode = pm.ItemCode
+
+                LEFT JOIN Products ing 
+                    ON po.ProductCode = ing.ProductCode
+
+                LEFT JOIN RecipeDetails rd 
+                    ON po.RecipeCode = rd.RecipeCode
+                AND po.RecipeVersion = rd.Version
+
+                LEFT JOIN MESMaterialConsumption mc
+                    ON mc.ProductionOrderNumber = po.ProductionOrderNumber
+
+                LEFT JOIN Batches b
+                    ON b.ProductionOrderId = po.ProductionOrderId
+
+                WHERE po.ProductionOrderId = @ProductionOrderId
+
+                GROUP BY
+                    po.ProductionOrderId,
+                    po.ProductionLine,
+                    po.ProductCode,
+                    po.ProductionOrderNumber,
+                    po.RecipeCode,
+                    po.RecipeVersion,
+                    po.Shift,
+                    po.PlannedStart,
+                    po.PlannedEnd,
+                    po.Quantity,
+                    po.UnitOfMeasurement,
+                    po.LotNumber,
+                    po.timestamp,
+                    po.Plant,
+                    po.Shopfloor,
+                    po.ProcessArea,
+                    po.Status,
+                    pm.ItemName,
+                    ing.PlanQuantity,
+                    rd.RecipeName
+            ";
+
+            var result = await conn.QueryAsync(sql, new
+            {
+                ProductionOrderId = id
+            });
+
+            var order = result.FirstOrDefault();
+
+            if (order == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Không tìm thấy đơn hàng"
+                });
+            }
+
+            // ✅ Format giống Node
+            var data = new
+            {
+                order.ProductionOrderId,
+                order.ProductionLine,
+                order.ProductionOrderNumber,
+
+                ProductCode = order.ItemName != null
+                    ? $"{order.ProductCode} - {order.ItemName}"
+                    : order.ProductCode,
+
+                RecipeCode = (order.RecipeName != null && order.RecipeCode != null)
+                    ? $"{order.RecipeCode} - {order.RecipeName}"
+                    : order.RecipeCode,
+
+                order.RecipeVersion,
+                order.Shift,
+                order.PlannedStart,
+                order.PlannedEnd,
+                order.Quantity,
+                order.UnitOfMeasurement,
+                order.LotNumber,
+                order.timestamp,
+                order.Plant,
+                order.Shopfloor,
+                order.ProcessArea,
+                order.Status,
+
+                order.ItemName,
+                order.RecipeName,
+
+                RecipeDetailsId = order.RecipeDetailsId ?? null,
+                CurrentBatch = order.CurrentBatch ?? null,
+                TotalBatches = order.TotalBatches ?? 0,
+                ProductQuantity = order.ProductQuantity ?? null
+            };
+
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy chi tiết đơn hàng thành công",
+                data
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("❌ GetById error: " + ex.Message);
+
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Lỗi server"
+            });
+        }
     }
 }

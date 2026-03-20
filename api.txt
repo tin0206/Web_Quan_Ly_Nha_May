@@ -7,14 +7,13 @@ pos:
 - /search-v2: get Done
 
 po-detail:
-- /batches: get
-- /ingredients-by-product: get
-- /material-consumptions: post
-- /material-consumptions-exclude-batches: post
-- /batch-codes-with-materials: get
-- /product-masters-by-codes: post
-- /recipe-versions: get
-- /:id: get
+- /batches: get Done
+- /ingredients-by-product: get Done
+- /material-consumptions: post Done
+- /material-consumptions-exclude-batches: post Done
+- /batch-codes-with-materials: get Done
+- /recipe-versions: get Done
+- /:id: get Done
 
 recipes:
 - /stats: get
@@ -44,4 +43,6 @@ products:
 - /:id: get
 
 Done:
-production_order.js
+production_orders.js
+production_orders_by_batches_pos.js
+production_order_detail.js

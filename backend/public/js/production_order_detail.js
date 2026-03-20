@@ -1,7 +1,7 @@
 import { Batch } from "./models/Batch.js";
 import { MESMaterialConsumption } from "./models/MESMaterialConsumption.js";
 
-const API_ROUTE = window.location.origin;
+const API_ROUTE = "http://localhost:5075";
 
 const orderId = window.location.pathname.split("/").pop();
 let batches = [];
@@ -11,7 +11,7 @@ let order = {};
 async function fetchOrderDetail() {
   try {
     const response = await fetch(
-      `${API_ROUTE}/api/production-order-detail/${orderId}`,
+      `${API_ROUTE}/api/productionorderdetails/${orderId}`,
       {
         method: "GET",
         headers: {
@@ -119,6 +119,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
   if (recipeVersionDetail) {
+    console.log(order);
     recipeVersionDetail.addEventListener("click", async () => {
       window.open(`/recipe-detail/${order.RecipeDetailsId}`, "_blank");
     });
@@ -406,7 +407,7 @@ async function fetchMaterialsWithPagination() {
       });
 
       const response = await fetch(
-        `${API_ROUTE}/api/production-order-detail/ingredients-by-product?${queryParams.toString()}`,
+        `${API_ROUTE}/api/productionorderdetails/ingredients-by-product?${queryParams.toString()}`,
         {
           method: "GET",
           headers: {
@@ -444,7 +445,7 @@ async function fetchMaterialsWithPagination() {
       });
 
       const response = await fetch(
-        `${API_ROUTE}/api/production-order-detail/material-consumptions?${queryParams.toString()}`,
+        `${API_ROUTE}/api/productionorderdetails/material-consumptions?${queryParams.toString()}`,
         {
           method: "POST",
           headers: {
@@ -464,7 +465,7 @@ async function fetchMaterialsWithPagination() {
       }
 
       const response2 = await fetch(
-        `${API_ROUTE}/api/production-order-detail/material-consumptions-exclude-batches?${queryParams.toString()}`,
+        `${API_ROUTE}/api/productionorderdetails/material-consumptions-exclude-batches?${queryParams.toString()}`,
         {
           method: "POST",
           headers: {
@@ -898,7 +899,7 @@ async function displayBatchesTable(batchesArray) {
   }
 
   const result = await fetch(
-    `${API_ROUTE}/api/production-order-detail/batch-codes-with-materials?productionOrderNumber=${order.ProductionOrderNumber}`,
+    `${API_ROUTE}/api/productionorderdetails/batch-codes-with-materials?productionOrderNumber=${order.ProductionOrderNumber}`,
     {
       method: "GET",
       headers: {
@@ -1366,7 +1367,7 @@ async function openRecipeDetailsModal({ recipeCode, version }) {
       const params = new URLSearchParams({ recipeCode });
       if (v) params.set("version", v);
       const res = await fetch(
-        `${API_ROUTE}/api/production-order-detail/recipe-versions?${params.toString()}`,
+        `${API_ROUTE}/api/productionorderdetails/recipe-versions?${params.toString()}`,
       );
       if (!res.ok) throw new Error("Không lấy được Recipe Details");
       const data = await res.json();
@@ -1479,7 +1480,7 @@ function mergeBatchesRemoveDuplicate(arr1, arr2) {
 async function fetchBatches() {
   try {
     const response = await fetch(
-      `${API_ROUTE}/api/production-order-detail/batches?productionOrderId=${orderId}`,
+      `${API_ROUTE}/api/productionorderdetails/batches?productionOrderId=${orderId}`,
       {
         method: "GET",
         headers: {
@@ -1494,7 +1495,7 @@ async function fetchBatches() {
     }
 
     const response2 = await fetch(
-      `${API_ROUTE}/api/production-order-detail/batch-codes-with-materials?productionOrderNumber=${order.ProductionOrderNumber}`,
+      `${API_ROUTE}/api/productionorderdetails/batch-codes-with-materials?productionOrderNumber=${order.ProductionOrderNumber}`,
       {
         method: "GET",
         headers: {
