@@ -76,23 +76,27 @@ router.get("/batch-codes", async (req, res) => {
     const { productionOrderNumber } = req.query;
     const request = getPool().request();
 
-    const where = ["batchCode IS NOT NULL", "LTRIM(RTRIM(batchCode)) <> ''"];
+    const extraWhere = [];
 
     if (productionOrderNumber && productionOrderNumber.trim()) {
-      request.input("po", sql.NVarChar, productionOrderNumber.trim());
-      where.push("productionOrderNumber = @po");
+      request.input("po", sql.NVarChar, `%${productionOrderNumber.trim()}%`);
+      extraWhere.push("productionOrderNumber LIKE @po");
     }
 
-    applyDateFilter(req, request, where);
+    applyDateFilter(req, request, extraWhere);
+
+    const extraStr = extraWhere.length ? `AND ${extraWhere.join(" AND ")}` : "";
 
     const query = `
-        SELECT batchCode
-        FROM (
-            SELECT DISTINCT batchCode
+        SELECT batchCode FROM (
+            SELECT DISTINCT
+                CASE WHEN batchCode IS NULL OR LTRIM(RTRIM(batchCode)) = '' THEN NULL ELSE batchCode END AS batchCode,
+                CASE WHEN batchCode IS NULL OR LTRIM(RTRIM(batchCode)) = '' THEN 0 ELSE 1 END AS sort_grp
             FROM MESMaterialConsumption
-            WHERE ${where.join(" AND ")}
-        ) t
-        ORDER BY CAST(batchCode AS INT) ASC;
+            WHERE 1=1
+            ${extraStr}
+        ) combined
+        ORDER BY sort_grp ASC, TRY_CAST(batchCode AS INT) ASC;
     `;
 
     const result = await request.query(query);
@@ -120,13 +124,13 @@ router.get("/ingredients", async (req, res) => {
     ];
 
     if (productionOrderNumber && productionOrderNumber.trim()) {
-      request.input("po", sql.NVarChar, productionOrderNumber.trim());
-      where.push("productionOrderNumber = @po");
+      request.input("po", sql.NVarChar, `%${productionOrderNumber.trim()}%`);
+      where.push("productionOrderNumber LIKE @po");
     }
 
     if (batchCode && batchCode.trim()) {
-      request.input("bc", sql.NVarChar, batchCode.trim());
-      where.push("batchCode = @bc");
+      request.input("bc", sql.NVarChar, `%${batchCode.trim()}%`);
+      where.push("batchCode LIKE @bc");
     }
 
     applyDateFilter(req, request, where);
@@ -221,12 +225,12 @@ function buildSearchWhere(req, request) {
     const conditions = [];
 
     if (hasNULL) {
-      conditions.push(`productionOrderNumber = ''`);
+      conditions.push(`mmc.productionOrderNumber = ''`);
     }
 
     if (realValues.length) {
       const likeConds = realValues.map(
-        (_, i) => `productionOrderNumber LIKE @po${i}`,
+        (_, i) => `mmc.productionOrderNumber LIKE @po${i}`,
       );
       realValues.forEach((v, i) =>
         request.input(`po${i}`, sql.NVarChar, `%${v}%`),
@@ -249,11 +253,13 @@ function buildSearchWhere(req, request) {
     const conditions = [];
 
     if (hasNULL) {
-      conditions.push(`batchCode IS NULL`);
+      conditions.push(
+        `(mmc.batchCode IS NULL OR LTRIM(RTRIM(mmc.batchCode)) = '')`,
+      );
     }
 
     if (realValues.length) {
-      const likeConds = realValues.map((_, i) => `batchCode LIKE @bc${i}`);
+      const likeConds = realValues.map((_, i) => `mmc.batchCode LIKE @bc${i}`);
       realValues.forEach((v, i) =>
         request.input(`bc${i}`, sql.NVarChar, `%${v}%`),
       );

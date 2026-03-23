@@ -338,7 +338,13 @@ async function loadBatches() {
     );
   }
 
-  batchCodes = items.map((r) => r.batchCode ?? "NULL");
+  batchCodes = items
+    .map((r) => r.batchCode ?? "NULL")
+    .sort((a, b) => {
+      if (a === "NULL") return -1;
+      if (b === "NULL") return 1;
+      return 0;
+    });
   syncInputFromSet("batchInput", state.batches);
   renderDatalistOptions(
     "batchDatalist",
