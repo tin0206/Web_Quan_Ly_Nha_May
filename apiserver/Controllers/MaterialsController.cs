@@ -80,97 +80,118 @@ public class MaterialsController : ControllerBase
     }
 
     // =========================
-    // 1. GET ALL
-    // =========================
-    [HttpGet]
-    public async Task<IActionResult> GetAll(int page = 1, int pageSize = 100)
-    {
-        var offset = (page - 1) * pageSize;
-
-        var sql = @"
-        SELECT mmc.*, po.Shift AS shift
-        FROM MESMaterialConsumption mmc
-        LEFT JOIN ProductionOrders po
-            ON mmc.productionOrderNumber = po.ProductionOrderNumber
-        ORDER BY mmc.datetime DESC
-        OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY";
-
-        using var conn = Connection;
-        var data = await conn.QueryAsync(sql, new { offset, pageSize });
-
-        return Ok(new { success = true, message = "Success", data });
-    }
-
-    // =========================
-    // 2. PRODUCTION ORDERS (CÓ DATE FILTER)
+    // 1. PRODUCTION ORDERS (CÓ DATE FILTER)
     // =========================
     [HttpGet("production-orders")]
-    public async Task<IActionResult> GetProductionOrders()
+    public async Task<IActionResult> GetProductionOrders(
+        string? fromDate = "",
+        string? toDate = ""
+    )
     {
-        var p = new DynamicParameters();
+        using var conn = Connection;
+
         var where = new List<string>();
+        var p = new DynamicParameters();
 
-        ApplyDateFilter(Request.Query, p, where);
+        /* ================= DATE FILTER ================= */
+        if (!string.IsNullOrEmpty(fromDate) && DateTime.TryParse(fromDate, out var df))
+        {
+            where.Add("datetime >= @dateFrom");
+            p.Add("dateFrom", df.Date);
+        }
 
-        var whereClause = where.Any() ? "WHERE " + string.Join(" AND ", where) : "";
+        if (!string.IsNullOrEmpty(toDate) && DateTime.TryParse(toDate, out var dt))
+        {
+            where.Add("datetime < DATEADD(DAY, 1, @dateTo)");
+            p.Add("dateTo", dt.Date);
+        }
+
+        string whereClause = where.Any()
+            ? "WHERE " + string.Join(" AND ", where)
+            : "";
 
         var sql = $@"
-        SELECT DISTINCT productionOrderNumber
-        FROM MESMaterialConsumption
-        {whereClause}
-        ORDER BY productionOrderNumber ASC";
+            SELECT DISTINCT productionOrderNumber
+            FROM MESMaterialConsumption
+            {whereClause}
+            ORDER BY productionOrderNumber ASC
+        ";
 
-        using var conn = Connection;
-        var data = await conn.QueryAsync<string>(sql, p);
+        var rows = await conn.QueryAsync<string>(sql, p);
 
         return Ok(new
         {
             success = true,
-            data = data.Select(x => new { productionOrderNumber = x })
+            message = "Success",
+            data = rows.Select(r => new { productionOrderNumber = r })
         });
     }
-
     // =========================
-    // 3. BATCH CODES (FIX SORT + DATE)
+    // 2. BATCH CODES (FIX SORT + DATE)
     // =========================
     [HttpGet("batch-codes")]
-    public async Task<IActionResult> GetBatchCodes(string? productionOrderNumber)
+    public async Task<IActionResult> GetBatchCodes(
+        string? productionOrderNumber = "",
+        string? fromDate = "",
+        string? toDate = ""
+    )
     {
-        var p = new DynamicParameters();
+        using var conn = Connection;
+
         var where = new List<string>
         {
             "batchCode IS NOT NULL",
             "LTRIM(RTRIM(batchCode)) <> ''"
         };
 
+        var p = new DynamicParameters();
+
+        /* ================= PO FILTER ================= */
         if (!string.IsNullOrWhiteSpace(productionOrderNumber))
         {
-            p.Add("po", productionOrderNumber.Trim());
             where.Add("productionOrderNumber = @po");
+            p.Add("po", productionOrderNumber.Trim());
         }
 
-        ApplyDateFilter(Request.Query, p, where);
+        /* ================= DATE FILTER (MATCH NODE) ================= */
+        if (!string.IsNullOrEmpty(fromDate) && DateTime.TryParse(fromDate, out var df))
+        {
+            where.Add("datetime >= @dateFrom");
+            p.Add("dateFrom", df.Date);
+        }
 
+        if (!string.IsNullOrEmpty(toDate) && DateTime.TryParse(toDate, out var dt))
+        {
+            where.Add("datetime < DATEADD(DAY, 1, @dateTo)");
+            p.Add("dateTo", dt.Date);
+        }
+
+        string whereClause = "WHERE " + string.Join(" AND ", where);
+
+        /* ================= QUERY ================= */
         var sql = $@"
-        SELECT batchCode FROM (
-            SELECT DISTINCT batchCode
-            FROM MESMaterialConsumption
-            WHERE {string.Join(" AND ", where)}
-        ) t
-        ORDER BY TRY_CAST(batchCode AS INT) ASC";
+            SELECT batchCode
+            FROM (
+                SELECT DISTINCT batchCode
+                FROM MESMaterialConsumption
+                {whereClause}
+            ) t
+            ORDER BY TRY_CAST(batchCode AS INT) ASC
+        ";
 
-        using var conn = Connection;
-        var data = await conn.QueryAsync<string>(sql, p);
+        var rows = await conn.QueryAsync<string>(sql, p);
 
+        /* ================= RESPONSE ================= */
         return Ok(new
         {
             success = true,
-            data = data.Select(x => new { batchCode = x })
+            message = "Success",
+            data = rows.Select(x => new { batchCode = x })
         });
     }
 
     // =========================
-    // 4. INGREDIENTS (FIX DATE)
+    // 3. INGREDIENTS (FIX DATE)
     // =========================
     [HttpGet("ingredients")]
     public async Task<IActionResult> GetIngredients(string? productionOrderNumber, string? batchCode)
@@ -213,7 +234,7 @@ public class MaterialsController : ControllerBase
     }
 
     // =========================
-    // 5. SHIFTS (FIX JOIN LOGIC)
+    // 4. SHIFTS (FIX JOIN LOGIC)
     // =========================
     [HttpGet("shifts")]
     public async Task<IActionResult> GetShifts()
@@ -256,7 +277,7 @@ public class MaterialsController : ControllerBase
     }
 
     // =========================
-    // 6. SEARCH (FULL LOGIC NODE)
+    // 5. SEARCH (FULL LOGIC NODE)
     // =========================
     [HttpGet("search")]
     public async Task<IActionResult> Search(int page = 1, int pageSize = 100)
@@ -337,20 +358,7 @@ public class MaterialsController : ControllerBase
     }
 
     // =========================
-    // 7. STATS
-    // =========================
-    [HttpGet("stats")]
-    public async Task<IActionResult> Stats()
-    {
-        using var conn = Connection;
-        var total = await conn.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM MESMaterialConsumption");
-
-        return Ok(new { success = true, data = new { total } });
-    }
-
-    // =========================
-    // 8. STATS SEARCH
+    // 6. STATS SEARCH
     // =========================
     [HttpGet("stats/search")]
     public async Task<IActionResult> StatsSearch()

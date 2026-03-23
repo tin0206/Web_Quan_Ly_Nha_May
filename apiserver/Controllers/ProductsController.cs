@@ -19,76 +19,7 @@ public class ProductsController : ControllerBase
         => new SqlConnection(_config.GetConnectionString("DefaultConnection"));
 
     // =========================
-    // 1. GET api/products/stats
-    // =========================
-    [HttpGet("stats")]
-    public async Task<IActionResult> GetStats()
-    {
-        try
-        {
-            var sql = @"
-            SELECT
-                COUNT(*) AS totalProducts,
-                SUM(CASE WHEN Item_Status = 'ACTIVE' THEN 1 ELSE 0 END) AS activeProducts,
-                COUNT(DISTINCT Item_Type) AS totalTypes,
-                COUNT(DISTINCT Category) AS totalCategories,
-                COUNT(DISTINCT [Group]) AS totalGroups
-            FROM ProductMasters
-            ";
-
-            using var conn = Connection;
-            var result = await conn.QueryFirstOrDefaultAsync(sql);
-
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
-    // =========================
-    // 2. GET api/products
-    // =========================
-    [HttpGet]
-    public async Task<IActionResult> GetAll()
-    {
-        try
-        {
-            var sql = @"
-            SELECT 
-                p.ProductMasterId,
-                p.ItemCode,
-                p.ItemName,
-                p.Item_Type,
-                p.[Group],
-                p.Category,
-                p.Brand,
-                p.BaseUnit,
-                p.InventoryUnit,
-                p.Item_Status,
-                p.[timestamp],
-                m.MHUTypeId,
-                m.FromUnit, 
-                m.ToUnit,
-                m.Conversion
-            FROM ProductMasters p
-            LEFT JOIN MHUTypes m ON p.ProductMasterId = m.ProductMasterId
-            ";
-
-            using var conn = Connection;
-            var data = await conn.QueryAsync(sql);
-
-            return Ok(data);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
-    // =========================
-    // 3. GET api/products/types
+    // 1. GET api/products/types
     // =========================
     [HttpGet("types")]
     public async Task<IActionResult> GetTypes()
@@ -109,7 +40,7 @@ public class ProductsController : ControllerBase
     }
 
     // =========================
-    // 4. GET api/products/search
+    // 2. GET api/products/search
     // =========================
     [HttpGet("search")]
     public async Task<IActionResult> Search(
@@ -252,7 +183,7 @@ public class ProductsController : ControllerBase
     }
 
     // =========================
-    // 5. GET api/products/stats/search
+    // 3. GET api/products/stats/search
     // =========================
     [HttpGet("stats/search")]
     public async Task<IActionResult> StatsSearch(
@@ -351,7 +282,7 @@ public class ProductsController : ControllerBase
     }
 
     // =========================
-    // 6. GET api/products/{id}
+    // 4. GET api/products/{id}
     // =========================
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)

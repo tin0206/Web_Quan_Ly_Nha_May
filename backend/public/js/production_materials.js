@@ -705,9 +705,7 @@ async function fetchTotal() {
     params.has("shift") ||
     params.has("fromDate") ||
     params.has("toDate");
-  const base = hasFilters
-    ? `${API_ROUTE}/api/production-materials/stats/search`
-    : `${API_ROUTE}/api/production-materials/stats`;
+  const base = `${API_ROUTE}/api/production-materials/stats/search`;
   const url = hasFilters ? `${base}?${params.toString()}` : base;
   const data = await fetchJSON(url);
   return Number(data?.data?.total || 0);

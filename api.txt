@@ -20,28 +20,26 @@ recipes:
 - /search: get Done
 
 recipe-detail:
-- /:id: get
+- /:id: get Done
 
 materials:
-- /: get
 - /production-orders: get
 - /batch-codes: get
 - /ingredients: get
 - /shifts: get
 - /search: get
-- /stats: get
 - /stats/search: get
 
 products:
-- /stats: get
-- /stats/search: get
-- /: get
-- /search: get
-- /types: get
-- /:id: get
+- /stats/search: get Done
+- /search: get Done
+- /types: get Done
+- /:id: get Done
 
 Done:
 production_orders.js
 production_orders_by_batches_pos.js
 production_order_detail.js
 production_recipes.js
+production_recipe_detail.js
+production_products.js

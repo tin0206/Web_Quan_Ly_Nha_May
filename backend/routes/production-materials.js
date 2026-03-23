@@ -2,30 +2,6 @@ const express = require("express");
 const router = express.Router();
 const { getPool, sql } = require("../db");
 
-// List all items with optional pagination
-router.get("/", async (req, res) => {
-  try {
-    const page = Math.max(parseInt(req.query.page || "1", 10), 1);
-    const pageSize = Math.max(parseInt(req.query.pageSize || "100", 10), 1);
-    const offset = (page - 1) * pageSize;
-
-    const query = `
-      SELECT mmc.*, po.Shift AS shift
-      FROM MESMaterialConsumption mmc
-      LEFT JOIN ProductionOrders po
-        ON mmc.productionOrderNumber = po.ProductionOrderNumber
-      ORDER BY mmc.datetime DESC
-      OFFSET ${offset} ROWS FETCH NEXT ${pageSize} ROWS ONLY;
-    `;
-
-    const result = await getPool().request().query(query);
-    res.json({ success: true, message: "Success", data: result.recordset });
-  } catch (error) {
-    console.error("❌ Lỗi lấy tất cả items:", error.message);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
 // Helper: apply fromDate/toDate filter to WHERE array
 function applyDateFilter(req, request, where, tableAlias) {
   const col = tableAlias ? `${tableAlias}.datetime` : "datetime";
@@ -408,20 +384,6 @@ router.get("/search", async (req, res) => {
     res.json({ success: true, message: "Success", data: result.recordset });
   } catch (error) {
     console.error("❌ Lỗi tìm kiếm items:", error.message);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Stats: total rows
-router.get("/stats", async (req, res) => {
-  try {
-    const result = await getPool()
-      .request()
-      .query(`SELECT COUNT(*) AS total FROM MESMaterialConsumption`);
-    const total = result.recordset[0]?.total ?? 0;
-    res.json({ success: true, message: "Success", data: { total } });
-  } catch (error) {
-    console.error("❌ Lỗi thống kê tổng:", error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 });
