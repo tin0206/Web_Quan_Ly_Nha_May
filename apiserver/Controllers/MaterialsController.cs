@@ -22,7 +22,9 @@ public class MaterialsController : ControllerBase
     // =========================
     private void ApplyDateFilter(IQueryCollection query, DynamicParameters p, List<string> where, string alias = "mmc")
     {
-        string col = $"{alias}.datetime";
+        string col = string.IsNullOrWhiteSpace(alias)
+            ? "datetime"
+            : $"{alias}.datetime";
 
         DateTime? ParseDate(string input, bool endOfDay = false)
         {
@@ -83,30 +85,17 @@ public class MaterialsController : ControllerBase
     // 1. PRODUCTION ORDERS (CÓ DATE FILTER)
     // =========================
     [HttpGet("production-orders")]
-    public async Task<IActionResult> GetProductionOrders(
-        string? fromDate = "",
-        string? toDate = ""
-    )
+    public async Task<IActionResult> GetProductionOrders()
     {
         using var conn = Connection;
 
         var where = new List<string>();
         var p = new DynamicParameters();
 
-        /* ================= DATE FILTER ================= */
-        if (!string.IsNullOrEmpty(fromDate) && DateTime.TryParse(fromDate, out var df))
-        {
-            where.Add("datetime >= @dateFrom");
-            p.Add("dateFrom", df.Date);
-        }
+        // ✅ dùng helper giống Node
+        ApplyDateFilter(Request.Query, p, where, ""); // no alias
 
-        if (!string.IsNullOrEmpty(toDate) && DateTime.TryParse(toDate, out var dt))
-        {
-            where.Add("datetime < DATEADD(DAY, 1, @dateTo)");
-            p.Add("dateTo", dt.Date);
-        }
-
-        string whereClause = where.Any()
+        var whereClause = where.Any()
             ? "WHERE " + string.Join(" AND ", where)
             : "";
 
@@ -126,67 +115,59 @@ public class MaterialsController : ControllerBase
             data = rows.Select(r => new { productionOrderNumber = r })
         });
     }
+
     // =========================
     // 2. BATCH CODES (FIX SORT + DATE)
     // =========================
     [HttpGet("batch-codes")]
-    public async Task<IActionResult> GetBatchCodes(
-        string? productionOrderNumber = "",
-        string? fromDate = "",
-        string? toDate = ""
-    )
+    public async Task<IActionResult> GetBatchCodes(string? productionOrderNumber = "")
     {
         using var conn = Connection;
 
-        var where = new List<string>
-        {
-            "batchCode IS NOT NULL",
-            "LTRIM(RTRIM(batchCode)) <> ''"
-        };
-
+        var extraWhere = new List<string>();
         var p = new DynamicParameters();
 
-        /* ================= PO FILTER ================= */
+        /* ================= PO FILTER (LIKE) ================= */
         if (!string.IsNullOrWhiteSpace(productionOrderNumber))
         {
-            where.Add("productionOrderNumber = @po");
-            p.Add("po", productionOrderNumber.Trim());
+            p.Add("po", $"%{productionOrderNumber.Trim()}%");
+            extraWhere.Add("productionOrderNumber LIKE @po");
         }
 
-        /* ================= DATE FILTER (MATCH NODE) ================= */
-        if (!string.IsNullOrEmpty(fromDate) && DateTime.TryParse(fromDate, out var df))
-        {
-            where.Add("datetime >= @dateFrom");
-            p.Add("dateFrom", df.Date);
-        }
+        /* ================= DATE FILTER (KHÔNG alias) ================= */
+        ApplyDateFilter(Request.Query, p, extraWhere, ""); // ✅ QUAN TRỌNG
 
-        if (!string.IsNullOrEmpty(toDate) && DateTime.TryParse(toDate, out var dt))
-        {
-            where.Add("datetime < DATEADD(DAY, 1, @dateTo)");
-            p.Add("dateTo", dt.Date);
-        }
+        var extraStr = extraWhere.Any()
+            ? "AND " + string.Join(" AND ", extraWhere)
+            : "";
 
-        string whereClause = "WHERE " + string.Join(" AND ", where);
-
-        /* ================= QUERY ================= */
         var sql = $@"
-            SELECT batchCode
-            FROM (
-                SELECT DISTINCT batchCode
+            SELECT batchCode FROM (
+                SELECT DISTINCT
+                    CASE 
+                        WHEN batchCode IS NULL OR LTRIM(RTRIM(batchCode)) = '' 
+                            THEN NULL 
+                        ELSE batchCode 
+                    END AS batchCode,
+                    CASE 
+                        WHEN batchCode IS NULL OR LTRIM(RTRIM(batchCode)) = '' 
+                            THEN 0 
+                        ELSE 1 
+                    END AS sort_grp
                 FROM MESMaterialConsumption
-                {whereClause}
-            ) t
-            ORDER BY TRY_CAST(batchCode AS INT) ASC
+                WHERE 1=1
+                {extraStr}
+            ) combined
+            ORDER BY sort_grp ASC, TRY_CAST(batchCode AS INT) ASC
         ";
 
         var rows = await conn.QueryAsync<string>(sql, p);
 
-        /* ================= RESPONSE ================= */
         return Ok(new
         {
             success = true,
             message = "Success",
-            data = rows.Select(x => new { batchCode = x })
+            data = rows.Select(r => new { batchCode = r })
         });
     }
 
@@ -194,8 +175,12 @@ public class MaterialsController : ControllerBase
     // 3. INGREDIENTS (FIX DATE)
     // =========================
     [HttpGet("ingredients")]
-    public async Task<IActionResult> GetIngredients(string? productionOrderNumber, string? batchCode)
+    public async Task<IActionResult> GetIngredients(
+        string? productionOrderNumber,
+        string? batchCode)
     {
+        using var conn = Connection;
+
         var p = new DynamicParameters();
         var where = new List<string>
         {
@@ -205,30 +190,32 @@ public class MaterialsController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(productionOrderNumber))
         {
-            p.Add("po", productionOrderNumber.Trim());
-            where.Add("productionOrderNumber = @po");
+            where.Add("productionOrderNumber LIKE @po");
+            p.Add("po", $"%{productionOrderNumber.Trim()}%");
         }
 
         if (!string.IsNullOrWhiteSpace(batchCode))
         {
-            p.Add("bc", batchCode.Trim());
-            where.Add("batchCode = @bc");
+            where.Add("batchCode LIKE @bc");
+            p.Add("bc", $"%{batchCode.Trim()}%");
         }
 
-        ApplyDateFilter(Request.Query, p, where);
+        /* 🔥 FIX Ở ĐÂY */
+        ApplyDateFilter(Request.Query, p, where, ""); 
 
         var sql = $@"
-        SELECT DISTINCT ingredientCode
-        FROM MESMaterialConsumption
-        WHERE {string.Join(" AND ", where)}
-        ORDER BY ingredientCode ASC";
+            SELECT DISTINCT ingredientCode
+            FROM MESMaterialConsumption
+            WHERE {string.Join(" AND ", where)}
+            ORDER BY ingredientCode ASC
+        ";
 
-        using var conn = Connection;
         var data = await conn.QueryAsync<string>(sql, p);
 
         return Ok(new
         {
             success = true,
+            message = "Success",
             data = data.Select(x => new { ingredientCode = x })
         });
     }
@@ -287,46 +274,67 @@ public class MaterialsController : ControllerBase
         var p = new DynamicParameters();
         var where = new List<string>();
 
-        // ProductionOrderNumber
+        /* ================= PRODUCTION ORDER ================= */
         var poList = NormalizeQuery(Request.Query["productionOrderNumber"]);
         if (poList.Any())
         {
-            var parts = new List<string>();
-            for (int i = 0; i < poList.Count; i++)
+            var conditions = new List<string>();
+
+            if (poList.Contains("NULL"))
+                conditions.Add("mmc.productionOrderNumber = ''");
+
+            var real = poList.Where(x => x != "NULL").ToList();
+
+            for (int i = 0; i < real.Count; i++)
             {
-                p.Add($"po{i}", $"%{poList[i]}%");
-                parts.Add($"mmc.productionOrderNumber LIKE @po{i}");
+                p.Add($"po{i}", $"%{real[i]}%");
+                conditions.Add($"mmc.productionOrderNumber LIKE @po{i}");
             }
-            where.Add($"({string.Join(" OR ", parts)})");
+
+            where.Add($"({string.Join(" OR ", conditions)})");
         }
 
-        // Batch
+        /* ================= BATCH ================= */
         var batchList = NormalizeQuery(Request.Query["batchCode"]);
         if (batchList.Any())
         {
-            var parts = new List<string>();
-            for (int i = 0; i < batchList.Count; i++)
+            var conditions = new List<string>();
+
+            if (batchList.Contains("NULL"))
+                conditions.Add("(mmc.batchCode IS NULL OR LTRIM(RTRIM(mmc.batchCode)) = '')");
+
+            var real = batchList.Where(x => x != "NULL").ToList();
+
+            for (int i = 0; i < real.Count; i++)
             {
-                p.Add($"bc{i}", $"%{batchList[i]}%");
-                parts.Add($"mmc.batchCode LIKE @bc{i}");
+                p.Add($"bc{i}", real[i]); // ❗ không có %
+                conditions.Add($"mmc.batchCode = @bc{i}");
             }
-            where.Add($"({string.Join(" OR ", parts)})");
+
+            where.Add($"({string.Join(" OR ", conditions)})");
         }
 
-        // Ingredient
+        /* ================= INGREDIENT ================= */
         var ingList = NormalizeQuery(Request.Query["ingredientCode"]);
         if (ingList.Any())
         {
-            var parts = new List<string>();
-            for (int i = 0; i < ingList.Count; i++)
+            var conditions = new List<string>();
+
+            if (ingList.Contains("NULL"))
+                conditions.Add("mmc.ingredientCode IS NULL");
+
+            var real = ingList.Where(x => x != "NULL").ToList();
+
+            for (int i = 0; i < real.Count; i++)
             {
-                p.Add($"ing{i}", $"%{ingList[i]}%");
-                parts.Add($"mmc.ingredientCode LIKE @ing{i}");
+                p.Add($"ing{i}", $"%{real[i]}%");
+                conditions.Add($"mmc.ingredientCode LIKE @ing{i}");
             }
-            where.Add($"({string.Join(" OR ", parts)})");
+
+            where.Add($"({string.Join(" OR ", conditions)})");
         }
 
-        // Shift
+        /* ================= SHIFT ================= */
         var shiftList = NormalizeQuery(Request.Query["shift"]);
         if (shiftList.Any())
         {
@@ -334,19 +342,33 @@ public class MaterialsController : ControllerBase
             p.Add("shiftList", shiftList);
         }
 
-        // Date
+        /* ================= RESPONE ================= */
+        var responeList = NormalizeQuery(Request.Query["respone"]);
+        if (responeList.Contains("Success") && !responeList.Contains("Failed"))
+        {
+            where.Add("mmc.respone = 'Success'");
+        }
+        else if (!responeList.Contains("Success") && responeList.Contains("Failed"))
+        {
+            where.Add("(mmc.respone <> 'Success' OR mmc.respone IS NULL)");
+        }
+
+        /* ================= DATE ================= */
         ApplyDateFilter(Request.Query, p, where);
 
-        var whereClause = where.Any() ? "WHERE " + string.Join(" AND ", where) : "";
+        var whereClause = where.Any()
+            ? "WHERE " + string.Join(" AND ", where)
+            : "";
 
         var sql = $@"
-        SELECT mmc.*, po.Shift AS shift
-        FROM MESMaterialConsumption mmc
-        LEFT JOIN ProductionOrders po
-            ON mmc.productionOrderNumber = po.ProductionOrderNumber
-        {whereClause}
-        ORDER BY mmc.datetime DESC
-        OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY";
+            SELECT mmc.*, po.Shift AS shift
+            FROM MESMaterialConsumption mmc
+            LEFT JOIN ProductionOrders po
+                ON mmc.productionOrderNumber = po.ProductionOrderNumber
+            {whereClause}
+            ORDER BY mmc.datetime DESC
+            OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
+        ";
 
         p.Add("offset", offset);
         p.Add("pageSize", pageSize);
@@ -366,20 +388,108 @@ public class MaterialsController : ControllerBase
         var p = new DynamicParameters();
         var where = new List<string>();
 
+        /* ================= PRODUCTION ORDER ================= */
+        var poList = NormalizeQuery(Request.Query["productionOrderNumber"]);
+        if (poList.Any())
+        {
+            var conditions = new List<string>();
+
+            if (poList.Contains("NULL"))
+                conditions.Add("mmc.productionOrderNumber = ''");
+
+            var real = poList.Where(x => x != "NULL").ToList();
+
+            for (int i = 0; i < real.Count; i++)
+            {
+                p.Add($"po{i}", $"%{real[i]}%");
+                conditions.Add($"mmc.productionOrderNumber LIKE @po{i}");
+            }
+
+            where.Add($"({string.Join(" OR ", conditions)})");
+        }
+
+        /* ================= BATCH (FIX =) ================= */
+        var batchList = NormalizeQuery(Request.Query["batchCode"]);
+        if (batchList.Any())
+        {
+            var conditions = new List<string>();
+
+            if (batchList.Contains("NULL"))
+                conditions.Add("(mmc.batchCode IS NULL OR LTRIM(RTRIM(mmc.batchCode)) = '')");
+
+            var real = batchList.Where(x => x != "NULL").ToList();
+
+            for (int i = 0; i < real.Count; i++)
+            {
+                p.Add($"bc{i}", real[i]);
+                conditions.Add($"mmc.batchCode = @bc{i}");
+            }
+
+            where.Add($"({string.Join(" OR ", conditions)})");
+        }
+
+        /* ================= INGREDIENT ================= */
+        var ingList = NormalizeQuery(Request.Query["ingredientCode"]);
+        if (ingList.Any())
+        {
+            var conditions = new List<string>();
+
+            if (ingList.Contains("NULL"))
+                conditions.Add("mmc.ingredientCode IS NULL");
+
+            var real = ingList.Where(x => x != "NULL").ToList();
+
+            for (int i = 0; i < real.Count; i++)
+            {
+                p.Add($"ing{i}", $"%{real[i]}%");
+                conditions.Add($"mmc.ingredientCode LIKE @ing{i}");
+            }
+
+            where.Add($"({string.Join(" OR ", conditions)})");
+        }
+
+        /* ================= SHIFT ================= */
+        var shiftList = NormalizeQuery(Request.Query["shift"]);
+        if (shiftList.Any())
+        {
+            where.Add("po.Shift IN @shiftList");
+            p.Add("shiftList", shiftList);
+        }
+
+        /* ================= RESPONE ================= */
+        var responeList = NormalizeQuery(Request.Query["respone"]);
+        if (responeList.Contains("Success") && !responeList.Contains("Failed"))
+        {
+            where.Add("mmc.respone = 'Success'");
+        }
+        else if (!responeList.Contains("Success") && responeList.Contains("Failed"))
+        {
+            where.Add("(mmc.respone <> 'Success' OR mmc.respone IS NULL)");
+        }
+
+        /* ================= DATE ================= */
         ApplyDateFilter(Request.Query, p, where);
 
-        var whereClause = where.Any() ? "WHERE " + string.Join(" AND ", where) : "";
+        var whereClause = where.Any()
+            ? "WHERE " + string.Join(" AND ", where)
+            : "";
 
         var sql = $@"
-        SELECT COUNT(*)
-        FROM MESMaterialConsumption mmc
-        LEFT JOIN ProductionOrders po
-            ON mmc.productionOrderNumber = po.ProductionOrderNumber
-        {whereClause}";
+            SELECT COUNT(*) AS total
+            FROM MESMaterialConsumption mmc
+            LEFT JOIN ProductionOrders po
+                ON mmc.productionOrderNumber = po.ProductionOrderNumber
+            {whereClause}
+        ";
 
         using var conn = Connection;
         var total = await conn.ExecuteScalarAsync<int>(sql, p);
 
-        return Ok(new { success = true, data = new { total } });
+        return Ok(new
+        {
+            success = true,
+            message = "Success",
+            data = new { total }
+        });
     }
 }

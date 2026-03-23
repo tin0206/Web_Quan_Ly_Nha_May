@@ -259,11 +259,13 @@ function buildSearchWhere(req, request) {
     }
 
     if (realValues.length) {
-      const likeConds = realValues.map((_, i) => `mmc.batchCode LIKE @bc${i}`);
-      realValues.forEach((v, i) =>
-        request.input(`bc${i}`, sql.NVarChar, `%${v}%`),
+      const eqConds = realValues.map((_, i) => `mmc.batchCode = @bc${i}`);
+
+      realValues.forEach(
+        (v, i) => request.input(`bc${i}`, sql.NVarChar, v), // ❗ KHÔNG thêm %
       );
-      conditions.push(`(${likeConds.join(" OR ")})`);
+
+      conditions.push(`(${eqConds.join(" OR ")})`);
     }
 
     if (conditions.length) {
