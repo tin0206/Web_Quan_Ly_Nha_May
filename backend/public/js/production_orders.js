@@ -1,7 +1,7 @@
 import { ProductionOrder } from "./models/ProductionOrder.js";
 
-// const API_ROUTE = window.location.origin;
-const API_ROUTE = "http://localhost:5075";
+const API_ROUTE = window.location.origin;
+// const API_ROUTE = "http://localhost:5075";
 
 let productionOrders = [];
 let currentPage = 1;
@@ -107,7 +107,8 @@ async function fetchFilterMetadata() {
   const qs = params.toString();
 
   const res = await fetch(
-    `${API_ROUTE}/api/productionorders/filters${qs ? `?${qs}` : ""}`,
+    `${API_ROUTE}/api/production-orders/filters${qs ? `?${qs}` : ""}`,
+    // `${API_ROUTE}/api/productionorders/filters${qs ? `?${qs}` : ""}`,
   );
   if (!res.ok) return;
 
@@ -784,7 +785,8 @@ async function fetchStats() {
     selectedProcessAreas.length > 0 ||
     selectedStatuses.length > 0 ||
     selectedShifts.length > 0;
-  const endpoint = "/api/productionorders/stats/search";
+  const endpoint = "/api/production-orders/stats/search";
+  // const endpoint = "/api/productionorders/stats/search";
 
   try {
     // Build query params from filters
@@ -1231,7 +1233,8 @@ async function fetchProductionOrders(page = 1) {
       selectedProcessAreas.length > 0 ||
       selectedStatuses.length > 0 ||
       selectedShifts.length > 0;
-    const endpoint = "/api/productionorders/search";
+    const endpoint = "/api/production-orders/search";
+    // const endpoint = "/api/productionorders/search";
 
     // Build query parameters
     const params = new URLSearchParams({
@@ -1271,9 +1274,7 @@ async function fetchProductionOrders(page = 1) {
     );
 
     if (response.ok) {
-      console.log(`${API_ROUTE}${endpoint}?${params.toString()}`);
       const data = await response.json();
-      console.log("Fetched production orders:", data);
       productionOrders = data.data.map((po) => new ProductionOrder(po));
       totalRecords = data.total;
       totalPages = data.totalPages || Math.ceil(totalRecords / pageSize);

@@ -1,7 +1,9 @@
 // Lấy id từ query string
 const recipeId = window.location.pathname.split("/").pop();
 
-const API_ROUTE = "http://localhost:5075";
+const API_ROUTE = window.location.origin;
+// const API_ROUTE = "http://localhost:5075";
+
 let recipeDetail = null;
 let recipeProcesses = [];
 let recipeIngredients = [];
@@ -61,7 +63,10 @@ function ensureProductModal() {
 async function showProductModal(productCode) {
   try {
     ensureProductModal();
-    const res = await fetch(`${API_ROUTE}/api/products/${productCode}`);
+    const res = await fetch(
+      `${API_ROUTE}/api/production-products/${productCode}`,
+    );
+    // const res = await fetch(`${API_ROUTE}/api/products/${productCode}`);
     if (!res.ok) throw new Error("Không lấy được thông tin sản phẩm");
     const p = await res.json();
     const content = document.getElementById("modalProductContent");
@@ -113,12 +118,16 @@ function formatDateTime(dateString) {
 }
 
 async function fetchRecipeDetail(recipeId) {
-  const response = await fetch(`${API_ROUTE}/api/recipedetails/${recipeId}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
+  const response = await fetch(
+    `${API_ROUTE}/api/production-recipe-detail/${recipeId}`,
+    {
+      // const response = await fetch(`${API_ROUTE}/api/recipedetails/${recipeId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
     },
-  });
+  );
   if (!response.ok) throw new Error("Không tìm thấy công thức");
   const data = await response.json();
   recipeDetail = data.recipe;

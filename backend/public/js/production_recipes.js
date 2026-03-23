@@ -1,6 +1,7 @@
 import { Recipe } from "../js/models/Recipes.js";
 
-const API_ROUTE = "http://localhost:5075";
+const API_ROUTE = window.location.origin;
+// const API_ROUTE = "http://localhost:5075";
 
 // Pagination/filter/search state
 let filterStatus = ""; // legacy single status (kept for backward compatibility)
@@ -715,7 +716,8 @@ async function fetchAndDisplayRecipeStats() {
     const statuses = getSelectedStatuses();
     if (statuses.length > 0) params.append("statuses", statuses.join(","));
     if (filterSearch) params.append("search", filterSearch);
-    let endpoint = `${API_ROUTE}/api/recipes/stats/search?${params.toString()}`;
+    let endpoint = `${API_ROUTE}/api/production-recipes/stats/search?${params.toString()}`;
+    // let endpoint = `${API_ROUTE}/api/recipes/stats/search?${params.toString()}`;
     console.log("Fetching stats with endpoint:", endpoint);
     const res = await fetch(endpoint);
     const data = await res.json();
@@ -733,7 +735,8 @@ async function fetchAndDisplayRecipeStats() {
 // Fetch paginated/filtered recipes
 async function fetchAndDisplayRecipes() {
   try {
-    let url = `${API_ROUTE}/api/recipes/search?page=${currentPage}&limit=${pageSize}`;
+    let url = `${API_ROUTE}/api/production-recipes/search?page=${currentPage}&limit=${pageSize}`;
+    // let url = `${API_ROUTE}/api/recipes/search?page=${currentPage}&limit=${pageSize}`;
     const statuses = getSelectedStatuses();
     if (statuses.length > 0)
       url += `&statuses=${encodeURIComponent(statuses.join(","))}`;

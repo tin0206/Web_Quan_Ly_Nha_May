@@ -23,12 +23,12 @@ recipe-detail:
 - /:id: get Done
 
 materials:
-- /production-orders: get
-- /batch-codes: get
-- /ingredients: get
-- /shifts: get
-- /search: get
-- /stats/search: get
+- /production-orders: get Done
+- /batch-codes: get Done
+- /ingredients: get Done
+- /shifts: get Doen
+- /search: get Done
+- /stats/search: get Done
 
 products:
 - /stats/search: get Done
@@ -43,3 +43,4 @@ production_order_detail.js
 production_recipes.js
 production_recipe_detail.js
 production_products.js
+production_materials.js
