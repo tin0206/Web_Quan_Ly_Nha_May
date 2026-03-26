@@ -1,14 +1,6 @@
 const express = require("express");
-const productionOrdersRoutes = require("./routes/production-orders");
-const productionOrderDetailRoutes = require("./routes/production-order-detail");
-const productionRecipesRoutes = require("./routes/production-recipes");
-const productionRecipeDetailRoutes = require("./routes/production-recipe-detail");
-const productionProductsRoutes = require("./routes/production-products");
-const productionMaterialsRoutes = require("./routes/production-materials");
-const sql = require("mssql");
 const cors = require("cors");
 const path = require("path");
-const { connectDB } = require("./db");
 
 // const API_ROUTE = `http://${window.location.hostname}:8000`;
 
@@ -28,22 +20,8 @@ app.use(express.static(path.join(__dirname, "public")));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
-const config = {
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  server: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  port: Number(process.env.DB_PORT) || 1433,
-  options: {
-    encrypt: false,
-    trustServerCertificate: true,
-  },
-};
-
 (async () => {
   try {
-    await connectDB(config);
-
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
@@ -90,12 +68,3 @@ app.get("/production-order/:id", (req, res) => {
 app.get("/recipe-detail/:id", (req, res) => {
   res.render("recipe-detail", { recipeId: req.params.id });
 });
-
-app.use("/api/production-orders", productionOrdersRoutes);
-app.use("/api/production-order-detail", productionOrderDetailRoutes);
-app.use("/api/production-recipes", productionRecipesRoutes);
-app.use("/api/production-recipe-detail", productionRecipeDetailRoutes);
-app.use("/api/production-products", productionProductsRoutes);
-app.use("/api/production-materials", productionMaterialsRoutes);
-
-module.exports = { sql };
