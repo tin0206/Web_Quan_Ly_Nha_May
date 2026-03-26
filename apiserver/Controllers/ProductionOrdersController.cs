@@ -7,16 +7,9 @@ namespace YourProject.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class ProductionOrdersController : ControllerBase
+    public class ProductionOrdersController(IConfiguration config) : ControllerBase
     {
-        private readonly IConfiguration _config;
-
-        public ProductionOrdersController(IConfiguration config)
-        {
-            _config = config;
-        }
-
-        private IDbConnection Connection => new SqlConnection(_config.GetConnectionString("DefaultConnection"));
+        private IDbConnection Connection => new SqlConnection(config.GetConnectionString("DefaultConnection"));
 
 
         // =====================================================

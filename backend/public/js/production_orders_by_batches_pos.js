@@ -1,6 +1,5 @@
 import { ProductionOrder } from "./models/ProductionOrder.js";
 
-// const API_ROUTE = window.location.origin;
 const API_ROUTE = "http://localhost:8001";
 
 let productionOrders = [];
@@ -131,7 +130,6 @@ async function fetchFilterMetadata() {
   const qs = params.toString();
 
   const res = await fetch(
-    // `${API_ROUTE}/api/production-orders/filters-v2${qs ? `?${qs}` : ""}`,
     `${API_ROUTE}/api/productionorders/filtersv2${qs ? `?${qs}` : ""}`,
   );
   if (!res.ok) return;
@@ -748,7 +746,6 @@ async function fetchStats() {
     selectedStatuses.length > 0 ||
     selectedShifts.length > 0 ||
     poText;
-  // const endpoint = "/api/production-orders/stats-v2/search";
   const endpoint = "/api/productionorders/statsv2/search";
 
   try {
@@ -1351,7 +1348,6 @@ async function fetchProductionOrders(page = 1) {
       selectedStatuses.length > 0 ||
       selectedShifts.length > 0 ||
       poText;
-    // const endpoint = "/api/production-orders/search-v2";
     const endpoint = "/api/productionorders/searchv2";
 
     // Build query parameters

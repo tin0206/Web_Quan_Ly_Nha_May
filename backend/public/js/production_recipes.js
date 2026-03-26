@@ -1,6 +1,5 @@
 import { Recipe } from "../js/models/Recipes.js";
 
-// const API_ROUTE = window.location.origin;
 const API_ROUTE = "http://localhost:8001";
 
 // Pagination/filter/search state
@@ -735,7 +734,6 @@ async function fetchAndDisplayRecipeStats() {
     const statuses = getSelectedStatuses();
     if (statuses.length > 0) params.append("statuses", statuses.join(","));
     if (filterSearch) params.append("search", filterSearch);
-    // let endpoint = `${API_ROUTE}/api/production-recipes/stats/search?${params.toString()}`;
     let endpoint = `${API_ROUTE}/api/recipes/stats/search?${params.toString()}`;
     console.log("Fetching stats with endpoint:", endpoint);
     const res = await fetch(endpoint);
@@ -754,7 +752,6 @@ async function fetchAndDisplayRecipeStats() {
 // Fetch paginated/filtered recipes
 async function fetchAndDisplayRecipes() {
   try {
-    // let url = `${API_ROUTE}/api/production-recipes/search?page=${currentPage}&limit=${pageSize}`;
     let url = `${API_ROUTE}/api/recipes/search?page=${currentPage}&limit=${pageSize}`;
     const statuses = getSelectedStatuses();
     if (statuses.length > 0)

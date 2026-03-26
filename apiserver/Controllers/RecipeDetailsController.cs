@@ -5,17 +5,10 @@ using System.Data;
 
 [ApiController]
 [Route("api/[controller]")]
-public class RecipeDetailsController : ControllerBase
+public class RecipeDetailsController(IConfiguration config) : ControllerBase
 {
-    private readonly IConfiguration _config;
-
-    public RecipeDetailsController(IConfiguration config)
-    {
-        _config = config;
-    }
-
     private IDbConnection Connection
-        => new SqlConnection(_config.GetConnectionString("DefaultConnection"));
+        => new SqlConnection(config.GetConnectionString("DefaultConnection"));
 
     // =========================
     // GET api/RecipeDetails/{id}
@@ -49,9 +42,9 @@ public class RecipeDetailsController : ControllerBase
             var processIds = processes.Select(p => (int)p.ProcessId).ToList();
 
             // 3. Ingredients
-            IEnumerable<dynamic> ingredients = new List<dynamic>();
+            IEnumerable<dynamic> ingredients = [];
 
-            if (processIds.Any())
+            if (processIds.Count > 0)
             {
                 ingredients = await conn.QueryAsync(@"
                     SELECT i.*, pm.ItemName
@@ -63,7 +56,7 @@ public class RecipeDetailsController : ControllerBase
             }
 
             // 4. Products
-            IEnumerable<dynamic> products = new List<dynamic>();
+            IEnumerable<dynamic> products = [];
 
             if (recipe.ProductCode != null)
             {
@@ -77,7 +70,7 @@ public class RecipeDetailsController : ControllerBase
             }
 
             // 5. ByProducts
-            IEnumerable<dynamic> byProducts = new List<dynamic>();
+            IEnumerable<dynamic> byProducts = [];
 
             if (recipe.ProductCode != null)
             {
@@ -88,9 +81,9 @@ public class RecipeDetailsController : ControllerBase
             }
 
             // 6. Parameters
-            IEnumerable<dynamic> parameters = new List<dynamic>();
+            IEnumerable<dynamic> parameters = [];
 
-            if (processIds.Any())
+            if (processIds.Count > 0)
             {
                 parameters = await conn.QueryAsync(@"
                     SELECT p.*, ppm.Name as ParameterName

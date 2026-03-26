@@ -6,17 +6,9 @@ using System.Text;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ProductsController : ControllerBase
+public class ProductsController(IConfiguration config) : ControllerBase
 {
-    private readonly IConfiguration _config;
-
-    public ProductsController(IConfiguration config)
-    {
-        _config = config;
-    }
-
-    private IDbConnection Connection
-        => new SqlConnection(_config.GetConnectionString("DefaultConnection"));
+    private IDbConnection Connection => new SqlConnection(config.GetConnectionString("DefaultConnection"));
 
     // =========================
     // 1. GET api/products/types
@@ -75,7 +67,7 @@ public class ProductsController : ControllerBase
                 parameters.Add("q", $"%{q}%");
             }
 
-            if (statusesList.Any())
+            if (statusesList.Count > 0)
             {
                 var parts = new List<string>();
                 for (int i = 0; i < statusesList.Count; i++)
@@ -90,19 +82,19 @@ public class ProductsController : ControllerBase
             }
             else if (!string.IsNullOrWhiteSpace(status))
             {
-                if (status.ToUpper() == "ACTIVE")
+                if (string.Equals(status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
                 {
                     where.Add("p.Item_Status = @status");
                     parameters.Add("status", "ACTIVE");
                 }
-                else if (status.ToUpper() == "INACTIVE")
+                else if (string.Equals(status, "INACTIVE", StringComparison.OrdinalIgnoreCase))
                 {
                     where.Add("(p.Item_Status = @inactive OR p.Item_Status IS NULL)");
                     parameters.Add("inactive", "INACTIVE");
                 }
             }
 
-            if (typesList.Any())
+            if (typesList.Count > 0)
             {
                 where.Add("p.Item_Type IN @typesList");
                 parameters.Add("typesList", typesList);
@@ -113,7 +105,7 @@ public class ProductsController : ControllerBase
                 parameters.Add("type", type);
             }
 
-            var whereSql = where.Any() ? $"WHERE {string.Join(" AND ", where)}" : "";
+            var whereSql = where.Count > 0 ? $"WHERE {string.Join(" AND ", where)}" : "";
 
             using var conn = Connection;
 
@@ -161,8 +153,8 @@ public class ProductsController : ControllerBase
                 var json = dict["MhuTypes"]?.ToString();
 
                 var parsed = string.IsNullOrEmpty(json)
-                    ? new List<object>()
-                    : System.Text.Json.JsonSerializer.Deserialize<List<object>>(json) ?? new List<object>();
+                    ? []
+                    : System.Text.Json.JsonSerializer.Deserialize<List<object>>(json) ?? [];
 
                 dict["MhuTypes"] = parsed;
                 return dict;
@@ -212,7 +204,7 @@ public class ProductsController : ControllerBase
                 parameters.Add("q", $"%{q}%");
             }
 
-            if (statusesList.Any())
+            if (statusesList.Count > 0)
             {
                 var parts = new List<string>();
                 for (int i = 0; i < statusesList.Count; i++)
@@ -227,19 +219,19 @@ public class ProductsController : ControllerBase
             }
             else if (!string.IsNullOrWhiteSpace(status))
             {
-                if (status.ToUpper() == "ACTIVE")
+                if (string.Equals(status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
                 {
                     where.Add("p.Item_Status = @status");
                     parameters.Add("status", "ACTIVE");
                 }
-                else if (status.ToUpper() == "INACTIVE")
+                else if (string.Equals(status, "INACTIVE", StringComparison.OrdinalIgnoreCase))
                 {
                     where.Add("(p.Item_Status = @inactive OR p.Item_Status IS NULL)");
                     parameters.Add("inactive", "INACTIVE");
                 }
             }
 
-            if (typesList.Any())
+            if (typesList.Count > 0)
             {
                 where.Add("p.Item_Type IN @typesList");
                 parameters.Add("typesList", typesList);
@@ -250,7 +242,7 @@ public class ProductsController : ControllerBase
                 parameters.Add("type", type);
             }
 
-            var whereSql = where.Any() ? $"WHERE {string.Join(" AND ", where)}" : "";
+            var whereSql = where.Count > 0 ? $"WHERE {string.Join(" AND ", where)}" : "";
 
             var sql = $@"
             SELECT
@@ -324,8 +316,8 @@ public class ProductsController : ControllerBase
 
             var json = dict["MhuTypes"]?.ToString();
             var parsed = string.IsNullOrEmpty(json)
-                ? new List<object>()
-                : System.Text.Json.JsonSerializer.Deserialize<List<object>>(json) ?? new List<object>();
+                ? []
+                : System.Text.Json.JsonSerializer.Deserialize<List<object>>(json) ?? [];
 
             dict["MhuTypes"] = parsed;
 

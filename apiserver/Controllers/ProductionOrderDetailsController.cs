@@ -5,16 +5,9 @@ using System.Data;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ProductionOrderDetailsController : ControllerBase
+public class ProductionOrderDetailsController(IConfiguration config) : ControllerBase
 {
-    private readonly IConfiguration _config;
-
-    public ProductionOrderDetailsController(IConfiguration config)
-    {
-        _config = config;
-    }
-
-    private IDbConnection Connection => new SqlConnection(_config.GetConnectionString("DefaultConnection"));
+    private IDbConnection Connection => new SqlConnection(config.GetConnectionString("DefaultConnection"));
 
     // =========================
     // 1. GET /batches
@@ -62,7 +55,7 @@ public class ProductionOrderDetailsController : ControllerBase
         using var conn = Connection;
         var result = (await conn.QueryAsync(sql, new { prodOrderNum = productionOrderNumber })).ToList();
 
-        if (!result.Any())
+        if (result.Count == 0)
             return NotFound(new { success = false });
 
         return Ok(new
@@ -79,173 +72,173 @@ public class ProductionOrderDetailsController : ControllerBase
     // 3. MATERIAL CONSUMPTIONS (FULL)
     // =========================
     [HttpPost("material-consumptions")]
-public async Task<IActionResult> GetMaterialConsumptions(
-    [FromQuery] string productionOrderNumber,
-    [FromQuery] int page = 1,
-    [FromQuery] int limit = 20)
-{
-    try
+    public async Task<IActionResult> GetMaterialConsumptions(
+        [FromQuery] string productionOrderNumber,
+        [FromQuery] int page = 1,
+        [FromQuery] int limit = 20)
     {
-        if (string.IsNullOrWhiteSpace(productionOrderNumber))
+        try
         {
-            return BadRequest(new
+            if (string.IsNullOrWhiteSpace(productionOrderNumber))
             {
-                success = false,
-                message = "productionOrderNumber là bắt buộc"
-            });
-        }
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "productionOrderNumber là bắt buộc"
+                });
+            }
 
-        page = Math.Max(1, page);
-        limit = Math.Min(100, Math.Max(1, limit));
+            page = Math.Max(1, page);
+            limit = Math.Min(100, Math.Max(1, limit));
 
-        var from = (page - 1) * limit + 1;
-        var to = page * limit;
+            var from = (page - 1) * limit + 1;
+            var to = page * limit;
 
-        using var conn = Connection;
+            using var conn = Connection;
 
-        var sql = @"
-        ;WITH BatchCTE AS (
+            var sql = @"
+            ;WITH BatchCTE AS (
+                SELECT
+                    b.BatchNumber AS batchCode,
+                    ROW_NUMBER() OVER (ORDER BY b.BatchNumber) AS rn
+                FROM Batches b
+                JOIN ProductionOrders po
+                    ON po.ProductionOrderId = b.ProductionOrderId
+                WHERE po.ProductionOrderNumber = @prodOrderNum
+            ),
+            PagedBatch AS (
+                SELECT batchCode
+                FROM BatchCTE
+                WHERE rn BETWEEN @from AND @to
+            ),
+            RecipeIngredient AS (
+                SELECT DISTINCT
+                    i.IngredientCode,
+                    pm.ItemName
+                FROM ProductionOrders po
+                JOIN RecipeDetails rd
+                    ON rd.ProductCode = po.ProductCode
+                AND rd.Version = po.RecipeVersion
+                JOIN Processes p ON p.RecipeDetailsId = rd.RecipeDetailsId
+                JOIN Ingredients i ON i.ProcessId = p.ProcessId
+                LEFT JOIN ProductMasters pm ON pm.ItemCode = i.IngredientCode
+                WHERE po.ProductionOrderNumber = @prodOrderNum
+            ),
+            ExtraIngredient AS (
+                SELECT DISTINCT
+                    mc.ingredientCode AS IngredientCode,
+                    pm.ItemName
+                FROM MESMaterialConsumption mc
+                JOIN PagedBatch pb
+                    ON pb.batchCode = mc.batchCode
+                LEFT JOIN RecipeIngredient r
+                    ON r.IngredientCode = mc.ingredientCode
+                LEFT JOIN ProductMasters pm
+                    ON pm.ItemCode = mc.ingredientCode
+                WHERE mc.productionOrderNumber = @prodOrderNum
+                AND r.IngredientCode IS NULL
+            )
+
             SELECT
-                b.BatchNumber AS batchCode,
-                ROW_NUMBER() OVER (ORDER BY b.BatchNumber) AS rn
-            FROM Batches b
-            JOIN ProductionOrders po
-                ON po.ProductionOrderId = b.ProductionOrderId
-            WHERE po.ProductionOrderNumber = @prodOrderNum
-        ),
-        PagedBatch AS (
-            SELECT batchCode
-            FROM BatchCTE
-            WHERE rn BETWEEN @from AND @to
-        ),
-        RecipeIngredient AS (
-            SELECT DISTINCT
-                i.IngredientCode,
-                pm.ItemName
-            FROM ProductionOrders po
-            JOIN RecipeDetails rd
-                ON rd.ProductCode = po.ProductCode
-               AND rd.Version = po.RecipeVersion
-            JOIN Processes p ON p.RecipeDetailsId = rd.RecipeDetailsId
-            JOIN Ingredients i ON i.ProcessId = p.ProcessId
-            LEFT JOIN ProductMasters pm ON pm.ItemCode = i.IngredientCode
-            WHERE po.ProductionOrderNumber = @prodOrderNum
-        ),
-        ExtraIngredient AS (
-            SELECT DISTINCT
-                mc.ingredientCode AS IngredientCode,
-                pm.ItemName
+                pb.batchCode,
+                r.IngredientCode,
+                r.ItemName,
+                mc.id,
+                mc.lot,
+                mc.quantity,
+                COALESCE(mc.unitOfMeasurement, ing.UnitOfMeasurement) AS unitOfMeasurement,
+                mc.datetime,
+                mc.operator_ID,
+                mc.supplyMachine,
+                mc.count,
+                mc.request,
+                mc.respone,
+                mc.status1,
+                mc.timestamp
+            FROM PagedBatch pb
+            CROSS JOIN RecipeIngredient r
+            LEFT JOIN MESMaterialConsumption mc
+                ON mc.productionOrderNumber = @prodOrderNum
+            AND mc.batchCode = pb.batchCode
+            AND mc.ingredientCode = r.IngredientCode
+            LEFT JOIN Ingredients ing
+                ON ing.IngredientCode = r.IngredientCode
+
+            UNION ALL
+
+            SELECT
+                mc.batchCode,
+                e.IngredientCode,
+                e.ItemName,
+                mc.id,
+                mc.lot,
+                mc.quantity,
+                mc.unitOfMeasurement,
+                mc.datetime,
+                mc.operator_ID,
+                mc.supplyMachine,
+                mc.count,
+                mc.request,
+                mc.respone,
+                mc.status1,
+                mc.timestamp
             FROM MESMaterialConsumption mc
             JOIN PagedBatch pb
                 ON pb.batchCode = mc.batchCode
-            LEFT JOIN RecipeIngredient r
-                ON r.IngredientCode = mc.ingredientCode
-            LEFT JOIN ProductMasters pm
-                ON pm.ItemCode = mc.ingredientCode
+            JOIN ExtraIngredient e
+                ON e.IngredientCode = mc.ingredientCode
             WHERE mc.productionOrderNumber = @prodOrderNum
-              AND r.IngredientCode IS NULL
-        )
 
-        SELECT
-            pb.batchCode,
-            r.IngredientCode,
-            r.ItemName,
-            mc.id,
-            mc.lot,
-            mc.quantity,
-            COALESCE(mc.unitOfMeasurement, ing.UnitOfMeasurement) AS unitOfMeasurement,
-            mc.datetime,
-            mc.operator_ID,
-            mc.supplyMachine,
-            mc.count,
-            mc.request,
-            mc.respone,
-            mc.status1,
-            mc.timestamp
-        FROM PagedBatch pb
-        CROSS JOIN RecipeIngredient r
-        LEFT JOIN MESMaterialConsumption mc
-            ON mc.productionOrderNumber = @prodOrderNum
-           AND mc.batchCode = pb.batchCode
-           AND mc.ingredientCode = r.IngredientCode
-        LEFT JOIN Ingredients ing
-            ON ing.IngredientCode = r.IngredientCode
+            ORDER BY batchCode, IngredientCode
+            ";
 
-        UNION ALL
+            var rows = await conn.QueryAsync(sql, new
+            {
+                prodOrderNum = productionOrderNumber.Trim(),
+                from,
+                to
+            });
 
-        SELECT
-            mc.batchCode,
-            e.IngredientCode,
-            e.ItemName,
-            mc.id,
-            mc.lot,
-            mc.quantity,
-            mc.unitOfMeasurement,
-            mc.datetime,
-            mc.operator_ID,
-            mc.supplyMachine,
-            mc.count,
-            mc.request,
-            mc.respone,
-            mc.status1,
-            mc.timestamp
-        FROM MESMaterialConsumption mc
-        JOIN PagedBatch pb
-            ON pb.batchCode = mc.batchCode
-        JOIN ExtraIngredient e
-            ON e.IngredientCode = mc.ingredientCode
-        WHERE mc.productionOrderNumber = @prodOrderNum
+            var data = rows.Select(row => new
+            {
+                row.id,
+                row.batchCode,
+                ingredientCode = row.ItemName != null
+                    ? $"{row.IngredientCode} - {row.ItemName}"
+                    : row.IngredientCode,
+                lot = row.lot ?? "",
+                row.quantity,
+                unitOfMeasurement = row.unitOfMeasurement ?? "",
+                row.datetime,
+                row.operator_ID,
+                row.supplyMachine,
+                count = row.count ?? 0,
+                row.request,
+                row.respone,
+                row.status1,
+                row.timestamp
+            });
 
-        ORDER BY batchCode, IngredientCode
-        ";
-
-        var rows = await conn.QueryAsync(sql, new
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy danh sách tiêu hao vật liệu thành công",
+                page,
+                limit,
+                data
+            });
+        }
+        catch (Exception ex)
         {
-            prodOrderNum = productionOrderNumber.Trim(),
-            from,
-            to
-        });
+            Console.WriteLine("❌ material-consumptions error: " + ex.Message);
 
-        var data = rows.Select(row => new
-        {
-            id = row.id,
-            batchCode = row.batchCode,
-            ingredientCode = row.ItemName != null
-                ? $"{row.IngredientCode} - {row.ItemName}"
-                : row.IngredientCode,
-            lot = row.lot ?? "",
-            quantity = row.quantity,
-            unitOfMeasurement = row.unitOfMeasurement ?? "",
-            datetime = row.datetime,
-            operator_ID = row.operator_ID,
-            supplyMachine = row.supplyMachine,
-            count = row.count ?? 0,
-            request = row.request,
-            respone = row.respone,
-            status1 = row.status1,
-            timestamp = row.timestamp
-        });
-
-        return Ok(new
-        {
-            success = true,
-            message = "Lấy danh sách tiêu hao vật liệu thành công",
-            page,
-            limit,
-            data
-        });
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Lỗi Server: " + ex.Message
+            });
+        }
     }
-    catch (Exception ex)
-    {
-        Console.WriteLine("❌ material-consumptions error: " + ex.Message);
-
-        return StatusCode(500, new
-        {
-            success = false,
-            message = "Lỗi Server: " + ex.Message
-        });
-    }
-}
 
     // =========================
     // 4. EXCLUDE BATCHES
@@ -279,16 +272,15 @@ public async Task<IActionResult> GetExclude(
 
         var batchNumbers = new List<string>();
 
-        if (batchCodesWithMaterials != null && batchCodesWithMaterials.Any())
+        if (batchCodesWithMaterials != null && batchCodesWithMaterials.Count > 0)
         {
-            batchNumbers = batchCodesWithMaterials
-                .Select(b => (string)b.BatchNumber)
-                .ToList();
+            batchNumbers = [..batchCodesWithMaterials
+                .Select(b => (string)b.BatchNumber)];
         }
 
         string batchFilterSql = "";
 
-        if (batchNumbers.Any())
+        if (batchNumbers.Count > 0)
         {
             var ps = new List<string>();
 
@@ -366,23 +358,23 @@ public async Task<IActionResult> GetExclude(
 
         var data = rows.Select(row => new
         {
-            id = row.id,
-            productionOrderNumber = row.productionOrderNumber,
-            batchCode = row.batchCode,
+            row.id,
+            row.productionOrderNumber,
+            row.batchCode,
             ingredientCode = row.ItemName != null
                 ? $"{row.ingredientCode} - {row.ItemName}"
                 : row.ingredientCode,
-            lot = row.lot,
-            quantity = row.quantity,
-            unitOfMeasurement = row.unitOfMeasurement,
-            datetime = row.datetime,
-            operator_ID = row.operator_ID,
-            supplyMachine = row.supplyMachine,
+            row.lot,
+            row.quantity,
+            row.unitOfMeasurement,
+            row.datetime,
+            row.operator_ID,
+            row.supplyMachine,
             count = row.count ?? 0,
-            request = row.request,
-            respone = row.respone,
-            status1 = row.status1,
-            timestamp = row.timestamp
+            row.request,
+            row.respone,
+            row.status1,
+            row.timestamp
         });
 
         return Ok(new

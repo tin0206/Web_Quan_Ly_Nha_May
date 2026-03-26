@@ -1,4 +1,3 @@
-// const API_ROUTE = window.location.origin;
 const API_ROUTE = "http://localhost:8001";
 
 const PAGE_SIZE = 20;
@@ -291,7 +290,6 @@ function bindSearchableInput({
 async function loadPOs() {
   const dateQS = getDateParams();
   const data = await fetchJSON(
-    // `${API_ROUTE}/api/production-materials/production-orders${dateQS ? `?${dateQS}` : ""}`,
     `${API_ROUTE}/api/materials/production-orders${dateQS ? `?${dateQS}` : ""}`,
   );
   const items = data.data || [];
@@ -314,7 +312,6 @@ async function loadBatches() {
   let items = [];
   if (pos.length === 0) {
     const data = await fetchJSON(
-      // `${API_ROUTE}/api/production-materials/batch-codes${dateQS ? `?${dateQS}` : ""}`,
       `${API_ROUTE}/api/materials/batch-codes${dateQS ? `?${dateQS}` : ""}`,
     );
     items = data.data || [];
@@ -326,7 +323,6 @@ async function loadBatches() {
         const qs = [`productionOrderNumber=${encodeURIComponent(po)}`];
         if (dateQS) qs.push(dateQS);
         const data = await fetchJSON(
-          // `${API_ROUTE}/api/production-materials/batch-codes?${qs.join("&")}`,
           `${API_ROUTE}/api/materials/batch-codes?${qs.join("&")}`,
         );
         for (const r of data.data || []) {
@@ -366,7 +362,6 @@ async function loadIngredients() {
 
   if (pos.length === 0 && batches.length === 0) {
     const data = await fetchJSON(
-      // `${API_ROUTE}/api/production-materials/ingredients${dateQS ? `?${dateQS}` : ""}`,
       `${API_ROUTE}/api/materials/ingredients${dateQS ? `?${dateQS}` : ""}`,
     );
     items = data.data || [];
@@ -380,7 +375,6 @@ async function loadIngredients() {
         if (po) qs.push(`productionOrderNumber=${encodeURIComponent(po)}`);
         if (bc) qs.push(`batchCode=${encodeURIComponent(bc)}`);
         if (dateQS) qs.push(dateQS);
-        // const url = `${API_ROUTE}/api/production-materials/ingredients${qs.length ? `?${qs.join("&")}` : ""}`;
         const url = `${API_ROUTE}/api/materials/ingredients${qs.length ? `?${qs.join("&")}` : ""}`;
         try {
           const data = await fetchJSON(url);
@@ -428,7 +422,6 @@ async function loadShifts() {
   try {
     const dateQS = getDateParams();
     const data = await fetchJSON(
-      // `${API_ROUTE}/api/production-materials/shifts${dateQS ? `?${dateQS}` : ""}`,
       `${API_ROUTE}/api/materials/shifts${dateQS ? `?${dateQS}` : ""}`,
     );
     shifts = (data.data || []).map((r) => r.shift).filter(Boolean);
@@ -704,7 +697,6 @@ async function fetchItems(page) {
   const params = getFilters();
   params.set("page", String(page));
   params.set("pageSize", String(PAGE_SIZE));
-  // const url = `${API_ROUTE}/api/production-materials/search?${params.toString()}`;
   const url = `${API_ROUTE}/api/materials/search?${params.toString()}`;
   const data = await fetchJSON(url);
   return data.data || [];
@@ -720,7 +712,6 @@ async function fetchTotal() {
     params.has("shift") ||
     params.has("fromDate") ||
     params.has("toDate");
-  // const base = `${API_ROUTE}/api/production-materials/stats/search`;
   const base = `${API_ROUTE}/api/materials/stats/search`;
   const url = hasFilters ? `${base}?${params.toString()}` : base;
   const data = await fetchJSON(url);

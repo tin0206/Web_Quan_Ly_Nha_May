@@ -6,17 +6,10 @@ using System.Text;
 
 [ApiController]
 [Route("api/[controller]")]
-public class RecipesController : ControllerBase
+public class RecipesController(IConfiguration config) : ControllerBase
 {
-    private readonly IConfiguration _config;
-
-    public RecipesController(IConfiguration config)
-    {
-        _config = config;
-    }
-
     private IDbConnection Connection
-        => new SqlConnection(_config.GetConnectionString("DefaultConnection"));
+        => new SqlConnection(config.GetConnectionString("DefaultConnection"));
 
     // =========================
     // 1. GET /stats/search
@@ -59,7 +52,7 @@ public class RecipesController : ControllerBase
                 if (list.Contains("inactive"))
                     parts.Add("(RecipeStatus NOT IN ('Active') OR RecipeStatus IS NULL)");
 
-                if (parts.Any())
+                if (parts.Count > 0)
                     statusClause = $" AND ({string.Join(" OR ", parts)})";
             }
             else if (!string.IsNullOrWhiteSpace(status))
@@ -146,7 +139,7 @@ public class RecipesController : ControllerBase
                 if (list.Contains("inactive"))
                     parts.Add("(RecipeStatus NOT IN ('Active') OR RecipeStatus IS NULL)");
 
-                if (parts.Any())
+                if (parts.Count > 0)
                     where.Append($" AND ({string.Join(" OR ", parts)})");
             }
             else if (!string.IsNullOrWhiteSpace(status))

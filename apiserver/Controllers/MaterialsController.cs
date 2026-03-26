@@ -5,28 +5,21 @@ using System.Data;
 
 [ApiController]
 [Route("api/[controller]")]
-public class MaterialsController : ControllerBase
+public class MaterialsController(IConfiguration config) : ControllerBase
 {
-    private readonly IConfiguration _config;
-
-    public MaterialsController(IConfiguration config)
-    {
-        _config = config;
-    }
-
     private IDbConnection Connection
-        => new SqlConnection(_config.GetConnectionString("DefaultConnection"));
+        => new SqlConnection(config.GetConnectionString("DefaultConnection"));
 
     // =========================
     // HELPER: DATE FILTER (GIỐNG NODE)
     // =========================
-    private void ApplyDateFilter(IQueryCollection query, DynamicParameters p, List<string> where, string alias = "mmc")
+    static void ApplyDateFilter(IQueryCollection query, DynamicParameters p, List<string> where, string alias = "mmc")
     {
         string col = string.IsNullOrWhiteSpace(alias)
             ? "datetime"
             : $"{alias}.datetime";
 
-        DateTime? ParseDate(string input, bool endOfDay = false)
+        static DateTime? ParseDate(string input, bool endOfDay = false)
         {
             if (string.IsNullOrWhiteSpace(input)) return null;
 
@@ -70,15 +63,14 @@ public class MaterialsController : ControllerBase
     // =========================
     // HELPER: CSV normalize
     // =========================
-    private List<string> NormalizeQuery(object input)
+    static List<string> NormalizeQuery(object input)
     {
         if (input?.ToString() is not string rawInput)
-            return new();
+            return [];
 
-        return rawInput.Split(',')
+        return [..rawInput.Split(',')
             .Select(x => x.Trim())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ToList();
+            .Where(x => !string.IsNullOrWhiteSpace(x))];
     }
 
     // =========================
@@ -95,7 +87,7 @@ public class MaterialsController : ControllerBase
         // ✅ dùng helper giống Node
         ApplyDateFilter(Request.Query, p, where, ""); // no alias
 
-        var whereClause = where.Any()
+        var whereClause = where.Count > 0
             ? "WHERE " + string.Join(" AND ", where)
             : "";
 
@@ -137,7 +129,7 @@ public class MaterialsController : ControllerBase
         /* ================= DATE FILTER (KHÔNG alias) ================= */
         ApplyDateFilter(Request.Query, p, extraWhere, ""); // ✅ QUAN TRỌNG
 
-        var extraStr = extraWhere.Any()
+        var extraStr = extraWhere.Count > 0
             ? "AND " + string.Join(" AND ", extraWhere)
             : "";
 
@@ -233,7 +225,7 @@ public class MaterialsController : ControllerBase
 
         string sql;
 
-        if (where.Any())
+        if (where.Count > 0)
         {
             sql = $@"
             SELECT DISTINCT po.Shift
@@ -276,7 +268,7 @@ public class MaterialsController : ControllerBase
 
         /* ================= PRODUCTION ORDER ================= */
         var poList = NormalizeQuery(Request.Query["productionOrderNumber"]);
-        if (poList.Any())
+        if (poList.Count > 0)
         {
             var conditions = new List<string>();
 
@@ -296,7 +288,7 @@ public class MaterialsController : ControllerBase
 
         /* ================= BATCH ================= */
         var batchList = NormalizeQuery(Request.Query["batchCode"]);
-        if (batchList.Any())
+        if (batchList.Count > 0)
         {
             var conditions = new List<string>();
 
@@ -316,7 +308,7 @@ public class MaterialsController : ControllerBase
 
         /* ================= INGREDIENT ================= */
         var ingList = NormalizeQuery(Request.Query["ingredientCode"]);
-        if (ingList.Any())
+        if (ingList.Count > 0)
         {
             var conditions = new List<string>();
 
@@ -336,7 +328,7 @@ public class MaterialsController : ControllerBase
 
         /* ================= SHIFT ================= */
         var shiftList = NormalizeQuery(Request.Query["shift"]);
-        if (shiftList.Any())
+        if (shiftList.Count > 0)
         {
             where.Add("po.Shift IN @shiftList");
             p.Add("shiftList", shiftList);
@@ -356,7 +348,7 @@ public class MaterialsController : ControllerBase
         /* ================= DATE ================= */
         ApplyDateFilter(Request.Query, p, where);
 
-        var whereClause = where.Any()
+        var whereClause = where.Count > 0
             ? "WHERE " + string.Join(" AND ", where)
             : "";
 
@@ -390,7 +382,7 @@ public class MaterialsController : ControllerBase
 
         /* ================= PRODUCTION ORDER ================= */
         var poList = NormalizeQuery(Request.Query["productionOrderNumber"]);
-        if (poList.Any())
+        if (poList.Count > 0)
         {
             var conditions = new List<string>();
 
@@ -410,7 +402,7 @@ public class MaterialsController : ControllerBase
 
         /* ================= BATCH (FIX =) ================= */
         var batchList = NormalizeQuery(Request.Query["batchCode"]);
-        if (batchList.Any())
+        if (batchList.Count > 0)
         {
             var conditions = new List<string>();
 
@@ -430,7 +422,7 @@ public class MaterialsController : ControllerBase
 
         /* ================= INGREDIENT ================= */
         var ingList = NormalizeQuery(Request.Query["ingredientCode"]);
-        if (ingList.Any())
+        if (ingList.Count > 0)
         {
             var conditions = new List<string>();
 
@@ -450,7 +442,7 @@ public class MaterialsController : ControllerBase
 
         /* ================= SHIFT ================= */
         var shiftList = NormalizeQuery(Request.Query["shift"]);
-        if (shiftList.Any())
+        if (shiftList.Count > 0)
         {
             where.Add("po.Shift IN @shiftList");
             p.Add("shiftList", shiftList);
@@ -470,7 +462,7 @@ public class MaterialsController : ControllerBase
         /* ================= DATE ================= */
         ApplyDateFilter(Request.Query, p, where);
 
-        var whereClause = where.Any()
+        var whereClause = where.Count > 0
             ? "WHERE " + string.Join(" AND ", where)
             : "";
 
