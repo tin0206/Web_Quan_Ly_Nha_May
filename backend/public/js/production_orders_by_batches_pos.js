@@ -1,7 +1,7 @@
 import { ProductionOrder } from "./models/ProductionOrder.js";
 
 // const API_ROUTE = window.location.origin;
-const API_ROUTE = "http://localhost:5075";
+const API_ROUTE = "http://localhost:8001";
 
 let productionOrders = [];
 let currentPage = 1;
@@ -58,14 +58,27 @@ document.addEventListener("DOMContentLoaded", async function () {
     currentPage = state.currentPage || 1;
 
     restoreFiltersFromSession(state);
+
+    if (state.productionOrders && state.productionOrders.length > 0) {
+      productionOrders = state.productionOrders.map(
+        (po) => new ProductionOrder(po),
+      );
+      totalRecords = state.totalRecords || 0;
+      totalPages = state.totalPages || 1;
+      await fetchStats();
+      renderProductionTable();
+      updatePaginationControls();
+    } else {
+      await fetchStats();
+      await fetchProductionOrders(currentPage);
+      renderProductionTable();
+    }
   } else {
     currentPage = 1;
+    await fetchStats();
+    await fetchProductionOrders(currentPage);
+    renderProductionTable();
   }
-
-  await fetchStats();
-  await fetchProductionOrders(currentPage);
-
-  renderProductionTable();
 
   initializeEventListeners();
   initializeSearch();
@@ -534,6 +547,9 @@ function saveCurrentState() {
     selectedStatuses: getSelectedStatuses(),
     selectedShifts: getSelectedShifts(),
     poFilterText: document.getElementById("poTextInput")?.value.trim() || "",
+    productionOrders: productionOrders,
+    totalRecords: totalRecords,
+    totalPages: totalPages,
   };
   sessionStorage.setItem("poListState", JSON.stringify(state));
 }
@@ -1422,6 +1438,7 @@ async function fetchProductionOrders(page = 1) {
       }
 
       updatePaginationControls();
+      saveCurrentState();
     } else {
       console.error("Failed to fetch production orders:", response.status);
       productionOrders = [];

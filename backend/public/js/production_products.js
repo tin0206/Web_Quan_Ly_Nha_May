@@ -1,5 +1,5 @@
 // const API_ROUTE = window.location.origin;
-const API_ROUTE = "http://localhost:5075";
+const API_ROUTE = "http://localhost:8001";
 
 const STATE_KEY = "products_filters_state_v1";
 let productsCache = [];
@@ -98,6 +98,7 @@ async function loadProducts(resetPage = false) {
   const nextBtn = document.getElementById("nextPageBtn");
   if (prevBtn) prevBtn.disabled = currentPage <= 1;
   if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+  saveProductsState();
 }
 // ===================== Session Storage =====================
 function saveProductsState() {
@@ -107,6 +108,8 @@ function saveProductsState() {
       selectedStatuses,
       selectedTypes,
       currentPage,
+      productsCache,
+      totalPages,
     };
     sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
   } catch (_) {}
@@ -126,6 +129,13 @@ function restoreProductsState() {
         ? state.selectedTypes
         : [];
       currentPage = Math.max(1, parseInt(state.currentPage) || 1);
+      if (
+        Array.isArray(state.productsCache) &&
+        state.productsCache.length > 0
+      ) {
+        productsCache = state.productsCache;
+        totalPages = state.totalPages || 1;
+      }
       return true;
     }
   } catch (_) {}
@@ -560,8 +570,26 @@ window.addEventListener("DOMContentLoaded", async () => {
     initDropdownToggle("typeInput", "typeDropdown");
     await populateStatusOptions();
     await populateTypeOptions();
-    await loadProducts(true);
-    await updateStats();
+    if (productsCache.length > 0) {
+      // Restored from session — render immediately without API call
+      const pageInfo = document.getElementById("pageInfo");
+      if (pageInfo)
+        pageInfo.textContent = `Trang ${currentPage} / ${totalPages}`;
+      const gridView = document.getElementById("gridView");
+      if (gridView && gridView.style.display !== "none") {
+        renderGridView();
+      } else {
+        renderTable();
+      }
+      const prevBtn = document.getElementById("prevPageBtn");
+      const nextBtn = document.getElementById("nextPageBtn");
+      if (prevBtn) prevBtn.disabled = currentPage <= 1;
+      if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+      await updateStats();
+    } else {
+      await loadProducts(true);
+      await updateStats();
+    }
   } catch (e) {
     document.getElementById("productTableBody").innerHTML =
       `<tr><td colspan='9' style='color:red'>${e.message}</td></tr>`;

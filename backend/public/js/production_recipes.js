@@ -1,7 +1,7 @@
 import { Recipe } from "../js/models/Recipes.js";
 
 // const API_ROUTE = window.location.origin;
-const API_ROUTE = "http://localhost:5075";
+const API_ROUTE = "http://localhost:8001";
 
 // Pagination/filter/search state
 let filterStatus = ""; // legacy single status (kept for backward compatibility)
@@ -21,6 +21,9 @@ function saveRecipesState() {
       selectedStatuses,
       filterSearch,
       currentPage,
+      currentRecipes,
+      totalRecipes,
+      totalPages,
     };
     sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
   } catch (_) {}
@@ -38,6 +41,14 @@ function restoreRecipesState() {
         : [];
       filterSearch = state.filterSearch || "";
       currentPage = Math.max(1, parseInt(state.currentPage) || 1);
+      if (
+        Array.isArray(state.currentRecipes) &&
+        state.currentRecipes.length > 0
+      ) {
+        currentRecipes = state.currentRecipes.map((item) => new Recipe(item));
+        totalRecipes = state.totalRecipes || 0;
+        totalPages = state.totalPages || 1;
+      }
       return true;
     }
   } catch (_) {}
@@ -705,8 +716,16 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Initial load
-  fetchAndDisplayRecipeStats();
-  fetchAndDisplayRecipes();
+  if (currentRecipes.length > 0) {
+    // Restored from session — render immediately without API call
+    fetchAndDisplayRecipeStats();
+    renderRecipeGrid(currentRecipes);
+    renderRecipeTable(currentRecipes);
+    updatePaginationUI();
+  } else {
+    fetchAndDisplayRecipeStats();
+    fetchAndDisplayRecipes();
+  }
 });
 
 // Fetch stats and update stat cards
@@ -750,6 +769,7 @@ async function fetchAndDisplayRecipes() {
       renderRecipeGrid(currentRecipes);
       renderRecipeTable(currentRecipes);
       updatePaginationUI();
+      saveRecipesState();
     } else {
       currentRecipes = [];
       totalRecipes = 0;

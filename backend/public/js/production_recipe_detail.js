@@ -2,7 +2,7 @@
 const recipeId = window.location.pathname.split("/").pop();
 
 // const API_ROUTE = window.location.origin;
-const API_ROUTE = "http://localhost:5075";
+const API_ROUTE = "http://localhost:8001";
 
 let recipeDetail = null;
 let recipeProcesses = [];

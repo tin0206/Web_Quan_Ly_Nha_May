@@ -1,7 +1,7 @@
 import { ProductionOrder } from "./models/ProductionOrder.js";
 
 // const API_ROUTE = window.location.origin;
-const API_ROUTE = "http://localhost:5075";
+const API_ROUTE = "http://localhost:8001";
 
 let productionOrders = [];
 let currentPage = 1;
