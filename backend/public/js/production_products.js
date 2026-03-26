@@ -1,4 +1,4 @@
-const API_ROUTE = "http://localhost:8001";
+const API_ROUTE = window.API_ROUTE;
 
 const STATE_KEY = "products_filters_state_v1";
 let productsCache = [];

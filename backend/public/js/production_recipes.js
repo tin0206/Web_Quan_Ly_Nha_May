@@ -1,6 +1,6 @@
 import { Recipe } from "../js/models/Recipes.js";
 
-const API_ROUTE = "http://localhost:8001";
+const API_ROUTE = window.API_ROUTE;
 
 // Pagination/filter/search state
 let filterStatus = ""; // legacy single status (kept for backward compatibility)

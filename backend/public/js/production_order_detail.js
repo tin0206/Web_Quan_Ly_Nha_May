@@ -1,7 +1,7 @@
 import { Batch } from "./models/Batch.js";
 import { MESMaterialConsumption } from "./models/MESMaterialConsumption.js";
 
-const API_ROUTE = "http://localhost:8001";
+const API_ROUTE = window.API_ROUTE;
 
 const orderId = window.location.pathname.split("/").pop();
 let batches = [];

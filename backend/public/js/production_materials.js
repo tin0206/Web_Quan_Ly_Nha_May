@@ -1,4 +1,4 @@
-const API_ROUTE = "http://localhost:8001";
+const API_ROUTE = window.API_ROUTE;
 
 const PAGE_SIZE = 20;
 

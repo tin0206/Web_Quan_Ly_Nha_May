@@ -1,7 +1,7 @@
 // Lấy id từ query string
 const recipeId = window.location.pathname.split("/").pop();
 
-const API_ROUTE = "http://localhost:8001";
+const API_ROUTE = window.API_ROUTE;
 
 let recipeDetail = null;
 let recipeProcesses = [];

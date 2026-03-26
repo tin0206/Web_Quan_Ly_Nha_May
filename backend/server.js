@@ -2,8 +2,6 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 
-// const API_ROUTE = `http://${window.location.hostname}:8000`;
-
 require("dotenv").config({
   path: path.resolve(__dirname, "../.env"),
 });
@@ -19,6 +17,12 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
+
+app.get("/config.js", (req, res) => {
+  res.setHeader("Content-Type", "application/javascript");
+  const apiUrl = process.env.API_ROUTE;
+  res.send(`window.API_ROUTE = "${apiUrl}";`);
+});
 
 (async () => {
   try {
