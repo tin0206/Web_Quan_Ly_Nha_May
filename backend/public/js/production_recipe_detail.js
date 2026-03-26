@@ -1,8 +1,8 @@
 // Lấy id từ query string
 const recipeId = window.location.pathname.split("/").pop();
 
-const API_ROUTE = window.location.origin;
-// const API_ROUTE = "http://localhost:5075";
+// const API_ROUTE = window.location.origin;
+const API_ROUTE = "http://localhost:5075";
 
 let recipeDetail = null;
 let recipeProcesses = [];
@@ -119,9 +119,9 @@ function formatDateTime(dateString) {
 
 async function fetchRecipeDetail(recipeId) {
   const response = await fetch(
-    `${API_ROUTE}/api/production-recipe-detail/${recipeId}`,
+    // `${API_ROUTE}/api/production-recipe-detail/${recipeId}`,
+    `${API_ROUTE}/api/recipedetails/${recipeId}`,
     {
-      // const response = await fetch(`${API_ROUTE}/api/recipedetails/${recipeId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

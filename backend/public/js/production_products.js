@@ -1,5 +1,5 @@
-const API_ROUTE = window.location.origin;
-// const API_ROUTE = "http://localhost:5075";
+// const API_ROUTE = window.location.origin;
+const API_ROUTE = "http://localhost:5075";
 
 const STATE_KEY = "products_filters_state_v1";
 let productsCache = [];
@@ -23,8 +23,8 @@ function formatDateTime(dateString) {
 }
 
 async function fetchTypes() {
-  const res = await fetch(`${API_ROUTE}/api/production-products/types`);
-  // const res = await fetch(`${API_ROUTE}/api/products/types`);
+  // const res = await fetch(`${API_ROUTE}/api/production-products/types`);
+  const res = await fetch(`${API_ROUTE}/api/products/types`);
   if (!res.ok) throw new Error("Không lấy được danh sách loại");
   return await res.json();
 }
@@ -32,8 +32,8 @@ async function fetchTypes() {
 async function fetchFilteredStats(params) {
   const query = new URLSearchParams(params);
   const res = await fetch(
-    `${API_ROUTE}/api/production-products/stats/search?${query.toString()}`,
-    // `${API_ROUTE}/api/products/stats/search?${query.toString()}`,
+    // `${API_ROUTE}/api/production-products/stats/search?${query.toString()}`,
+    `${API_ROUTE}/api/products/stats/search?${query.toString()}`,
   );
   if (!res.ok) throw new Error("Không lấy được thống kê theo bộ lọc");
   return await res.json();
@@ -72,8 +72,8 @@ function buildSearchParams() {
 async function fetchSearchResults(params) {
   const query = new URLSearchParams(params);
   const res = await fetch(
-    `${API_ROUTE}/api/production-products/search?${query.toString()}`,
-    // `${API_ROUTE}/api/products/search?${query.toString()}`,
+    // `${API_ROUTE}/api/production-products/search?${query.toString()}`,
+    `${API_ROUTE}/api/products/search?${query.toString()}`,
   );
   if (!res.ok) throw new Error("Không lấy được kết quả tìm kiếm");
   return await res.json();
